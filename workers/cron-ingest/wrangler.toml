@@ -1,0 +1,32 @@
+name = "faro-ve-cron-ingest"
+main = "src/index.ts"
+compatibility_date = "2026-06-20"
+compatibility_flags = ["nodejs_compat"]
+
+# Scrapers cada 6h — robots.txt check + UA identificada + throttle 1 req/2s
+[triggers]
+crons = ["0 */6 * * *"]
+
+# Variables públicas (no-secrets)
+[vars]
+INGEST_USER_AGENT = "FaroVE-IngestBot/1.0 (+contacto@faro-ve.com)"
+INGEST_REQUEST_DELAY_MS = "2000"
+INGEST_MIN_PARSE_RATE = "0.5"
+
+# Secrets a inyectar via: wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+#   - PUBLIC_SUPABASE_URL
+#   - SUPABASE_SERVICE_ROLE_KEY
+#   - APP_SALT
+#   - ADMIN_NOTIFY_EMAIL_RESEND_API_KEY
+#   - RESEND_API_KEY
+#   - RESEND_INBOUND_OPTOUT  (default opt-out@faro-ve.com)
+
+# Cloudflare KV para checkpoints de last-seen-id por fuente
+# Crear con: wrangler kv:namespace create INGEST_STATE
+# [[kv_namespaces]]
+# binding = "INGEST_STATE"
+# id = "<RELLENAR>"
+
+# Observabilidad: workers logs auto-habilitada
+[observability]
+enabled = true

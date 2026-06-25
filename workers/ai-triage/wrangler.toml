@@ -1,0 +1,22 @@
+name = "faro-ve-ai-triage"
+main = "src/index.ts"
+compatibility_date = "2026-06-20"
+compatibility_flags = ["nodejs_compat"]
+
+# Cada 15 minutos
+[triggers]
+crons = ["*/15 * * * *"]
+
+[vars]
+LLM_MODEL_DEFAULT = "claude-haiku-4-5-20251001"
+TRIAGE_BATCH_SIZE = "20"
+
+# Secrets:
+#   - PUBLIC_SUPABASE_URL
+#   - SUPABASE_SERVICE_ROLE_KEY
+#   - ANTHROPIC_API_KEY
+#   - ANTHROPIC_GATEWAY_URL
+#   - LLM_DAILY_BUDGET_USD (default 5)
+
+[observability]
+enabled = true

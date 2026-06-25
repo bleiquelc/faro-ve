@@ -1,0 +1,23 @@
+name = "faro-ve-ai-health"
+main = "src/index.ts"
+compatibility_date = "2026-06-20"
+compatibility_flags = ["nodejs_compat"]
+
+# 9am Caracas (13:00 UTC) cada día = "0 13 * * *"
+[triggers]
+crons = ["0 13 * * *"]
+
+[vars]
+LLM_MODEL_DEFAULT = "claude-haiku-4-5-20251001"
+HEALTH_FROM_EMAIL = "Faro VE Health <health@faro-ve.com>"
+HEALTH_TO_EMAIL = "bleiquelc@gmail.com"
+
+# Secrets via wrangler secret put:
+#   - PUBLIC_SUPABASE_URL
+#   - SUPABASE_SERVICE_ROLE_KEY
+#   - ANTHROPIC_API_KEY
+#   - ANTHROPIC_GATEWAY_URL
+#   - RESEND_API_KEY
+
+[observability]
+enabled = true
