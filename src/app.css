@@ -49,3 +49,36 @@
     text-wrap: pretty;
   }
 }
+
+/* ── Mapa "puntos de luz": reduced-motion congela a estático legible ────────── */
+@media (prefers-reduced-motion: reduce) {
+  .faro-glow {
+    transform: none !important;
+    opacity: 0.8 !important;
+    animation: none !important;
+  }
+  .faro-beacon::after,
+  .faro-loading::before {
+    display: none !important;
+  }
+}
+
+/* Toggle "bajo consumo" (clase en <html>, O(1) — apaga movimiento + filtro caro) */
+html.low-power .faro-glow {
+  animation: none !important;
+}
+html.low-power .faro-beacon::after {
+  display: none !important;
+}
+html.low-power .faro-tiles {
+  filter: saturate(0.7) brightness(0.97);
+}
+html.low-power .faro-veil {
+  display: none;
+}
+
+/* Pausa la respiración mientras el usuario mueve/zoomea el mapa (no compite con scroll) */
+.faro-still .faro-glow,
+.faro-still .faro-beacon::after {
+  animation-play-state: paused;
+}

@@ -88,12 +88,17 @@ export const LABEL_EN: Record<CategoryToken, string> = {
   closed: 'Closed'
 };
 
-/** Animación CSS (clase Tailwind) por categoría, o null si estática. */
+/**
+ * Animación CSS (clase Tailwind) por categoría — se aplica al HALO de luz.
+ * minor/medical laten (prioridad); missing/sighting respiran muy tenue para que
+ * el mapa "viva" sin alarmar; deceased/closed SIEMPRE estáticos (un cuerpo NN
+ * no debe latir — dignidad). null = estático.
+ */
 export const PULSE_CLASS: Record<CategoryToken, string | null> = {
   minor: 'animate-pulse-minor',
   medical: 'animate-pulse-medical',
-  missing: null,
-  sighting: null,
+  missing: 'animate-glow-breath',
+  sighting: 'animate-glow-breath',
   deceased: null,
   safe: 'animate-fade-in',
   shelter: null,

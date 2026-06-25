@@ -42,27 +42,38 @@ export default {
         ]
       },
       animation: {
-        'pulse-minor': 'pulse-minor 2s ease-in-out infinite',
-        'pulse-medical': 'pulse-medical 1.2s ease-in-out infinite',
-        'fade-in': 'fade-in 0.4s ease-out',
+        // La animación late en el HALO de luz (.faro-glow), no en el núcleo,
+        // así el color del pin queda quieto y legible mientras "respira" la luz.
+        'pulse-minor': 'pulse-minor 2.4s ease-in-out infinite',
+        'pulse-medical': 'pulse-medical 1.4s ease-in-out infinite',
+        'glow-breath': 'glow-breath 4.5s ease-in-out infinite',
+        'fade-in': 'fade-in 0.45s ease-out',
         'ripple': 'ripple 0.6s ease-out'
       },
       keyframes: {
+        // respiración: el halo inhala/exhala; el núcleo queda quieto y legible
         'pulse-minor': {
-          '0%, 100%': { transform: 'scale(1)', opacity: '1' },
-          '50%': { transform: 'scale(1.15)', opacity: '0.85' }
+          '0%, 100%': { transform: 'scale(1)', opacity: '0.85' },
+          '50%': { transform: 'scale(1.35)', opacity: '0.45' }
         },
         'pulse-medical': {
-          '0%, 100%': { transform: 'scale(1)', opacity: '1' },
-          '50%': { transform: 'scale(1.18)', opacity: '0.82' }
+          '0%, 100%': { transform: 'scale(1)', opacity: '0.90' },
+          '50%': { transform: 'scale(1.30)', opacity: '0.50' }
         },
+        // respiración muy tenue para desaparecido/avistamiento (casi imperceptible)
+        'glow-breath': {
+          '0%, 100%': { transform: 'scale(1)', opacity: '0.80' },
+          '50%': { transform: 'scale(1.12)', opacity: '0.62' }
+        },
+        // "encenderse": el a-salvo aparece como una luz que prende
         'fade-in': {
-          from: { opacity: '0', transform: 'translateY(4px)' },
-          to: { opacity: '1', transform: 'translateY(0)' }
+          from: { opacity: '0', transform: 'scale(0.6)' },
+          to: { opacity: '1', transform: 'scale(1)' }
         },
+        // anillo de faro (beacon) para el "apareció a salvo" en realtime
         ripple: {
-          from: { transform: 'scale(0)', opacity: '0.5' },
-          to: { transform: 'scale(2.4)', opacity: '0' }
+          from: { transform: 'scale(0.8)', opacity: '0.6' },
+          to: { transform: 'scale(2.6)', opacity: '0' }
         }
       },
       minHeight: {
