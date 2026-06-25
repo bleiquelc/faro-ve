@@ -113,6 +113,10 @@
       errorMsg = 'Escribe al menos el nombre de la persona.';
       return;
     }
+    if (!reporter_phone.trim()) {
+      errorMsg = 'Tu WhatsApp es necesario para verificar que el reporte es real.';
+      return;
+    }
     if (photoState === 'uploading') {
       errorMsg = 'La foto aún se está procesando, espera un momento.';
       return;
@@ -326,12 +330,24 @@
           </label>
         </div>
         <label class="block">
-          <span class="text-sm font-medium text-gray-700">Tu email</span>
-          <input bind:value={reporter_email} type="email" maxlength="200" class="mt-1 min-h-tap w-full rounded-lg border border-gray-300 px-3 py-2" autocomplete="email" />
+          <span class="text-sm font-medium text-gray-700">Tu WhatsApp *</span>
+          <input
+            bind:value={reporter_phone}
+            type="tel"
+            required
+            maxlength="40"
+            placeholder="+58 412 1234567"
+            class="mt-1 min-h-tap w-full rounded-lg border border-gray-300 px-3 py-2"
+            autocomplete="tel"
+          />
+          <span class="mt-1 block text-xs text-gray-500">
+            Necesario para <strong>verificar que el reporte es real</strong>. No se muestra
+            públicamente; queda cifrado.
+          </span>
         </label>
         <label class="block">
-          <span class="text-sm font-medium text-gray-700">Tu teléfono (opcional)</span>
-          <input bind:value={reporter_phone} type="tel" maxlength="40" class="mt-1 min-h-tap w-full rounded-lg border border-gray-300 px-3 py-2" autocomplete="tel" />
+          <span class="text-sm font-medium text-gray-700">Tu email (opcional)</span>
+          <input bind:value={reporter_email} type="email" maxlength="200" class="mt-1 min-h-tap w-full rounded-lg border border-gray-300 px-3 py-2" autocomplete="email" />
         </label>
       </fieldset>
 
