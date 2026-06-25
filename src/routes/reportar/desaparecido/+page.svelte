@@ -1,5 +1,6 @@
 <script lang="ts">
   import Turnstile from '$components/Turnstile.svelte';
+  import { uploadPhoto } from '$lib/client/photo';
 
   /**
    * "Reportar a alguien que no encuentro" — reporte de un tercero desaparecido.
@@ -49,6 +50,38 @@
   let errorMsg = '';
   let done = false;
 
+  // Foto: se comprime + limpia EXIF y se sube en cuanto se elige (no bloquea el envío).
+  let photoState: 'idle' | 'uploading' | 'ok' | 'error' = 'idle';
+  let photoPath: string | null = null;
+  let photoError = '';
+  let photoPreview: string | null = null;
+
+  async function onPhoto(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    photoError = '';
+    photoState = 'uploading';
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    photoPreview = URL.createObjectURL(file);
+    const r = await uploadPhoto(file);
+    if (r.ok) {
+      photoPath = r.path;
+      photoState = 'ok';
+    } else {
+      photoPath = null;
+      photoError = r.error;
+      photoState = 'error';
+    }
+  }
+  function removePhoto() {
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    photoPreview = null;
+    photoPath = null;
+    photoState = 'idle';
+    photoError = '';
+  }
+
   function useLocation() {
     if (!('geolocation' in navigator)) {
       geoState = 'denied';
@@ -90,6 +123,7 @@
         clothing_top: clothing_top.trim() || undefined,
         clothing_bottom: clothing_bottom.trim() || undefined,
         distinguishing_marks: distinguishing_marks.trim() || undefined,
+        photo_url: photoPath || undefined,
         description: description.trim() || undefined,
         medical_urgent,
         medical_category: medical_urgent && medical_category ? medical_category : undefined,
@@ -214,6 +248,31 @@
           <span class="text-sm font-medium text-gray-700">Señas particulares</span>
           <input bind:value={distinguishing_marks} maxlength="500" class="mt-1 min-h-tap w-full rounded-lg border border-gray-300 px-3 py-2" placeholder="Cicatriz, tatuaje, lentes…" />
         </label>
+
+        <!-- Foto (opcional) — se comprime y se limpia la ubicación antes de subir -->
+        <div class="rounded-xl border border-gray-200 p-4">
+          <span class="text-sm font-medium text-gray-700">Foto (opcional)</span>
+          {#if photoState === 'ok' && photoPreview}
+            <div class="mt-2 flex items-center gap-3">
+              <img src={photoPreview} alt="Vista previa" class="h-16 w-16 rounded-lg object-cover" />
+              <span class="text-sm text-green-700">Foto lista ✓</span>
+              <button type="button" on:click={removePhoto} class="ml-auto text-sm text-gray-500 underline">Quitar</button>
+            </div>
+          {:else}
+            <label class="mt-2 flex min-h-tap cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 px-4 py-3 text-sm text-faro-900 hover:bg-faro-50">
+              <span aria-hidden="true">📷</span>
+              {photoState === 'uploading' ? 'Procesando…' : 'Agregar foto'}
+              <input type="file" accept="image/*" capture="environment" on:change={onPhoto} class="sr-only" />
+            </label>
+          {/if}
+          {#if photoState === 'error'}
+            <p class="mt-2 text-xs text-red-600">{photoError}</p>
+          {/if}
+          <p class="mt-2 text-xs text-gray-500">
+            La foto se comprime y se le borra la ubicación automáticamente. Si la persona es menor de
+            edad, su foto <strong>no se mostrará públicamente</strong>.
+          </p>
+        </div>
 
         <label class="flex items-start gap-3">
           <input type="checkbox" bind:checked={medical_urgent} class="mt-1 h-5 w-5 shrink-0" />

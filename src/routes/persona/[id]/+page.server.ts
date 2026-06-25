@@ -39,7 +39,25 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders }) => {
     throw error(404, { message: 'Persona no encontrada o no disponible públicamente.' });
   }
 
-  setHeaders({ 'cache-control': 'public, max-age=15, s-maxage=30' });
+  const person = data as unknown as PersonPublic;
 
-  return { person: data as unknown as PersonPublic };
+  // Foto: persons_public ya devolvió null si es menor/admin_only. Si hay valor:
+  //  - URL externa (fuente ingestada) → se usa tal cual.
+  //  - PATH del bucket privado (uuid.jpg) → se firma una URL de corta vida.
+  let photoUrl: string | null = null;
+  const raw = person.photo_url;
+  if (raw) {
+    if (/^https?:\/\//i.test(raw)) {
+      photoUrl = raw;
+    } else {
+      const { data: signed } = await locals.supabaseAdmin.storage
+        .from('report-photos')
+        .createSignedUrl(raw, 3600);
+      photoUrl = signed?.signedUrl ?? null;
+    }
+  }
+
+  setHeaders({ 'cache-control': 'private, max-age=15' });
+
+  return { person, photoUrl };
 };

@@ -5,6 +5,7 @@
 
   export let data: PageData;
   $: p = data.person;
+  $: photoUrl = data.photoUrl;
   $: cat = categoryForPerson(p);
 
   // Opt-in del propio sujeto (CLAUDE #26 ⚠️): un auto-reporte "a salvo" puede
@@ -58,9 +59,9 @@
     <h1 class="text-2xl font-bold text-gray-900">{p.full_name || 'Sin nombre'}{age}</h1>
   </header>
 
-  {#if p.photo_url}
+  {#if photoUrl}
     <img
-      src={p.photo_url}
+      src={photoUrl}
       alt="Foto de {p.full_name || 'la persona'}"
       class="mt-4 max-h-72 w-full rounded-xl object-cover"
       loading="lazy"

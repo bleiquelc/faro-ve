@@ -100,6 +100,13 @@ export const reportPersonSchema = z.object({
   clothing_shoes: z.string().trim().max(200).optional(),
   distinguishing_marks: z.string().trim().max(500).optional(),
 
+  // Foto: PATH en el bucket privado report-photos (formato uuid.jpg que produce
+  // /api/upload-url). Restringido para evitar inyección de paths arbitrarios.
+  photo_url: z
+    .string()
+    .regex(/^[0-9a-f-]{36}\.jpg$/i, 'photo_url inválido')
+    .optional(),
+
   // Urgencia médica
   medical_urgent: z.coerce.boolean().optional().default(false),
   medical_category: z.enum(MEDICAL_CATEGORY).optional(),

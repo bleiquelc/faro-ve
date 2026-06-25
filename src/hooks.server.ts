@@ -62,8 +62,13 @@ const PUBLIC_POST_PATHS = new Set([
   '/api/message',
   '/api/aid-points',
   '/api/offline-sync',
-  '/api/ai/ask'
+  '/api/ai/ask',
+  '/api/upload-url'
 ]);
+
+// Mutaciones públicas EXENTAS de Turnstile (pero con rate-limit y config-guard):
+// la URL de subida se pide ANTES de que el usuario resuelva el captcha del envío.
+const TURNSTILE_EXEMPT = new Set(['/api/upload-url']);
 
 function isPublicMutation(event: Event): boolean {
   if (event.request.method !== 'POST' && event.request.method !== 'PUT') return false;
@@ -214,6 +219,10 @@ const handleConfigGuard: Handle = async ({ event, resolve }) => {
 const handleTurnstile: Handle = async ({ event, resolve }) => {
   if (!isPublicMutation(event)) return resolve(event);
 
+  // Endpoints exentos (p.ej. /api/upload-url): sin Turnstile, pero ya pasaron
+  // config-guard y pasan por rate-limit abajo.
+  if (TURNSTILE_EXEMPT.has(event.url.pathname)) return resolve(event);
+
   // Bypass únicamente para moderador VALIDADO (getUser + tabla moderators).
   if (event.locals.moderator) {
     event.locals.turnstileVerified = true;
@@ -292,7 +301,8 @@ const RATE_LIMITS: Record<string, { windowSec: number; max: number }> = {
   '/api/message': { windowSec: 600, max: 6 },
   '/api/aid-points': { windowSec: 3600, max: 10 },
   '/api/offline-sync': { windowSec: 60, max: 20 },
-  '/api/ai/ask': { windowSec: 86400, max: 10 }
+  '/api/ai/ask': { windowSec: 86400, max: 10 },
+  '/api/upload-url': { windowSec: 3600, max: 20 }
 };
 
 const handleRateLimit: Handle = async ({ event, resolve }) => {
