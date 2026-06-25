@@ -60,8 +60,18 @@ order, minor-photo generated-column). **Total: 13 bugs antes de producción.**
 
 ## Infra desplegada
 - ✅ Cloudflare account `64a18868c428ecbfdaf67d69edffb888` (bybleiquel@gmail.com), wrangler login OK.
-- ✅ Pages project `faro-ve` → **https://faro-ve.pages.dev** (HTTP 200, placeholder live).
+- ✅ Pages project `faro-ve` → **https://faro-ve.pages.dev** + **https://faro-ve.com** (HTTPS, HTTP 200) + www.
+- ✅ Dominio `faro-ve.com` registrado (CF Registrar), DNSSEC, conectado a Pages, cert SSL emitido.
 - ✅ KV namespace `RATE_LIMIT` id `c2a055cea3ca4dc098144ec69e948274` (en wrangler.toml).
+- ✅ Botón "Instalar app" (InstallPrompt) live en home.
+
+## Día 2 — EN PROGRESO (base del mapa lista)
+- ✅ `lib/schemas/person.ts` — Zod (reportPersonSchema + personFiltersSchema + PersonPublic).
+- ✅ `routes/api/persons/+server.ts` — GET desde persons_public (filtros status/is_minor/medical/sector/bbox), lee con cliente anon.
+- ✅ `lib/components/Map.svelte` — Leaflet + MarkerCluster + DivIcon SVG color/pulso + popup SIN navegación + "ubicación aproximada". Ruta `/mapa`.
+- ✅ `scripts/seed-test-persons.mjs` — 30 reportes test insertados (10 menores, 6 médicos). persons_public los sirve ofuscados (213m verificado).
+- ⏳ **Falta para ver el mapa live**: setear `PUBLIC_SUPABASE_ANON_KEY` como Pages secret + redeploy. Luego `/mapa` muestra los 30 pines.
+- ⏳ Pendiente D2: POST /api/persons (reporte + EXIF strip), form reportar/desaparecido, persona/[id], FilterChips, animaciones pulse en CSS global.
 
 ## Bloqueadores / pendientes founder
 
