@@ -3,6 +3,7 @@
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import FilterChips from '$components/FilterChips.svelte';
+  import RefreshButton from '$components/RefreshButton.svelte';
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let MapComp: any = null;
 
@@ -11,8 +12,17 @@
     MapComp = (await import('$components/Map.svelte')).default;
   });
 
-  // Endpoint reactivo: arrastra los filtros de la URL (?status=…, ?q=…).
-  $: endpoint = `/api/persons${$page.url.search}`;
+  // Endpoint reactivo: arrastra los filtros de la URL (?status=…, ?q=…) pero
+  // EXCLUYE `aid` (toggle de la capa de ayuda) → alternar esa capa no remonta el
+  // mapa de personas; showAid se pasa como prop reactiva.
+  $: personSearch = (() => {
+    const p = new URLSearchParams($page.url.searchParams);
+    p.delete('aid');
+    const qs = p.toString();
+    return qs ? `?${qs}` : '';
+  })();
+  $: endpoint = `/api/persons${personSearch}`;
+  $: showAid = $page.url.searchParams.get('aid') === '1';
 
   // Buscador por nombre — preserva los filtros activos y setea ?q=.
   let showSearch = false;
@@ -40,7 +50,10 @@
   <div
     class="absolute inset-x-0 top-0 z-[1001] bg-gradient-to-b from-black/20 to-transparent pt-[env(safe-area-inset-top)]"
   >
-    <FilterChips />
+    <div class="flex items-center gap-2 pr-2">
+      <div class="min-w-0 flex-1"><FilterChips /></div>
+      <RefreshButton tone="dark" />
+    </div>
     {#if showSearch}
       <form class="px-3 pb-2" on:submit|preventDefault={runSearch}>
         <div class="flex items-center gap-2 rounded-full bg-white px-3 py-1.5 shadow-lg">
@@ -63,8 +76,12 @@
   <!-- Mapa (lo más visible) -->
   <div class="h-full w-full">
     {#if MapComp}
+      <!-- {#key endpoint}: cambiar un filtro de PERSONAS remonta el mapa (recarga
+           limpia). Como efecto, si la capa de ayuda está activa se re-descarga
+           desde cero — aceptable por el bajo volumen de aid_points; si crecen,
+           hoistear la capa fuera del {#key} o cachear por bbox. -->
       {#key endpoint}
-        <svelte:component this={MapComp} {endpoint} />
+        <svelte:component this={MapComp} {endpoint} {showAid} />
       {/key}
     {:else}
       <div class="flex h-full items-center justify-center text-white/80">Encendiendo el mapa…</div>
@@ -82,7 +99,7 @@
       <a
         href="/"
         data-sveltekit-preload-data="hover"
-        class="min-h-tap flex flex-col items-center justify-center rounded-full px-4 py-1.5 text-[11px] font-medium text-white/90 transition hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white/60"
+        class="min-h-tap flex flex-col items-center justify-center rounded-full px-4 py-1.5 text-[11px] font-medium text-white/90 transition-all duration-200 ease-out active:scale-[0.95] hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white/60"
       >
         <span class="text-lg leading-none" aria-hidden="true">🏠</span>
         <span>Inicio</span>
@@ -91,7 +108,7 @@
         type="button"
         on:click={toggleSearch}
         aria-pressed={showSearch}
-        class="min-h-tap flex flex-col items-center justify-center rounded-full px-4 py-1.5 text-[11px] font-medium text-white transition {showSearch
+        class="min-h-tap flex flex-col items-center justify-center rounded-full px-4 py-1.5 text-[11px] font-medium text-white transition-all duration-200 ease-out active:scale-[0.95] {showSearch
           ? 'bg-white/20'
           : 'hover:bg-white/15'} focus:outline-none focus:ring-2 focus:ring-white/60"
       >
@@ -101,7 +118,7 @@
       <a
         href="/reportar/a-salvo"
         data-sveltekit-preload-data="hover"
-        class="min-h-tap flex flex-col items-center justify-center rounded-full px-4 py-1.5 text-[11px] font-medium text-white/90 transition hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white/60"
+        class="min-h-tap flex flex-col items-center justify-center rounded-full px-4 py-1.5 text-[11px] font-medium text-white/90 transition-all duration-200 ease-out active:scale-[0.95] hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white/60"
       >
         <span class="text-lg leading-none" aria-hidden="true">💚</span>
         <span>Estoy bien</span>

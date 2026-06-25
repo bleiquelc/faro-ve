@@ -79,10 +79,12 @@
 <style>
   .faro-glow-anim {
     transform-origin: 32px 16px;
-    animation: faro-lamp-breathe 3.6s ease-in-out infinite;
+    /* Respiración de la lámpara: lenta y suave (bienvenida del faro). */
+    animation: faro-lamp-breathe 4.8s ease-in-out infinite;
   }
   .faro-beams-anim {
-    animation: faro-beams-rot 9s linear infinite;
+    /* Haces girando muy lento → la luz se mueve suave, sin tirones. */
+    animation: faro-beams-rot 13s ease-in-out infinite;
   }
   @keyframes faro-lamp-breathe {
     0%,

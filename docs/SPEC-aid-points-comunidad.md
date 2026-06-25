@@ -53,3 +53,14 @@ Fricción mínima; la comunidad autorregula; el founder (solo, en Suiza) intervi
 - Umbral auto-ocultar: **net ≥ 3**.
 - Acción: **auto-ocultar** (reversible), no borrar.
 - Reactivación exige WhatsApp → enviado al founder, cifrado, no público.
+
+## Nota de seguridad — acceso al panel de orgs (futuro)
+La migración 0014 hace `revoke select on aid_points from anon, authenticated` (las columnas sensibles
+`reactivated_by_phone_encrypted` y `submitted_ip_hashed` viven en la tabla base; la anon key es pública).
+El público lee SOLO la vista `aid_points_public` (corre como owner). Consecuencia para más adelante:
+la policy RLS `aid_points_org_modify` (0007, `for all to authenticated`) quedó **inerte vía PostgREST**
+— de hecho `authenticated` nunca tuvo grant de tabla sobre `aid_points`, así que la policy nunca fue
+ejecutable por PostgREST. Cuando se construya el panel de orgs/moderadores que gestione sus puntos,
+debe hacerlo por **RPC `SECURITY DEFINER` (service_role)** —espejando register/vote/reactivate/get_aid_point—
+o por una **vista dedicada concedida a `authenticated`**, NUNCA por lectura/escritura directa de la tabla
+base. (El admin lee el WhatsApp del reactivador solo vía `get_aid_point_reactivator_phone`, que audita.)

@@ -78,6 +78,22 @@ order, minor-photo generated-column). **Total: 13 bugs antes de producción.**
 - ⏳ **Para activar reportes en prod** (founder): aplicar 0010 + setear `SUPABASE_SERVICE_ROLE_KEY` + `TURNSTILE_*` + redeploy. Ver `docs/HANDOFF-dia2-deploy.md`.
 - ⏳ Pendiente D2/D3: subida de foto con EXIF strip, FilterChips ya commiteado, moderación, relay /mensaje.
 
+## 2026-06-26 — Capa de lugares de servicio + autorregulación + pulido UX
+Detalle: `docs/SESSIONS/2026-06-26-aid-points-comunidad.md`.
+- ✅ **Vertical aid_points** (Prioridad #2): alta pública (visible al instante, sin verificar, coords
+  EXACTAS), votos confirmar/reportar (1/IP, net≥3 → auto-ocultar reversible + alerta founder),
+  reactivación con WhatsApp cifrado (RPC admin auditado). Migración `0014` + 6 RPCs + vista pública +
+  `founder_alerts`. Endpoints + formulario + ficha SSR (`/punto/[id]`) + capa de mapa (chip "Ayuda").
+- ✅ **Pulido**: iconos web minimalistas estilo faro (regenerados); botón **Actualizar** PWA-aware;
+  animaciones más suaves (haz del faro, bienvenida, taps); **filtros combinables** (estado + Menores/Urgencia).
+- ✅ **2 revisiones adversariales multi-agente** antes de prod: 26 hallazgos → 15 confirmados arreglados
+  (1 blocker de privacidad: `revoke select on aid_points from anon/authenticated`; 1 high: alta no se
+  bloquea si el GPS falla → `LocationPicker` mini-mapa), 10 refutados.
+- ✅ `svelte-check` 0 err · 36/36 tests (14 nuevos) · build limpio · preview verificado.
+- ⏳ **Para activar en prod** (founder): aplicar `0014` + correr `scripts/verify-aid-points.mjs` + setear
+  `SUPABASE_SERVICE_ROLE_KEY` + `TURNSTILE_*` + redeploy. (La capa de LECTURA del mapa funciona sin secretos;
+  alta/voto/reactivación + reportes de personas exigen service_role.)
+
 ## Bloqueadores / pendientes founder
 
 1. **Tarjeta en Cloudflare** → para registrar `faro-ve.com` (disponible ✓; yo no puedo meter datos de tarjeta). El PLAN agenda DNS final en D6, así que no bloquea — seguimos en pages.dev.
