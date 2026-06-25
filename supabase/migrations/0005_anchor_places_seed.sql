@@ -1,8 +1,42 @@
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 0005_anchor_places_seed.sql
--- Seed Venezuela: ciudades + 23 parroquias Caracas + sectores + hospitales +
--- morgue. ~100 entradas iniciales; ampliable via OSM Overpass después.
+-- Tabla anchor_places (autocomplete de lugares VE) + seed Venezuela:
+-- ciudades + 23 parroquias Caracas + sectores + hospitales + morgue.
+-- La tabla se define AQUÍ (no en 0006) porque el seed corre en este mismo
+-- archivo y necesita que exista antes del INSERT.
 -- ─────────────────────────────────────────────────────────────────────────────
+
+do $$ begin
+  create type anchor_kind as enum (
+    'city', 'parish', 'neighborhood', 'sector', 'hospital', 'morgue',
+    'shelter_known', 'landmark', 'church', 'school', 'plaza', 'station'
+  );
+exception when duplicate_object then null; end $$;
+
+create table if not exists anchor_places (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  alt_names text[],
+  kind anchor_kind not null,
+  parent_city text,
+  state text,
+  country text default 'VE',
+  point geography(Point, 4326),
+  osm_id text,
+  notes text,
+  popularity int default 0,
+  active bool default true,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists anchor_places_name_trgm
+  on anchor_places using gin (name gin_trgm_ops);
+create index if not exists anchor_places_kind_idx
+  on anchor_places (kind, parent_city) where active = true;
+create index if not exists anchor_places_point_gist
+  on anchor_places using gist (point);
+
+grant select on anchor_places to anon;
 
 insert into anchor_places (name, alt_names, kind, parent_city, state, point) values
   -- Caracas - ciudad

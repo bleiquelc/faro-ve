@@ -97,13 +97,14 @@ async function main() {
     const saltPath = join(homedir(), '.secrets', 'faro-ve', 'APP_SALT.txt');
     const salt = readFileSync(saltPath, 'utf8').trim();
     if (salt.length < 32) throw new Error('APP_SALT muy corto en ' + saltPath);
-    // Setea app.salt a nivel de base de datos para que get_app_salt() lo lea.
-    const dbName = (await client.query('select current_database() as db')).rows[0].db;
+    // Guarda el salt en app_config (tabla privada). get_app_salt() lo lee.
+    // (Supabase no permite ALTER DATABASE SET con el rol postgres.)
     await client.query(
-      `alter database ${client.escapeIdentifier(dbName)} set app.salt = ${client.escapeLiteral(salt)}`
+      `insert into app_config(key, value) values('app_salt', $1)
+       on conflict(key) do update set value = excluded.value, updated_at = now()`,
+      [salt]
     );
-    console.log(`\n🔑 app.salt seteado en la base ${dbName} (longitud ${salt.length}).`);
-    console.log('   (requiere reconexión para que las sesiones nuevas lo vean.)');
+    console.log(`\n🔑 app_salt guardado en app_config (longitud ${salt.length}).`);
   }
 
   console.log('\n✅ Migraciones aplicadas.');
