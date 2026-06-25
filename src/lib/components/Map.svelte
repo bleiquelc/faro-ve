@@ -52,6 +52,18 @@
   let loadTimer: ReturnType<typeof setTimeout> | null = null;
   let truncated = false; // la última carga topó el límite → hay más en esa zona
 
+  // Modo de visualización (solo /mapa interactivo): a zoom bajo, burbujas por ZONA
+  // con conteo REAL (agregación server-side, no la muestra topada a 1000); al
+  // acercar se refinan y, pasado ZOOM_POINTS, se ven pines individuales.
+  const ZOOM_POINTS = 13;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let aggLayer: any = null;
+  let aggCount = 0; // suma de conteos de las burbujas visibles ("N en vista")
+  let viewMode: 'agg' | 'points' = 'agg';
+  // Época: invalida una carga de agregados en vuelo si el modo/zona cambió antes
+  // de que resolviera (evita pintar burbujas stale sobre el modo de pines).
+  let aggEpoch = 0;
+
   // Capa de ayuda: se crea/destruye según showAid (import diferido). mounted evita
   // que la reactividad corra antes de que el mapa exista.
   let mounted = false;
@@ -240,6 +252,94 @@
     loadTimer = setTimeout(() => loadData(true), 400);
   }
 
+  // ── Modo agregado: burbujas por zona con conteo REAL (zoom bajo) ──────────────
+  function bubbleSize(n: number): number {
+    return n < 10 ? 38 : n < 100 ? 50 : n < 1000 ? 62 : 74;
+  }
+
+  function renderAgg(clusters: { lat: number; lng: number; n: number }[]): void {
+    if (!aggLayer) return;
+    aggLayer.clearLayers();
+    let sum = 0;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const markers: any[] = [];
+    for (const c of clusters) {
+      if (c.lat == null || c.lng == null || !c.n) continue;
+      sum += c.n;
+      const size = bubbleSize(c.n);
+      const icon = Lref.divIcon({
+        html: `<span class="faro-aggbubble" style="--s:${size}px"><b>${c.n.toLocaleString('es-VE')}</b></span>`,
+        className: 'faro-aggwrap',
+        iconSize: [size, size]
+      });
+      const m = Lref.marker([c.lat, c.lng], {
+        icon,
+        keyboard: true,
+        title: `${c.n.toLocaleString('es-VE')} reportados en esta zona`
+      });
+      // Tocar una burbuja acerca → la zona se separa en burbujas más finas.
+      m.on('click', () => map.flyTo([c.lat, c.lng], Math.min(map.getZoom() + 3, ZOOM_POINTS + 1)));
+      markers.push(m);
+    }
+    for (const m of markers) aggLayer.addLayer(m);
+    aggCount = sum;
+  }
+
+  async function loadAgg(): Promise<void> {
+    const epoch = ++aggEpoch;
+    try {
+      const bbox = bboxParam();
+      if (!bbox) {
+        loading = false;
+        return;
+      }
+      const z = Math.round(map.getZoom());
+      const base = endpoint.replace('/api/persons', '/api/persons/clusters');
+      const sep = base.includes('?') ? '&' : '?';
+      const res = await fetch(`${base}${sep}bbox=${bbox}&zoom=${z}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as { clusters: { lat: number; lng: number; n: number }[] };
+      // Si mientras llegaba la respuesta cambió el modo/zona, descártala.
+      if (epoch !== aggEpoch) return;
+      renderAgg(data.clusters ?? []);
+      errorMsg = '';
+    } catch (e) {
+      if (interactive) errorMsg = 'No se pudo encender el mapa. Revisa tu conexión.';
+      console.error('[Map] loadAgg', e);
+    } finally {
+      loading = false;
+    }
+  }
+
+  // Dispatcher por zoom (solo /mapa interactivo): burbujas agregadas vs pines.
+  function refresh(): void {
+    const z = map.getZoom();
+    if (z >= ZOOM_POINTS) {
+      aggEpoch++; // invalida cualquier loadAgg en vuelo (no pintar burbujas stale)
+      if (viewMode !== 'points') {
+        viewMode = 'points';
+        if (aggLayer) aggLayer.clearLayers();
+        aggCount = 0;
+      }
+      loadData(true);
+    } else {
+      if (viewMode !== 'agg') {
+        viewMode = 'agg';
+        cluster.clearLayers();
+        addedIds.clear();
+        people = [];
+        count = 0;
+        truncated = false;
+      }
+      loadAgg();
+    }
+  }
+
+  function scheduleRefresh(): void {
+    if (loadTimer) clearTimeout(loadTimer);
+    loadTimer = setTimeout(refresh, 400);
+  }
+
   // Total EXACTO de reportados (con los filtros activos). Informativo: si falla,
   // no rompe el mapa.
   async function loadTotal(): Promise<void> {
@@ -315,6 +415,10 @@
       }
     });
     map.addLayer(cluster);
+    // Capa de burbujas agregadas (conteo real por zona) — solo en /mapa interactivo
+    // (el home usa pines/luces, nunca agrega).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (interactive) aggLayer = (L as any).layerGroup().addTo(map);
 
     // Pausa la respiración mientras se mueve/zoomea (no compite con el scroll 30fps).
     map.on('movestart zoomstart', () => mapEl.classList.add('faro-still'));
@@ -335,9 +439,14 @@
           /* sin bounds válidos: dejamos la vista por defecto */
         }
       }
+    } else if (interactive) {
+      // /mapa interactivo: a zoom bajo, burbujas por zona con CONTEO REAL; al
+      // acercar se refinan y, pasado ZOOM_POINTS, se ven pines individuales.
+      map.on('moveend zoomend', scheduleRefresh);
+      refresh();
     } else {
-      // Navegación: carga la zona visible y, al mover/zoomear, carga más (acumula).
-      if (interactive) map.on('moveend zoomend', scheduleLoad);
+      // Home (papel tapiz): luces individuales (las "luces de esperanza"), sin
+      // agregación — una sola carga de la zona visible.
       await loadData(true);
     }
 
@@ -380,7 +489,9 @@
           {total.toLocaleString('es-VE')}
         </div>
         <div class="text-[10px] font-medium text-white/85">
-          personas reportadas{count && interactive ? ` · ${count} en vista` : ''}
+          personas reportadas{interactive && (viewMode === 'agg' ? aggCount : count)
+            ? ` · ${(viewMode === 'agg' ? aggCount : count).toLocaleString('es-VE')} en vista`
+            : ''}
         </div>
       </div>
       {#if (truncated || aidTruncated) && interactive}
@@ -539,6 +650,41 @@
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
   }
 
+  /* ── Burbuja agregada por zona (conteo REAL, zoom bajo) ── */
+  :global(.faro-aggwrap) {
+    background: transparent;
+    border: none;
+  }
+  :global(.faro-aggbubble) {
+    display: grid;
+    place-items: center;
+    width: var(--s);
+    height: var(--s);
+    border-radius: 50%;
+    background: radial-gradient(
+      circle,
+      rgba(11, 79, 108, 0.95) 0%,
+      rgba(11, 79, 108, 0.82) 60%,
+      rgba(11, 79, 108, 0.35) 100%
+    );
+    box-shadow:
+      0 0 14px 3px rgba(11, 79, 108, 0.45),
+      0 2px 6px rgba(0, 0, 0, 0.28);
+    border: 2px solid rgba(255, 255, 255, 0.9);
+    cursor: pointer;
+    transition: transform 0.15s ease;
+  }
+  :global(.faro-aggbubble:hover) {
+    transform: scale(1.06);
+  }
+  :global(.faro-aggbubble b) {
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.82rem;
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  }
+
   /* ── Beacon "apareció a salvo" (se añade .faro-beacon en realtime) ── */
   :global(.faro-beacon::after) {
     content: '';
@@ -567,7 +713,7 @@
       rgba(255, 247, 214, 0) 72deg,
       transparent 360deg
     );
-    animation: faro-sweep 6s linear infinite;
+    animation: faro-sweep 12s linear infinite;
     will-change: transform;
   }
   @keyframes faro-sweep {

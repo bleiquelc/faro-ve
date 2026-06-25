@@ -177,6 +177,28 @@ export const personFiltersSchema = z.object({
 
 export type PersonFilters = z.infer<typeof personFiltersSchema>;
 
+/**
+ * GET /api/persons/clusters — agregación por zona (burbujas con conteo real).
+ * Soporta los filtros del mapa (status/is_minor/medical_urgent). NO incluye
+ * `sector` ni `q` a propósito: el agregado es geográfico por bbox/zoom; la búsqueda
+ * por nombre usa el modo de pines (no agrega).
+ */
+export const clusterFiltersSchema = z.object({
+  bbox: z.string().regex(/^-?\d+(\.\d+)?(,-?\d+(\.\d+)?){3}$/),
+  zoom: z.coerce.number().min(0).max(22),
+  status: z.enum(PERSON_STATUS).optional(),
+  is_minor: z
+    .enum(['true', 'false'])
+    .transform((v) => v === 'true')
+    .optional(),
+  medical_urgent: z
+    .enum(['true', 'false'])
+    .transform((v) => v === 'true')
+    .optional()
+});
+
+export type ClusterFilters = z.infer<typeof clusterFiltersSchema>;
+
 /** Forma pública (de persons_public) que consume el mapa. */
 export interface PersonPublic {
   id: string;

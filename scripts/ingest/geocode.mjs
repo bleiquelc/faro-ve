@@ -22,6 +22,7 @@
  */
 
 // ── 1) SPECIFIC: sectores, parroquias, pueblos (zona del terremoto al detalle) ──
+/** @type {[string, number, number][]} */
 const SPECIFIC = [
   // La Guaira (ex-Vargas)
   ['catia la mar', 10.5959, -67.0257],
@@ -92,6 +93,7 @@ const SPECIFIC = [
 ];
 
 // ── 2) CITY: capitales y ciudades mayores ──
+/** @type {[string, number, number][]} */
 const CITY = [
   ['puerto ordaz', 8.2967, -62.7167],
   ['ciudad guayana', 8.3533, -62.6517],
@@ -172,6 +174,7 @@ const CITY = [
 ];
 
 // ── 3) STATE: estados (último recurso, a nivel capital). Sin tokens ambiguos. ──
+/** @type {[string, number, number][]} */
 const STATE = [
   ['amazonas', 5.6639, -67.6236],
   ['anzoategui', 10.1333, -64.6833],
@@ -194,7 +197,11 @@ const STATE = [
   ['la guaira', 10.6, -66.9314]
 ];
 
-/** Normaliza: minúsculas, sin acentos, espacios colapsados. */
+/**
+ * Normaliza: minúsculas, sin acentos, espacios colapsados.
+ * @param {string} text
+ * @returns {string}
+ */
 export function normalizePlace(text) {
   return String(text)
     .toLowerCase()
@@ -204,12 +211,19 @@ export function normalizePlace(text) {
     .trim();
 }
 
+/** @param {string} s @returns {string} */
 function escapeRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 // Dentro de un nivel: gana la aguja más larga que aparezca como PALABRA (\b).
+/**
+ * @param {[string, number, number][]} table
+ * @param {string} t
+ * @returns {[number, number] | null}
+ */
 function matchIn(table, t) {
+  /** @type {[number, number] | null} */
   let best = null;
   let bestLen = 0;
   for (const [needle, lat, lng] of table) {
@@ -225,6 +239,8 @@ function matchIn(table, t) {
 /**
  * Geocodifica un texto de lugar a [lat, lng] o null.
  * Prioriza por nivel: SPECIFIC → CITY → STATE (lo más específico que matchee).
+ * @param {string | null | undefined} text
+ * @returns {[number, number] | null}
  */
 export function geocode(text) {
   if (!text) return null;
