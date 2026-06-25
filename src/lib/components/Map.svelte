@@ -79,7 +79,7 @@
         ${clothes ? `<p class="faro-popup-desc">Vestía: ${esc(clothes)}</p>` : ''}
         ${p.distinguishing_marks ? `<p class="faro-popup-desc">Señas: ${esc(p.distinguishing_marks)}</p>` : ''}
         <p class="faro-popup-loc">📍 Ubicación aproximada (~300m por privacidad)<br/><small>Última zona conocida: ${esc(sector)}</small></p>
-        <a class="faro-popup-btn" href="/mensaje/${p.id}">Tengo información</a>
+        <a class="faro-popup-btn" href="/mensaje/${encodeURIComponent(p.id)}">Tengo información</a>
         ${p.source && p.source !== 'faro-ve' ? `<a class="faro-popup-src" href="${esc(safeUrl(p.source_url))}" target="_blank" rel="noopener noreferrer">Fuente: ${esc(p.source)}</a>` : ''}
       </div>`;
   }

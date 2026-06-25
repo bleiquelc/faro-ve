@@ -30,8 +30,14 @@
    - MANTENER opt-in estricto: default OFF, nunca exponer exacto/teléfono sin el flag. Teléfono se muestra solo si la persona lo compartió para ESE fin (no es PII de reportante de terceros).
    - Mostrar el teléfono públicamente solo cuando el sujeto lo pidió explícitamente; el resto de teléfonos/PII de reportantes siguen por relay anti-PII.
 
-## 🔬 Revisión D2 en curso
-Hay un workflow de revisión adversarial del código D2 corriendo (task `w15jz0ivw`). **Antes de deployar los FilterChips, revisar su resultado** (`/workflows` o el output del task) y arreglar bloqueantes. Los filtros están commiteados pero NO deployados aún.
+## 🔬 Revisión D2 — COMPLETADA (9 confirmados). Pendientes para el próximo chat:
+- ✅ YA ARREGLADO: XSS en `p.id` sin escapar en popup href → `encodeURIComponent` (era el must-fix).
+- ✅ YA ARREGLADO: ilike sector escapa comodines `% _ \`.
+- ⏳ **{#key endpoint} re-monta el Map entero en cada cambio de filtro** (medium, perf): re-descarga markercluster y pierde center/zoom. Refactor: quitar `{#key}`, pasar `endpoint` como prop reactivo; en Map.svelte hacer `loadData(endpoint)` reactivo que aborte fetch anterior + `cluster.clearLayers()` + repueble, manteniendo map/tiles vivos.
+- ⏳ **fetch race + cleanup** (low): añadir AbortController por mount + guarda `destroyed` tras awaits; en onDestroy `veil?.remove()` (el div .faro-veil no se limpia hoy).
+- ⏳ **coords exactas opt-in en el payload** (conecta con pedido #3 del founder): el API ya trae `lat_exact_optional/lng_exact_optional` (null salvo safe_self_report+opt-in). Al construir el opt-in: renderizar el marcador en la coord exacta cuando exista + texto "Ubicación exacta compartida por la persona" + NavigateButton, en vez del texto "~300m". Hoy son null en todos los test → sin fuga, pero resolver la inconsistencia al construir el opt-in.
+- ⏳ FilterChips isActive: definir FILTER_KEYS en un solo lugar (robustez si se agregan filtros).
+Output completo del review: `/private/tmp/.../tasks/w15jz0ivw.output`.
 
 ## 🔴 BUG #1 — BLOQUEANTE INMEDIATO: anon key inválida
 

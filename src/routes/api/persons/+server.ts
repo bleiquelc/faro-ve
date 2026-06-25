@@ -35,7 +35,11 @@ export const GET: RequestHandler = async ({ url, locals, setHeaders }) => {
   if (f.status) q = q.eq('status', f.status);
   if (f.is_minor !== undefined) q = q.eq('is_minor', f.is_minor);
   if (f.medical_urgent !== undefined) q = q.eq('medical_urgent', f.medical_urgent);
-  if (f.sector) q = q.ilike('home_neighborhood', `%${f.sector}%`);
+  if (f.sector) {
+    // Escapa comodines LIKE (% _ \) para que el input no altere el patrón.
+    const safe = f.sector.replace(/[\\%_]/g, '\\$&');
+    q = q.ilike('home_neighborhood', `%${safe}%`);
+  }
 
   if (f.bbox) {
     const [minLng, minLat, maxLng, maxLat] = f.bbox.split(',').map(Number);
