@@ -13,13 +13,13 @@
 
 ## Estado de despliegue: 2 niveles
 
-### A) Deploy YA (arregla "no encuentro el mapa") — NO necesita secretos nuevos
-La home-mapa, `/mapa` y `/persona/[id]` funcionan con lo que ya hay. Los formularios se ven, pero **no podrán enviar** hasta el nivel B.
+### A) ✅ DESPLEGADO (2026-06-25) — arregla "no encuentro el mapa"
+Home-mapa (mapa vivo de fondo + faro con halo + botones flotantes), `/mapa`, `/persona/[id]` y los formularios YA están live en https://faro-ve.com (verificado: rutas 200, API 30). Los formularios se ven, pero **no envían** hasta el nivel B.
 
+Redeploy si hace falta:
 ```bash
 cd ~/Desktop/faro-ve && npm run build && npm run deploy:pages
 ```
-Verificar: abrir https://faro-ve.com en el teléfono → el mapa de fondo + tarjeta; "Ver el mapa" → 30 luces.
 
 ### B) Activar el envío de reportes — necesita migración + 2 secretos (los seteas tú)
 
