@@ -44,6 +44,12 @@
     return s.replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c] || c);
   }
 
+  // Solo permite http(s) en hrefs externos (bloquea javascript:/data: de fuentes scrapeadas).
+  function safeUrl(u: string | null): string {
+    if (!u) return '#';
+    return /^https?:\/\//i.test(u) ? u : '#';
+  }
+
   function pinHtml(p: PersonPublic, i: number): string {
     const cat = categoryForPerson(p);
     const color = COLOR[cat];
@@ -74,7 +80,7 @@
         ${p.distinguishing_marks ? `<p class="faro-popup-desc">Señas: ${esc(p.distinguishing_marks)}</p>` : ''}
         <p class="faro-popup-loc">📍 Ubicación aproximada (~300m por privacidad)<br/><small>Última zona conocida: ${esc(sector)}</small></p>
         <a class="faro-popup-btn" href="/mensaje/${p.id}">Tengo información</a>
-        ${p.source && p.source !== 'faro-ve' ? `<a class="faro-popup-src" href="${esc(p.source_url || '#')}" target="_blank" rel="noopener">Fuente: ${esc(p.source)}</a>` : ''}
+        ${p.source && p.source !== 'faro-ve' ? `<a class="faro-popup-src" href="${esc(safeUrl(p.source_url))}" target="_blank" rel="noopener noreferrer">Fuente: ${esc(p.source)}</a>` : ''}
       </div>`;
   }
 
@@ -82,7 +88,9 @@
     const L = (await import('leaflet')).default;
     await import('leaflet.markercluster');
 
-    map = L.map(mapEl, { zoomControl: true, attributionControl: true }).setView(center, zoom);
+    map = L.map(mapEl, { zoomControl: false, attributionControl: true }).setView(center, zoom);
+    // Zoom abajo-derecha (alcance del pulgar en mobile, no choca con los filtros).
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
 
     // Tile "Faro Dusk": CARTO Positron (gratis, sin key) + filtro de marca en CSS.
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
