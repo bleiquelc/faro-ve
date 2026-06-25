@@ -28,6 +28,9 @@ export const GET: RequestHandler = async ({ url, locals, setHeaders }) => {
         'lat_exact_optional, lng_exact_optional, created_at, last_seen_at'
     )
     .not('lat', 'is', null)
+    // Orden estable → cuando PostgREST trunca a 1000, el subconjunto es
+    // determinista entre requests (acumulación por viewport consistente).
+    .order('created_at', { ascending: false })
     .limit(f.limit);
 
   if (f.status) q = q.eq('status', f.status);
@@ -46,7 +49,19 @@ export const GET: RequestHandler = async ({ url, locals, setHeaders }) => {
 
   if (f.bbox) {
     const [minLng, minLat, maxLng, maxLat] = f.bbox.split(',').map(Number);
-    q = q.gte('lat', minLat).lte('lat', maxLat).gte('lng', minLng).lte('lng', maxLng);
+    // Ignora bbox inválido/invertido o fuera de rango terrestre (defensa: el
+    // cliente ya clampa, pero no confiamos en el input).
+    const valid =
+      [minLng, minLat, maxLng, maxLat].every(Number.isFinite) &&
+      minLat < maxLat &&
+      minLng < maxLng &&
+      minLat >= -90 &&
+      maxLat <= 90 &&
+      minLng >= -180 &&
+      maxLng <= 180;
+    if (valid) {
+      q = q.gte('lat', minLat).lte('lat', maxLat).gte('lng', minLng).lte('lng', maxLng);
+    }
   }
 
   const { data, error: dbError } = await q;

@@ -45,6 +45,7 @@
   let Lref: any = null;
   const addedIds = new Set<string>();
   let loadTimer: ReturnType<typeof setTimeout> | null = null;
+  let truncated = false; // la última carga topó el límite → hay más en esa zona
 
   const SUBTITLE: Record<string, string> = {
     minor: 'Prioridad · ayúdanos a encontrarle',
@@ -126,9 +127,20 @@
       </div>`;
   }
 
-  // Agrega marcadores NUEVOS (deduplicados por id). Devuelve cuántos agregó.
+  const MARKER_CAP = 7000; // techo de marcadores acumulados (evita cuelgue en gama baja)
+
+  // Agrega marcadores NUEVOS (deduplicados por id), en BLOQUE. Devuelve cuántos.
   function addPersons(persons: PersonPublic[]): number {
-    let added = 0;
+    // Techo con recarga: si acumulamos demasiado explorando, limpiamos y dejamos
+    // solo la zona actual (no degradar el dispositivo).
+    if (addedIds.size > MARKER_CAP) {
+      cluster.clearLayers();
+      addedIds.clear();
+      people = [];
+      count = 0;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const newMarkers: any[] = [];
     for (const p of persons) {
       if (p.lat == null || p.lng == null || addedIds.has(p.id)) continue;
       addedIds.add(p.id);
@@ -142,33 +154,41 @@
       });
       const m = Lref.marker([p.lat, p.lng], { icon, keyboard: true, title: p.full_name || 'Persona' });
       m.bindPopup(popupHtml(p), { maxWidth: 280 });
-      cluster.addLayer(m);
-      added++;
+      newMarkers.push(m);
     }
-    if (added) {
+    if (newMarkers.length) {
+      cluster.addLayers(newMarkers); // una sola operación → sin reflow por marcador
       people = people; // dispara reactividad de la sr-list
       count = addedIds.size;
     }
-    return added;
+    return newMarkers.length;
   }
 
-  // bbox "minLng,minLat,maxLng,maxLat" de la vista actual.
-  function bboxParam(): string {
+  // bbox "minLng,minLat,maxLng,maxLat" de la vista actual, CLAMPEADO a rangos
+  // válidos (Leaflet no normaliza la longitud al panear). null si el rango es
+  // inválido tras clampear → en ese caso cargamos sin bbox.
+  function bboxParam(): string | null {
     const b = map.getBounds();
-    return [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]
-      .map((n: number) => n.toFixed(5))
-      .join(',');
+    const w = Math.max(-180, b.getWest());
+    const e = Math.min(180, b.getEast());
+    const s = Math.max(-90, b.getSouth());
+    const n = Math.min(90, b.getNorth());
+    if (e <= w || n <= s) return null;
+    return [w, s, e, n].map((v) => v.toFixed(5)).join(',');
   }
 
   async function loadData(useBbox: boolean): Promise<void> {
     try {
+      const bbox = useBbox ? bboxParam() : null;
       const sep = endpoint.includes('?') ? '&' : '?';
-      const url = useBbox
-        ? `${endpoint}${sep}bbox=${bboxParam()}&limit=2000`
+      const url = bbox
+        ? `${endpoint}${sep}bbox=${bbox}&limit=2000`
         : `${endpoint}${sep}limit=2000`;
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as { persons: PersonPublic[] };
+      // PostgREST topa en 1000: si llegó al tope, hay MÁS personas en esta zona.
+      truncated = useBbox && data.persons.length >= 1000;
       addPersons(data.persons);
       errorMsg = '';
     } catch (e) {
@@ -198,7 +218,15 @@
       touchZoom: interactive,
       doubleClickZoom: interactive,
       boxZoom: interactive,
-      keyboard: interactive
+      keyboard: interactive,
+      // Acota a Venezuela (+ margen) → no se puede panear a "copias del mundo"
+      // donde el bbox quedaría fuera de rango y la vista saldría sin luces.
+      maxBounds: [
+        [-1, -75],
+        [16, -58]
+      ],
+      maxBoundsViscosity: 1.0,
+      minZoom: 5
     }).setView(center, zoom);
     // Zoom abajo-derecha (alcance del pulgar en mobile, no choca con los filtros).
     if (interactive) L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -223,6 +251,7 @@
       maxClusterRadius: 50,
       showCoverageOnHover: false,
       spiderfyOnMaxZoom: true,
+      chunkedLoading: true, // agrega lotes grandes sin congelar el hilo (jank)
       // Cluster = constelación azul-faro neutra (no color de categoría → no alarma).
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       iconCreateFunction: (c: any) => {
@@ -289,8 +318,18 @@
   {/if}
 
   {#if !loading && !errorMsg && interactive}
-    <div class="absolute bottom-2 left-2 z-[400] rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-faro-900 shadow">
-      ✨ {count} {count === 1 ? 'luz encendida' : 'luces encendidas'}
+    <div class="absolute bottom-2 left-2 z-[400] flex flex-col items-start gap-1">
+      <span class="rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-faro-900 shadow">
+        ✨ {count} {count === 1 ? 'persona en vista' : 'personas en vista'}
+      </span>
+      {#if truncated}
+        <span
+          class="rounded-full bg-amber-500/95 px-3 py-1 text-[11px] font-medium text-white shadow"
+          role="status"
+        >
+          Acércate para ver más en esta zona
+        </span>
+      {/if}
     </div>
   {/if}
 
@@ -298,7 +337,11 @@
        sin depender de los clusters de Leaflet. Visualmente oculta. -->
   {#if people.length && interactive}
     <nav class="sr-only" aria-label="Lista de personas reportadas en el mapa">
-      <h2>Personas reportadas ({people.length})</h2>
+      <h2>
+        Personas en el mapa: mostrando {Math.min(people.length, 1000)}{people.length > 1000
+          ? ` de ${people.length}`
+          : ''}
+      </h2>
       <ul>
         <!-- Cap a 1000 nodos: con decenas de miles, renderizar todos satura el DOM.
              La búsqueda por nombre llega a cualquier persona específica. -->
