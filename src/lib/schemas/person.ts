@@ -158,6 +158,8 @@ export const personFiltersSchema = z.object({
     .transform((v) => v === 'true')
     .optional(),
   sector: z.string().trim().max(120).optional(),
+  // Búsqueda por nombre (fuzzy ilike sobre full_name).
+  q: z.string().trim().max(120).optional(),
   // Bounding box opcional para cargar solo lo visible: "minLng,minLat,maxLng,maxLat"
   bbox: z
     .string()

@@ -38,6 +38,11 @@ export const GET: RequestHandler = async ({ url, locals, setHeaders }) => {
     const safe = f.sector.replace(/[\\%_]/g, '\\$&');
     q = q.ilike('home_neighborhood', `%${safe}%`);
   }
+  if (f.q) {
+    // Búsqueda por nombre — escapa comodines LIKE.
+    const safe = f.q.replace(/[\\%_]/g, '\\$&');
+    q = q.ilike('full_name', `%${safe}%`);
+  }
 
   if (f.bbox) {
     const [minLng, minLat, maxLng, maxLat] = f.bbox.split(',').map(Number);
