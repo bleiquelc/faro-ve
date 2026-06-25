@@ -99,6 +99,18 @@ Detalle: `docs/SESSIONS/2026-06-26-aid-points-comunidad.md`.
   ~24 entradas Vargas). ⏳ **Re-correr ingesta** = founder (escritura masiva prod, requiere OK explícito):
   `DATABASE_URL="$(cat ~/.secrets/faro-ve/db-url.txt)" node scripts/ingest/venezuela-te-busca.mjs --apply`
 
+## 2026-06-26 (tarde) — Burbujas por zona + pulido + diagnóstico de escrituras
+- ✅ **Burbujas por zona con conteo REAL** (migración `0015` aplicada + deploy live): RPC `persons_clusters`
+  (SECURITY DEFINER, solo agregados sobre coords ofuscadas, #1) → a zoom país una burbuja con el total real
+  (13.357, NO el tope 1000); al acercar se separa en zonas/ciudades; a zoom≥13 pines individuales. El home
+  mantiene las luces. Revisión adversarial (2 agentes): race de época + índice GIST duplicado + cast enum
+  arreglados. Verificado en prod: `/api/persons/clusters` devuelve conteos reales.
+- ✅ **Iconos**: el deploy ya tenía el icono nuevo; era caché del navegador → cache-bust `?v=3` en app.html.
+- ✅ **Animación de la luz** más lenta (haz del faro 6s→12s; bienvenida glow 7s, haces 20s).
+- ⚠️ **Escrituras (reportes) siguen en 503**: NO por los 3 secretos del founder (están OK) — **falta `APP_SALT`
+  como secreto de Pages** (la lista muestra 4 secretos, sin APP_SALT; el config-guard lo exige). El founder
+  debe setearlo (1 comando) + redeploy. RATE_LIMIT KV está bien en wrangler.toml.
+
 ## Bloqueadores / pendientes founder
 
 1. **Tarjeta en Cloudflare** → para registrar `faro-ve.com` (disponible ✓; yo no puedo meter datos de tarjeta). El PLAN agenda DNS final en D6, así que no bloquea — seguimos en pages.dev.
