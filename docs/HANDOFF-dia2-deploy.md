@@ -59,6 +59,43 @@ curl -s -X POST https://faro-ve.com/api/persons -H 'content-type: application/js
 cd ~/Desktop/faro-ve && git push
 ```
 
+## 🆕 Cargar data REAL al mapa (venezuela-te-busca) — listo para correr
+
+Adapter `scripts/ingest/venezuela-te-busca.mjs` verificado en dry-run. La fuente NO da coordenadas
+(solo texto de lugar), así que se geocodifica a nivel barrio/ciudad (pin aproximado). Decisiones
+aplicadas: missing→'missing', found→'found_alive' (verde), auto-aprobadas con atribución + opt-out,
+solo geocodificables. NO se republica PII del reportante.
+
+**Secuencia (founder):**
+```bash
+# 1) Aplicar migraciones pendientes (incluye 0012 = fail-safe foto de menor — IMPORTANTE antes de ingestar)
+cd ~/Desktop/faro-ve && DATABASE_URL="$(cat ~/.secrets/faro-ve/db-url.txt)" node scripts/apply-migrations.mjs
+```
+```bash
+# 2) Ver el alcance total sin escribir (recorre todas las páginas, ~10-15 min)
+cd ~/Desktop/faro-ve && node scripts/ingest/venezuela-te-busca.mjs --dry
+```
+```bash
+# 3) Cargar a producción (idempotente por source_id). El mapa LIVE los muestra solo (sin redeploy).
+cd ~/Desktop/faro-ve && DATABASE_URL="$(cat ~/.secrets/faro-ve/db-url.txt)" node scripts/ingest/venezuela-te-busca.mjs --apply
+```
+Mejora pendiente: subir cobertura de geocodificación (hoy ~60% con tabla de lugares Vargas/Caracas) con
+fallback a Nominatim o ampliando la tabla → más personas en el mapa.
+
+## 🆕 Foto de menores — tapar cara mostrando ropa (propuesta founder)
+Hoy: foto de menor/edad-desconocida → oculta (placeholder), fail-safe regla #3 (mig 0012).
+Founder quiere: tapar/difuminar la CARA y dejar ropa/detalles visibles. **Es posible** con detección de
+rostro en cliente (modelo ligero tipo BlazeFace/MediaPipe, lazy-load ~1-2MB solo al subir) + blur del
+recuadro de cara en canvas. Diseño SEGURO: si detecta cara → publica versión cara-tapada; si NO detecta
+→ oculta (fail-safe). Guarda 2 versiones (original admin_only + cara-tapada pública). Aplica también a
+fotos ingestadas. Feature enfocada para la próxima iteración (necesita prueba en iOS Safari real). Mientras,
+el ocultar actual ya protege.
+
+## Migraciones nuevas de esta sesión
+- `0010` teléfono opt-in + RPC create_person_report (+ photo_url).
+- `0011` bucket privado report-photos.
+- `0012` fail-safe foto de menor (edad desconocida + foto → admin_only).
+
 ## Decisiones que necesito de ti
 - **Fuente `venezuela-te-busca`**: ¿la tratamos como confiable (auto-approve) o entra a moderación (`pending`)? ¿Contactamos al operador para federación antes de ingestar a escala? (La ingesta real es D4.)
 - **Subida de foto** (con EXIF strip + Storage) quedó fuera de esta tanda — ¿prioridad alta para D2/D3?
