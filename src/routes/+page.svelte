@@ -1,5 +1,6 @@
 <script lang="ts">
   import InstallPrompt from '$components/InstallPrompt.svelte';
+  import FaroLogo from '$components/FaroLogo.svelte';
   // Placeholder D1 — el mapa Leaflet se monta en D2.
 </script>
 
@@ -9,7 +10,9 @@
 
 <main class="min-h-screen flex flex-col items-center justify-center px-6 py-12 text-center">
   <div class="max-w-md space-y-6">
-    <div class="text-6xl" aria-hidden="true">🕯️</div>
+    <div class="flex justify-center">
+      <FaroLogo size={88} />
+    </div>
     <h1 class="text-3xl font-bold text-faro-900 text-balance">Faro VE — Mapa de Esperanza</h1>
     <p class="text-gray-700 text-pretty">
       Mapa humanitario para reportar y buscar personas desaparecidas tras el terremoto del

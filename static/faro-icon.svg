@@ -1,0 +1,41 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Faro VE">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0B4F6C"/>
+      <stop offset="100%" stop-color="#08364a"/>
+    </linearGradient>
+    <radialGradient id="lamp" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFF7D6" stop-opacity="0.98"/>
+      <stop offset="45%" stop-color="#FFE9A8" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#FFE9A8" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="beam" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFF7D6" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#FFF7D6" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- fondo redondeado (maskable-safe: contenido dentro del 80% central) -->
+  <rect width="512" height="512" rx="114" fill="url(#bg)"/>
+
+  <!-- faro centrado (mark 0-64 escalado x5, márgenes 96px) -->
+  <g transform="translate(96,96) scale(5)">
+    <!-- glow cálido -->
+    <circle cx="32" cy="16" r="16" fill="url(#lamp)"/>
+    <!-- haces tenues -->
+    <path d="M32 16 L8 4 L11 12 Z" fill="url(#beam)"/>
+    <path d="M32 16 L56 4 L53 12 Z" fill="url(#beam)"/>
+    <!-- lámpara -->
+    <circle cx="32" cy="16" r="4.2" fill="#FFE9A8" stroke="#FFF7D6" stroke-width="0.8"/>
+    <!-- galería -->
+    <path d="M26.5 20.5 h11 l-1 3.5 h-9 z" fill="#ffffff"/>
+    <!-- torre -->
+    <path d="M27.2 24 h9.6 l2.6 23 h-14.8 z" fill="#ffffff" stroke-linejoin="round"/>
+    <!-- banda de acento -->
+    <path d="M25.9 33 h12.2 l0.5 5 h-13.2 z" fill="#8CCADF"/>
+    <!-- base -->
+    <path d="M22.5 47 h19 l2.2 5.5 h-23.4 z" fill="#ffffff"/>
+    <!-- suelo -->
+    <rect x="16" y="51.3" width="32" height="2.4" rx="1.2" fill="#ffffff"/>
+  </g>
+</svg>
