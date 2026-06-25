@@ -18,6 +18,21 @@
 
 **Secretos locales** (`~/.secrets/faro-ve/`, NUNCA en repo): `db-url.txt`, `anthropic-key.txt`, `APP_SALT.txt`.
 
+## 🆕 PEDIDOS DEL FOUNDER (fin de sesión 2026-06-25) — alta prioridad
+
+1. **El mapa NO se ve en la home.** Está en `/mapa` (la home sigue siendo el placeholder). El founder espera verlo al entrar a faro-ve.com. → **Hacer el mapa alcanzable desde la home**: botón grande "Ver el mapa" en `src/routes/+page.svelte`, o convertir `/mapa` en la home (con onboarding 1ª visita). Verificar primero que `https://faro-ve.com/mapa` renderiza las luces en un teléfono real (el founder vio solo la home).
+
+2. **Alimentar el mapa con nueva fuente**: `https://venezuela-te-busca-app.hellogafaro.workers.dev` — tiene ubicaciones de personas. Construir un adapter de ingesta (Día 4: `workers/cron-ingest` + `src/lib/server/ingest/`). OBLIGATORIO scraper ético (CLAUDE #12): check robots.txt/ToS, UA identificada `FaroVE-IngestBot/1.0`, throttle 1 req/2s, dedup, atribución `source` + `source_url` clickeable + opt-out. Inspeccionar primero qué expone el endpoint (¿JSON? ¿HTML?).
+
+3. **Habilitar compartir ubicación EXACTA + teléfono (opt-in)** — el founder quiere que una persona que desee ser localizada pueda compartir su coord exacta y/o teléfono. **El mecanismo YA existe en DB**: `persons.share_exact_location_with_searchers` (default OFF) + la vista `persons_public` expone `lat_exact_optional`/`lng_exact_optional` SOLO si `status='safe_self_report' AND share_exact_location_with_searchers=true`. Falta:
+   - Formulario `routes/reportar/a-salvo/+page.svelte` con el toggle (default OFF, opt-in explícito) + campo teléfono opcional + mensaje.
+   - En el popup/persona de un `safe_self_report` con opt-in: mostrar coord exacta + **botón "🧭 Llegar aquí"** (NavigateButton — este SÍ aplica porque es opt-in del propio sujeto) + botón "Llamar" si compartió teléfono.
+   - MANTENER opt-in estricto: default OFF, nunca exponer exacto/teléfono sin el flag. Teléfono se muestra solo si la persona lo compartió para ESE fin (no es PII de reportante de terceros).
+   - Mostrar el teléfono públicamente solo cuando el sujeto lo pidió explícitamente; el resto de teléfonos/PII de reportantes siguen por relay anti-PII.
+
+## 🔬 Revisión D2 en curso
+Hay un workflow de revisión adversarial del código D2 corriendo (task `w15jz0ivw`). **Antes de deployar los FilterChips, revisar su resultado** (`/workflows` o el output del task) y arreglar bloqueantes. Los filtros están commiteados pero NO deployados aún.
+
 ## 🔴 BUG #1 — BLOQUEANTE INMEDIATO: anon key inválida
 
 `/api/persons` devuelve 502 → error real de Supabase: **"Invalid API key"**. Se configuró la **publishable key** (`sb_publishable_...`) en vez de la **legacy anon** (`eyJ...`), que es la que espera supabase-js v2.
