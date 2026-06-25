@@ -7,7 +7,7 @@
 
 | Día | Fecha | Foco | Gate | Estado |
 |-----|-------|------|------|--------|
-| D1  | 25-jun-2026 | Foundation: schema + scaffolding + tokens + navigation | DB: obfuscate ✓, orgs ✓, persons_public sin leak ✓, RLS ✓ | 🟢 **DB GATE PASS** · deploy pendiente wrangler login |
+| D1  | 25-jun-2026 | Foundation: schema + scaffolding + tokens + navigation | DB Gate 9/9 ✓ + sitio live faro-ve.pages.dev HTTP 200 ✓ | 🟢 **GATE D1 COMPLETO** |
 | D2  | 26-jun-2026 | Mapa Leaflet + CRUD persons + clusters + filtros + animaciones | móvil ve 30 puntos clusterizados, menores+médicos pulsando, pending en /moderar | pendiente |
 | D3  | 27-jun-2026 | Moderación + magic-link + relay + resto formularios | moderador aprueba 3, mensaje relay llega; punto-ayuda guardado | pendiente |
 | D4  | 28-jun-2026 | PWA offline + sync + scrapers | PWA instalada, offline, sync OK; ≥2 fuentes activas | pendiente |
@@ -58,12 +58,18 @@ order, minor-photo generated-column). **Total: 13 bugs antes de producción.**
 - ✅ anthropic-key.txt — validada HTTP 200.
 - ✅ db-url.txt — connection string directo (IPv6) funcionando.
 
+## Infra desplegada
+- ✅ Cloudflare account `64a18868c428ecbfdaf67d69edffb888` (bybleiquel@gmail.com), wrangler login OK.
+- ✅ Pages project `faro-ve` → **https://faro-ve.pages.dev** (HTTP 200, placeholder live).
+- ✅ KV namespace `RATE_LIMIT` id `c2a055cea3ca4dc098144ec69e948274` (en wrangler.toml).
+
 ## Bloqueadores / pendientes founder
 
-1. **`npx wrangler login`** (founder, 1 comando + "Allow") → desbloquea: deploy pages.dev, KV namespace, AI Gateway, registrar dominio.
-2. **Tarjeta en Cloudflare** → para registrar `faro-ve.com` (disponible ✓; yo no puedo meter datos de tarjeta).
-3. **Supabase service_role key** → para D2. NO pasa por chat (classifier lo bloquea, correcto). Se setea directo como secreto CF + `.env.local` local. Anon/publishable key (safe) se puede pegar.
-4. **MCP Resend** sigue con key inválida (reconectar) — necesario D3 (relay) / D6 (federación).
+1. **Tarjeta en Cloudflare** → para registrar `faro-ve.com` (disponible ✓; yo no puedo meter datos de tarjeta). El PLAN agenda DNS final en D6, así que no bloquea — seguimos en pages.dev.
+2. **Supabase service_role + anon keys** → para D2 (app runtime). El service_role NO pasa por chat (classifier lo bloquea, correcto): se setea directo con `wrangler pages secret put`. El anon (safe) se puede pegar.
+3. **Secretos CF Pages** (D2): APP_SALT, ANTHROPIC_API_KEY, TURNSTILE_*, RESEND_API_KEY vía `wrangler pages secret put`.
+4. **AI Gateway** CF (D5): crear gateway `faro-ve`.
+5. **MCP Resend** sigue con key inválida (reconectar) — necesario D3 (relay) / D6 (federación).
 
 ## Próxima sesión (D2) arranca con
 1. Confirmar `wrangler login` hecho → deploy preview pages.dev (cierra mitad deploy de Gate D1).
