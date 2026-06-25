@@ -142,7 +142,12 @@ export function createAidLayer(
         popupAnchor: [0, -14]
       });
       const m = L.marker([a.lat, a.lng], { icon, keyboard: true, title: a.name });
-      m.bindPopup(popupHtml(a), { maxWidth: 280 });
+      m.bindPopup(popupHtml(a), {
+        maxWidth: 300,
+        autoPanPaddingTopLeft: [12, 64],
+        autoPanPaddingBottomRight: [12, 84],
+        keepInView: true
+      });
       markers.push(m);
     }
     if (markers.length) {

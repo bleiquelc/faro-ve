@@ -201,7 +201,14 @@
         popupAnchor: [0, -14]
       });
       const m = Lref.marker([p.lat, p.lng], { icon, keyboard: true, title: p.full_name || 'Persona' });
-      m.bindPopup(popupHtml(p), { maxWidth: 280 });
+      // Popup encuadrado para celular: auto-pan entre los filtros (arriba) y la nav
+      // (abajo) para que la info no quede cortada al tocar un punto.
+      m.bindPopup(popupHtml(p), {
+        maxWidth: 300,
+        autoPanPaddingTopLeft: [12, 64],
+        autoPanPaddingBottomRight: [12, 84],
+        keepInView: true
+      });
       newMarkers.push(m);
     }
     if (newMarkers.length) {
@@ -354,9 +361,49 @@
     }
   }
 
+  // Persistencia de la VISTA (centro+zoom) para que al volver de ver una persona
+  // el usuario siga en LA MISMA ZONA donde estaba buscando (no reinicia a Caracas).
+  const VIEW_KEY = 'faro:map:view';
+  function saveView(): void {
+    if (!interactive || !map) return;
+    try {
+      const c = map.getCenter();
+      sessionStorage.setItem(
+        VIEW_KEY,
+        JSON.stringify({ lat: c.lat, lng: c.lng, zoom: map.getZoom() })
+      );
+    } catch {
+      /* modo privado: sin persistencia, no es crítico */
+    }
+  }
+  function loadSavedView(): { lat: number; lng: number; zoom: number } | null {
+    try {
+      const raw = sessionStorage.getItem(VIEW_KEY);
+      if (!raw) return null;
+      const v = JSON.parse(raw);
+      if (
+        typeof v?.lat === 'number' &&
+        typeof v?.lng === 'number' &&
+        typeof v?.zoom === 'number' &&
+        Number.isFinite(v.lat) &&
+        Number.isFinite(v.lng)
+      ) {
+        return v;
+      }
+    } catch {
+      /* ignore */
+    }
+    return null;
+  }
+
   onMount(async () => {
     const L = (await import('leaflet')).default;
     await import('leaflet.markercluster');
+
+    // ¿Búsqueda por nombre? (define la vista con fitBounds → no restaura zona).
+    const hasQuery = /[?&]q=/.test(endpoint);
+    // En navegación interactiva, restaura la última zona vista (volver de una ficha).
+    const saved = interactive && !hasQuery ? loadSavedView() : null;
 
     map = L.map(mapEl, {
       zoomControl: false,
@@ -377,9 +424,11 @@
       ],
       maxBoundsViscosity: 1.0,
       minZoom: 5
-    }).setView(center, zoom);
+    }).setView(saved ? [saved.lat, saved.lng] : center, saved ? saved.zoom : zoom);
     // Zoom abajo-derecha (alcance del pulgar en mobile, no choca con los filtros).
     if (interactive) L.control.zoom({ position: 'bottomright' }).addTo(map);
+    // Guarda la zona al moverse → al volver de una ficha se restaura (seguir buscando).
+    if (interactive) map.on('moveend', saveView);
 
     // Tile "Faro Dawn": CARTO Voyager (gratis, sin key) — tiene color real (agua,
     // parques, vías) para que el mapa tenga vida; un filtro suave lo equilibra.
@@ -426,7 +475,6 @@
 
     Lref = L;
     loadTotal(); // el "número grande" del total reportado (independiente del viewport)
-    const hasQuery = /[?&]q=/.test(endpoint);
 
     if (hasQuery) {
       // Búsqueda por nombre: carga TODAS las coincidencias (sin bbox) y encuadra
@@ -774,5 +822,31 @@
     margin-top: 0.4rem;
     font-size: 0.72rem;
     color: #2c5d7a;
+  }
+
+  /* ── Control de zoom apto para celular: botones 44px (tap target) y elevado
+        sobre la barra de navegación inferior para que el pulgar llegue bien. ── */
+  :global(.leaflet-control-zoom) {
+    margin-bottom: 5rem !important;
+    margin-right: 0.7rem !important;
+    border: none !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22) !important;
+    border-radius: 12px !important;
+    overflow: hidden;
+  }
+  :global(.leaflet-control-zoom a) {
+    width: 44px !important;
+    height: 44px !important;
+    line-height: 44px !important;
+    font-size: 1.45rem !important;
+    color: #0b4f6c !important;
+  }
+
+  /* Popup legible en celular (no demasiado angosto). */
+  :global(.faro-popup) {
+    min-width: 12rem;
+  }
+  :global(.leaflet-popup-content) {
+    margin: 0.7rem 0.85rem !important;
   }
 </style>
