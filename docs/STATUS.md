@@ -90,9 +90,14 @@ Detalle: `docs/SESSIONS/2026-06-26-aid-points-comunidad.md`.
   (1 blocker de privacidad: `revoke select on aid_points from anon/authenticated`; 1 high: alta no se
   bloquea si el GPS falla → `LocationPicker` mini-mapa), 10 refutados.
 - ✅ `svelte-check` 0 err · 36/36 tests (14 nuevos) · build limpio · preview verificado.
-- ⏳ **Para activar en prod** (founder): aplicar `0014` + correr `scripts/verify-aid-points.mjs` + setear
-  `SUPABASE_SERVICE_ROLE_KEY` + `TURNSTILE_*` + redeploy. (La capa de LECTURA del mapa funciona sin secretos;
-  alta/voto/reactivación + reportes de personas exigen service_role.)
+- ✅ **APLICADO + LIVE**: migración `0014` aplicada en prod (gate PASS) + deploy a faro-ve.com. Verificado
+  end-to-end: `/api/aid-points` → ok, persons intacto (13.821), privacidad OK. Lectura de ayuda + filtros
+  combinables + Actualizar + iconos + animaciones EN VIVO. Faltan los 3 secretos Level B para escrituras.
+- ✅ **Ingesta desestancada + geocodificación nacional** (Prioridad #4a): la fuente cambió su paginación y
+  el script estaba pegado en la página 1 (la fuente creció a 25.516; el mapa tenía solo 13.821). Arreglado
+  (`page`/`hasMore`) + geocoder nacional testeado (cobertura 85% del total / 92% de los con-ubicación, antes
+  ~24 entradas Vargas). ⏳ **Re-correr ingesta** = founder (escritura masiva prod, requiere OK explícito):
+  `DATABASE_URL="$(cat ~/.secrets/faro-ve/db-url.txt)" node scripts/ingest/venezuela-te-busca.mjs --apply`
 
 ## Bloqueadores / pendientes founder
 

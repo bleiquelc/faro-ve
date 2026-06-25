@@ -72,6 +72,21 @@ popup→ficha SSR de personas, patrón RPC `create_person_report` (0010).
   Actualizar presente, chip Ayuda + Registrar, 0 errores del código nuevo.
 - ⏳ Gate SQL `scripts/verify-aid-points.mjs` corre tras aplicar 0014 (lo corre el founder).
 
+## 4.5) Ingesta — pipeline desestancado + geocodificación nacional (Prioridad #4a)
+El velocity-gate (Art. 6) cazó un pipeline ESTANCADO: la fuente cambió su paginación
+(`nextHref` → `{page, hasMore}`) y `scripts/ingest/venezuela-te-busca.mjs` cortaba en la página 1 →
+la ingesta llevaba pegada en ~13.8k aunque la fuente creció a **25.516**. Arreglado (`?page=N` + `hasMore`).
+- Geocoder extraído a `scripts/ingest/geocode.mjs` (módulo testeable, `tests/ingest/geocode.test.ts`, 9 tests):
+  tabla NACIONAL (23 estados + capitales + ciudades + parroquias de Caracas + municipios) con selección
+  por NIVEL de especificidad (sector > ciudad > estado) y match por palabra (`\b`, anti falsos positivos
+  como 'cua' en "evacuado" o 'bolivar' en "Av. Bolívar").
+- **Cobertura medida** (muestra 400): **85% del total, 92% de los que traen ubicación** (el ~8% restante
+  son `lastSeen` vacíos, ingeocodificables). Antes: ~24 entradas Vargas-céntricas.
+- ⏳ **Re-correr la ingesta** (founder — es escritura masiva a prod, requiere tu OK explícito; el clasificador
+  la bloqueó correctamente). Idempotente. Comando:
+  `DATABASE_URL="$(cat ~/.secrets/faro-ve/db-url.txt)" node scripts/ingest/venezuela-te-busca.mjs --apply`
+  (~40 min, throttle ético 1 req/2s; añade los ~8-9k nuevos + geocodifica el 85%).
+
 ## 5) Pendiente del founder (Level B — yo no toco DB/secretos/deploy)
 1. Aplicar migración 0014 + correr el gate.
 2. Setear secretos Level B (service_role + Turnstile) para activar reportes + aid-points (alta/voto/reactivación).
