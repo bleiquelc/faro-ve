@@ -137,8 +137,9 @@
     // Zoom abajo-derecha (alcance del pulgar en mobile, no choca con los filtros).
     if (interactive) L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-    // Tile "Faro Dusk": CARTO Positron (gratis, sin key) + filtro de marca en CSS.
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    // Tile "Faro Dawn": CARTO Voyager (gratis, sin key) — tiene color real (agua,
+    // parques, vías) para que el mapa tenga vida; un filtro suave lo equilibra.
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
       subdomains: 'abcd',
       maxZoom: 20,
       detectRetina: true,
@@ -253,16 +254,16 @@
 </div>
 
 <style>
-  /* ── Tile "Faro Dusk": apaga y enfría el mapa para que las luces resalten ── */
+  /* ── Tile "Faro Dawn": color vivo pero equilibrado; las luces siguen brillando ── */
   :global(.faro-tiles) {
-    filter: saturate(0.55) brightness(0.94) contrast(0.96) sepia(0.06) hue-rotate(178deg);
+    filter: saturate(1.08) brightness(0.97) contrast(1.04);
   }
   :global(.faro-veil) {
     position: absolute;
     inset: 0;
     z-index: 250;
     pointer-events: none;
-    background: radial-gradient(120% 90% at 50% 0%, rgba(11, 79, 108, 0) 40%, rgba(11, 79, 108, 0.1) 100%);
+    background: radial-gradient(120% 90% at 50% 0%, rgba(11, 79, 108, 0) 55%, rgba(11, 79, 108, 0.08) 100%);
     mix-blend-mode: multiply;
   }
 
