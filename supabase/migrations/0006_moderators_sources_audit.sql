@@ -145,6 +145,10 @@ create table if not exists audit_log_2026_12 partition of audit_log
 -- jun-2026 (mes inicial)
 create table if not exists audit_log_2026_06 partition of audit_log
   for values from ('2026-06-01') to ('2026-07-01');
+-- Partición DEFAULT: red de seguridad para fechas fuera de los rangos anteriores
+-- (ej: inserts en 2027 antes de que el cron cree la partición del mes). Evita
+-- que un INSERT en audit_log falle por falta de partición y rompa la operación.
+create table if not exists audit_log_default partition of audit_log default;
 
 create index if not exists audit_log_entity_idx
   on audit_log (entity_type, entity_id, created_at desc);

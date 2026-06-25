@@ -8,11 +8,15 @@
 -- obfuscate_point — ofusca una coord exacta en un radio aleatorio 200-500m
 -- ═════════════════════════════════════════════════════════════════════════════
 -- Algoritmo:
---   1. Genera bearing aleatorio 0-360°.
---   2. Genera distancia con sqrt(random()) * (rmax-rmin) + rmin → distribución
---      uniforme en el ANILLO (no concentrada en el centro como random()*r).
+--   1. Genera bearing aleatorio 0-2π.
+--   2. Genera distancia con r = sqrt(r_min² + U·(r_max² − r_min²)) → distribución
+--      UNIFORME POR ÁREA en el anillo (sqrt(random())*(max−min)+min sesga al borde).
 --   3. Aplica ST_Project sobre el punto exacto.
 -- Resultado: para reporter sigue siendo "mi barrio" pero NO es la dirección.
+--
+-- ⚠ El offset debe ser ESTABLE por centro: los triggers solo re-ofuscan cuando el
+-- punto cambia. Re-ofuscar el mismo centro N veces permitiría a un atacante
+-- promediar N muestras y recuperar la coord exacta (∼r/√N). Ver trg_*_obfuscate.
 
 create or replace function obfuscate_point(
   p geography(Point, 4326),
@@ -167,7 +171,16 @@ create or replace function trg_notes_obfuscate()
 returns trigger language plpgsql as $$
 begin
   if new.sighting_location_point is not null then
-    new.sighting_location_obfuscated := obfuscate_point(new.sighting_location_point);
+    -- Change-guard (igual que persons): SOLO re-ofuscar en INSERT, cuando el
+    -- punto exacto cambia, o cuando el obfuscated está vacío. Sin esto, cada
+    -- UPDATE de la nota (editar texto, aprobar, ocultar — PostgREST reenvía la
+    -- fila completa) redibujaría un offset nuevo del MISMO centro, y N muestras
+    -- promediadas recuperan la coord exacta del avistamiento / cuerpo NN.
+    if tg_op = 'INSERT'
+       or new.sighting_location_point is distinct from old.sighting_location_point
+       or new.sighting_location_obfuscated is null then
+      new.sighting_location_obfuscated := obfuscate_point(new.sighting_location_point);
+    end if;
   else
     new.sighting_location_obfuscated := null;
   end if;
@@ -221,99 +234,10 @@ create trigger trg_persons_match_notify
   for each row execute function trg_persons_notify_match();
 
 -- ═════════════════════════════════════════════════════════════════════════════
--- VIEW: persons_public — única superficie pública. NUNCA exponer la tabla.
+-- NOTA: las vistas persons_public y notes_public se definen en 0001_init.sql
+-- (junto al schema), porque 0003 (RLS + grants) corre antes que este archivo y
+-- necesita que las vistas ya existan para concederles SELECT a anon.
 -- ═════════════════════════════════════════════════════════════════════════════
-
-create or replace view persons_public as
-select
-  p.id,
-  p.pfif_id,
-  p.source,
-  p.source_id,
-  p.source_url,
-  p.given_name,
-  p.family_name,
-  p.full_name,
-  p.alternate_names,
-  p.sex,
-  p.age,
-  p.age_unit,
-  p.home_neighborhood,
-  p.home_city,
-  p.home_state,
-  p.home_country,
-  p.last_known_location_text,
-  -- ⚠ NUNCA last_known_location_point — solo obfuscated
-  p.last_known_location_obfuscated,
-  ST_Y(p.last_known_location_obfuscated::geometry) as lat,
-  ST_X(p.last_known_location_obfuscated::geometry) as lng,
-  p.last_seen_at,
-  p.description,
-  p.height_cm,
-  p.weight_kg,
-  p.hair_color,
-  p.eye_color,
-  p.skin_tone,
-  p.clothing_top,
-  p.clothing_bottom,
-  p.clothing_shoes,
-  p.clothing_accessories,
-  p.distinguishing_marks,
-  -- Foto: NULL si menor o admin_only
-  case
-    when p.photo_visibility = 'public' then p.photo_url
-    else null
-  end as photo_url,
-  p.photo_visibility,
-  p.status,
-  p.is_minor,
-  p.unaccompanied_minor,
-  p.medical_urgent,
-  p.medical_category,
-  p.medical_notes,
-  p.share_exact_location_with_searchers,
-  -- Coord exacta SOLO si el sujeto opt-in explicit (auto-reporte "a salvo")
-  case
-    when p.status = 'safe_self_report' and p.share_exact_location_with_searchers then
-      ST_Y(p.last_known_location_point::geometry)
-    else null
-  end as lat_exact_optional,
-  case
-    when p.status = 'safe_self_report' and p.share_exact_location_with_searchers then
-      ST_X(p.last_known_location_point::geometry)
-    else null
-  end as lng_exact_optional,
-  p.created_at,
-  p.updated_at,
-  p.expiry_date
-from persons p
-where p.moderation_status = 'approved' and p.withdrawn_at is null;
-
-comment on view persons_public is
-  'ÚNICA superficie pública para personas. Excluye coords exactas (salvo opt-in safe_self_report), email/phone reportante, photo si admin_only, registros pending/rejected/withdrawn.';
-
--- View paralela para notas públicas
-create or replace view notes_public as
-select
-  n.id,
-  n.pfif_id,
-  n.person_id,
-  n.source,
-  n.type,
-  n.text,
-  n.sighting_location_text,
-  n.sighting_location_obfuscated,
-  case when n.sighting_location_obfuscated is not null
-    then ST_Y(n.sighting_location_obfuscated::geometry) end as sighting_lat,
-  case when n.sighting_location_obfuscated is not null
-    then ST_X(n.sighting_location_obfuscated::geometry) end as sighting_lng,
-  n.sighting_date,
-  n.status_change,
-  n.created_at
-from notes n
-where n.moderation_status = 'approved' and not n.hidden;
-
-comment on view notes_public is 'Notas públicas (avistamientos, info_updates, status_changes). Coord sighting siempre obfuscated.';
 
 -- ═════════════════════════════════════════════════════════════════════════════
 -- suggest_matches — stub. Implementación completa en D5.

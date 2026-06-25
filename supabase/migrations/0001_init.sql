@@ -10,6 +10,25 @@ create extension if not exists fuzzystrmatch;
 create extension if not exists pgcrypto;
 create extension if not exists "uuid-ossp";
 
+-- ─── unaccent_immutable (helper IMMUTABLE para generated columns) ─────────────
+-- DEBE definirse ANTES de la tabla persons: la columna generada
+-- full_name_normalized la invoca, y Postgres exige que toda función referenciada
+-- por una expresión GENERATED ALWAYS exista en el momento del CREATE TABLE.
+-- (No usamos la extensión unaccent porque su función es STABLE, no IMMUTABLE,
+-- y por tanto ilegal en columnas generadas.)
+
+create or replace function unaccent_immutable(t text)
+returns text
+language sql
+immutable strict parallel safe
+as $$
+  select translate(
+    coalesce(t, ''),
+    'áéíóúÁÉÍÓÚñÑäëïöüÄËÏÖÜâêîôûÂÊÎÔÛçÇ',
+    'aeiouAEIOUnNaeiouAEIOUaeiouAEIOUcC'
+  );
+$$;
+
 -- ─── Enums ────────────────────────────────────────────────────────────────────
 
 do $$ begin
@@ -340,20 +359,6 @@ create table if not exists searches_active (
   created_at timestamptz not null default now()
 );
 
--- ─── unaccent_immutable (helper inmutable para generated columns) ────────────
-
-create or replace function unaccent_immutable(t text)
-returns text
-language sql
-immutable strict parallel safe
-as $$
-  select translate(
-    coalesce(t, ''),
-    'áéíóúÁÉÍÓÚñÑäëïöüÄËÏÖÜâêîôûÂÊÎÔÛçÇ',
-    'aeiouAEIOUnNaeiouAEIOUaeiouAEIOUcC'
-  );
-$$;
-
 -- ─── updated_at touch trigger reusable ───────────────────────────────────────
 
 create or replace function touch_updated_at()
@@ -373,3 +378,113 @@ drop trigger if exists trg_notes_touch on notes;
 create trigger trg_notes_touch
   before update on notes
   for each row execute function touch_updated_at();
+
+-- ═════════════════════════════════════════════════════════════════════════════
+-- VISTAS PÚBLICAS — única superficie de lectura para 'anon'.
+--
+-- Patrón "security barrier view": en 0003 se REVOCA SELECT directo a las tablas
+-- persons/notes para anon, y se concede SELECT solo a estas vistas. La vista
+-- corre como su dueño (SECURITY DEFINER por defecto en Postgres) → es el único
+-- portal controlado: filtra approved + no-withdrawn y enmascara columnas
+-- sensibles (coords exactas, PII reportante, foto de menores).
+--
+-- Se definen AQUÍ (no en 0004) porque 0003 (RLS + grants) corre antes que 0004
+-- y necesita que las vistas ya existan. security_barrier=true evita que el
+-- optimizador filtre predicados que infieran filas ocultas.
+-- NO usar security_invoker=on: anon no tiene SELECT sobre la tabla base, así que
+-- un invoker view devolvería 0 filas — el barrier definer es intencional.
+-- ═════════════════════════════════════════════════════════════════════════════
+
+create or replace view persons_public
+with (security_barrier = true)
+as
+select
+  p.id,
+  p.pfif_id,
+  p.source,
+  p.source_id,
+  p.source_url,
+  p.given_name,
+  p.family_name,
+  p.full_name,
+  p.alternate_names,
+  p.sex,
+  p.age,
+  p.age_unit,
+  p.home_neighborhood,
+  p.home_city,
+  p.home_state,
+  p.home_country,
+  p.last_known_location_text,
+  -- ⚠ NUNCA last_known_location_point — solo obfuscated
+  p.last_known_location_obfuscated,
+  ST_Y(p.last_known_location_obfuscated::geometry) as lat,
+  ST_X(p.last_known_location_obfuscated::geometry) as lng,
+  p.last_seen_at,
+  p.description,
+  p.height_cm,
+  p.weight_kg,
+  p.hair_color,
+  p.eye_color,
+  p.skin_tone,
+  p.clothing_top,
+  p.clothing_bottom,
+  p.clothing_shoes,
+  p.clothing_accessories,
+  p.distinguishing_marks,
+  -- Foto: NULL si menor o admin_only
+  case
+    when p.photo_visibility = 'public' then p.photo_url
+    else null
+  end as photo_url,
+  p.photo_visibility,
+  p.status,
+  p.is_minor,
+  p.unaccompanied_minor,
+  p.medical_urgent,
+  p.medical_category,
+  p.medical_notes,
+  p.share_exact_location_with_searchers,
+  -- Coord exacta SOLO si el sujeto opt-in explicit (auto-reporte "a salvo")
+  case
+    when p.status = 'safe_self_report' and p.share_exact_location_with_searchers then
+      ST_Y(p.last_known_location_point::geometry)
+    else null
+  end as lat_exact_optional,
+  case
+    when p.status = 'safe_self_report' and p.share_exact_location_with_searchers then
+      ST_X(p.last_known_location_point::geometry)
+    else null
+  end as lng_exact_optional,
+  p.created_at,
+  p.updated_at,
+  p.expiry_date
+from persons p
+where p.moderation_status = 'approved' and p.withdrawn_at is null;
+
+comment on view persons_public is
+  'ÚNICA superficie pública para personas. Excluye coords exactas (salvo opt-in safe_self_report), email/phone reportante, photo si admin_only, registros pending/rejected/withdrawn.';
+
+create or replace view notes_public
+with (security_barrier = true)
+as
+select
+  n.id,
+  n.pfif_id,
+  n.person_id,
+  n.source,
+  n.type,
+  n.text,
+  n.sighting_location_text,
+  n.sighting_location_obfuscated,
+  case when n.sighting_location_obfuscated is not null
+    then ST_Y(n.sighting_location_obfuscated::geometry) end as sighting_lat,
+  case when n.sighting_location_obfuscated is not null
+    then ST_X(n.sighting_location_obfuscated::geometry) end as sighting_lng,
+  n.sighting_date,
+  n.status_change,
+  n.created_at
+from notes n
+where n.moderation_status = 'approved' and not n.hidden;
+
+comment on view notes_public is 'Notas públicas (avistamientos, info_updates, status_changes). Coord sighting siempre obfuscated.';
