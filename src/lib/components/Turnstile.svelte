@@ -20,9 +20,25 @@
   type TurnstileApi = {
     render: (el: HTMLElement, opts: Record<string, unknown>) => string;
     remove?: (id?: string) => void;
+    reset?: (id?: string) => void;
   };
   function api(): TurnstileApi | undefined {
     return (window as unknown as { turnstile?: TurnstileApi }).turnstile;
+  }
+
+  /**
+   * Pide un token NUEVO. Los tokens de Turnstile son de un solo uso (el server
+   * los consume al verificar); tras una acción exitosa, llamar reset() permite
+   * otra acción en la misma página (p.ej. votar y luego reactivar un punto).
+   * Aditivo: los formularios de un solo envío no necesitan llamarlo.
+   */
+  export function reset(): void {
+    token = '';
+    try {
+      api()?.reset?.(widgetId);
+    } catch {
+      /* noop */
+    }
   }
 
   onMount(() => {

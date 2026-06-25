@@ -96,6 +96,15 @@
         </a>
       </div>
 
+      <a
+        href="/reportar/punto-ayuda"
+        data-sveltekit-preload-data="hover"
+        class="min-h-tap flex w-full items-center justify-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-black/30 backdrop-blur-md transition hover:bg-white/20 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-white/60"
+      >
+        <span aria-hidden="true">🤝</span>
+        <span>Registrar un punto de ayuda</span>
+      </a>
+
       <div class="flex items-center justify-center pt-1">
         <InstallPrompt />
       </div>

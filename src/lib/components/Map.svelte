@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { COLOR, COLOR_ON, LABEL_ES, PULSE_CLASS, categoryForPerson } from '$utils/colors';
+  import { COLOR, COLOR_ON, LABEL_ES, PULSE_CLASS, AID_META, categoryForPerson } from '$utils/colors';
   import type { PersonPublic } from '$schemas/person';
+  import type { AidPointPublic, AidType } from '$schemas/aid-point';
   import 'leaflet/dist/leaflet.css';
   import 'leaflet.markercluster/dist/MarkerCluster.css';
 
@@ -24,6 +25,9 @@
   // interactive=false → "papel tapiz": el mapa es ambiente, sin controles ni
   // gestos (la home lo usa de fondo; el mapa completo se abre en /mapa).
   export let interactive = true;
+  // Capa de lugares de servicio (aid_points) — toggle por el chip "Ayuda" en
+  // /mapa. Carga diferida (import dinámico) para no pesar el bundle si no se usa.
+  export let showAid = false;
 
   let mapEl: HTMLDivElement;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -47,6 +51,37 @@
   const addedIds = new Set<string>();
   let loadTimer: ReturnType<typeof setTimeout> | null = null;
   let truncated = false; // la última carga topó el límite → hay más en esa zona
+
+  // Capa de ayuda: se crea/destruye según showAid (import diferido). mounted evita
+  // que la reactividad corra antes de que el mapa exista.
+  let mounted = false;
+  let aidLayer: { attach: () => void; detach: () => void } | null = null;
+  // Lista accesible de puntos de ayuda (los markers de Leaflet no son tabbables).
+  let aidPoints: AidPointPublic[] = [];
+  let aidTruncated = false; // la zona topó el límite → hay más puntos de ayuda
+
+  async function syncAidFor(want: boolean): Promise<void> {
+    if (!map || !Lref) return;
+    if (want && !aidLayer) {
+      const { createAidLayer } = await import('$lib/client/aid-layer');
+      // El import es asíncrono: si durante el await el toggle se apagó (showAid
+      // ya no coincide) o otra llamada concurrente ya creó la capa, NO adjuntar
+      // una capa fantasma ni duplicarla (evita fuga de listeners + estado incoherente).
+      if (showAid !== want || aidLayer) return;
+      aidLayer = createAidLayer(Lref, map, {
+        onPoints: (pts) => (aidPoints = pts),
+        onTruncated: (t) => (aidTruncated = t)
+      });
+      aidLayer.attach();
+    } else if (!want && aidLayer) {
+      aidLayer.detach();
+      aidLayer = null;
+      aidPoints = [];
+      aidTruncated = false;
+    }
+  }
+
+  $: if (mounted) syncAidFor(showAid);
 
   const SUBTITLE: Record<string, string> = {
     minor: 'Prioridad · ayúdanos a encontrarle',
@@ -305,10 +340,14 @@
       if (interactive) map.on('moveend zoomend', scheduleLoad);
       await loadData(true);
     }
+
+    // Habilita la sincronización reactiva de la capa de ayuda (showAid).
+    mounted = true;
   });
 
   onDestroy(() => {
     if (loadTimer) clearTimeout(loadTimer);
+    if (aidLayer) aidLayer.detach();
     if (map) map.remove();
   });
 </script>
@@ -344,7 +383,7 @@
           personas reportadas{count && interactive ? ` · ${count} en vista` : ''}
         </div>
       </div>
-      {#if truncated && interactive}
+      {#if (truncated || aidTruncated) && interactive}
         <span
           class="rounded-full bg-amber-500/95 px-3 py-1 text-[11px] font-medium text-white shadow"
           role="status"
@@ -373,6 +412,25 @@
               {LABEL_ES[categoryForPerson(p)]}: {p.full_name || 'Sin nombre'}{p.age != null
                 ? `, ${p.age} años`
                 : ''} — {p.home_neighborhood || p.home_city || 'zona desconocida'}
+            </a>
+          </li>
+        {/each}
+      </ul>
+    </nav>
+  {/if}
+
+  <!-- Ruta accesible para los puntos de ayuda (mismo motivo que la de personas:
+       los markers de Leaflet no son tabbables). Cada uno enlaza a su ficha. -->
+  {#if aidPoints.length && interactive}
+    <nav class="sr-only" aria-label="Lista de puntos de ayuda en el mapa">
+      <h2>Puntos de ayuda en el mapa: {Math.min(aidPoints.length, 1000)}</h2>
+      <ul>
+        {#each aidPoints.slice(0, 1000) as a (a.id)}
+          <li>
+            <a href="/punto/{a.id}">
+              {AID_META[a.type as AidType]?.label ?? 'Punto de ayuda'}: {a.name} — {a.verified
+                ? 'verificado'
+                : 'sin verificar'} — {a.address_text}
             </a>
           </li>
         {/each}
@@ -496,6 +554,7 @@
     background: linear-gradient(180deg, #0b4f6c 0%, #2c5d7a 55%, #f0f9fb 100%);
     overflow: hidden;
   }
+  /* Haz del faro: gira lento y SUAVE (luz tenue, transición ancha). */
   .faro-loading::before {
     content: '';
     position: absolute;
@@ -503,16 +562,22 @@
     background: conic-gradient(
       from 0deg at 50% 38%,
       transparent 0deg,
-      rgba(255, 247, 214, 0) 30deg,
-      rgba(255, 247, 214, 0.35) 45deg,
-      transparent 60deg,
+      rgba(255, 247, 214, 0) 24deg,
+      rgba(255, 247, 214, 0.22) 48deg,
+      rgba(255, 247, 214, 0) 72deg,
       transparent 360deg
     );
-    animation: faro-sweep 3.2s linear infinite;
+    animation: faro-sweep 6s linear infinite;
+    will-change: transform;
   }
   @keyframes faro-sweep {
     to {
       transform: rotate(360deg);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .faro-loading::before {
+      animation: none;
     }
   }
 

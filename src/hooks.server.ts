@@ -70,9 +70,30 @@ const PUBLIC_POST_PATHS = new Set([
 // la URL de subida se pide ANTES de que el usuario resuelva el captcha del envío.
 const TURNSTILE_EXEMPT = new Set(['/api/upload-url']);
 
+// Rutas públicas con segmento dinámico ([id]) — no entran en el Set exacto. Cada
+// patrón trae su propio rate-limit y una `key` ESTABLE para el bucket KV (NO por
+// id: así un griefer no esquiva el límite votando/reactivando en puntos distintos).
+// NO están exentas de Turnstile ni de config-guard (pasan por toda la cadena).
+const PUBLIC_POST_PATTERNS: { re: RegExp; key: string; rl: { windowSec: number; max: number } }[] = [
+  {
+    re: /^\/api\/aid-points\/[0-9a-f-]{36}\/vote$/i,
+    key: '/api/aid-points/:id/vote',
+    rl: { windowSec: 600, max: 30 }
+  },
+  {
+    re: /^\/api\/aid-points\/[0-9a-f-]{36}\/reactivate$/i,
+    key: '/api/aid-points/:id/reactivate',
+    rl: { windowSec: 3600, max: 3 }
+  }
+];
+
+function matchPattern(pathname: string): (typeof PUBLIC_POST_PATTERNS)[number] | undefined {
+  return PUBLIC_POST_PATTERNS.find((p) => p.re.test(pathname));
+}
+
 function isPublicMutation(event: Event): boolean {
   if (event.request.method !== 'POST' && event.request.method !== 'PUT') return false;
-  return PUBLIC_POST_PATHS.has(event.url.pathname);
+  return PUBLIC_POST_PATHS.has(event.url.pathname) || !!matchPattern(event.url.pathname);
 }
 
 /** ¿El request trae una cookie de sesión Supabase? Evita getUser() en tráfico anónimo. */
@@ -308,8 +329,12 @@ const RATE_LIMITS: Record<string, { windowSec: number; max: number }> = {
 const handleRateLimit: Handle = async ({ event, resolve }) => {
   if (!isPublicMutation(event)) return resolve(event);
 
-  const cfg = RATE_LIMITS[event.url.pathname];
+  // Config por ruta exacta o por patrón (sub-rutas [id]). El bucket KV usa la
+  // `key` estable del patrón (no el pathname con el id) → límite global por IP.
+  const matched = matchPattern(event.url.pathname);
+  const cfg = RATE_LIMITS[event.url.pathname] ?? matched?.rl;
   if (!cfg) return resolve(event);
+  const bucketKey = matched?.key ?? event.url.pathname;
 
   const kv = (event.platform?.env as { RATE_LIMIT?: KVNamespace } | undefined)?.RATE_LIMIT;
   if (!kv) {
@@ -328,7 +353,7 @@ const handleRateLimit: Handle = async ({ event, resolve }) => {
   // y siempre ponemos expirationTtl → la clave se auto-expira (no se vuelve
   // permanente nunca, evita DoS a IPs detrás de NAT compartido).
   const windowBucket = Math.floor(Date.now() / 1000 / cfg.windowSec);
-  const key = `rl:${event.url.pathname}:${event.locals.ipHashed}:${windowBucket}`;
+  const key = `rl:${bucketKey}:${event.locals.ipHashed}:${windowBucket}`;
 
   const count = parseInt((await kv.get(key)) ?? '0', 10) || 0;
   if (count >= cfg.max) {
@@ -347,6 +372,12 @@ const handleRateLimit: Handle = async ({ event, resolve }) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Handle: kill switch INSERTS_PAUSED
+//
+// Congela TODA mutación pública, incluidas las de autorregulación de aid-points
+// (/api/aid-points/[id]/vote y /reactivate), no solo las altas. Es INTENCIONAL:
+// INSERTS_PAUSED se activa durante un troll-wave, y justo entonces no queremos
+// que un griefer vote a oculto puntos legítimos ni abuse de la reactivación.
+// Fail-closed = default seguro (#29).
 // ─────────────────────────────────────────────────────────────────────────────
 
 const handleKillSwitch: Handle = async ({ event, resolve }) => {
