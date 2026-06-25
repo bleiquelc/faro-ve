@@ -20,7 +20,11 @@ clamp + `maxBounds` Venezuela (no world-wrap → no vistas en blanco), `.order('
 determinista), `addLayers` en bloque + `chunkedLoading`, aviso "Acércate para ver más" en zonas densas,
 conteo honesto ("N en vista"), techo de 7000 marcadores con recarga, API valida/ignora bbox inválido.
 Verificado en vivo: bbox La Guaira → 1000, mar → 0 (filtro espacial OK).
-Mejora futura (no bloqueante): badge de total exacto (count head) y AbortController en panning.
+**Número grande = TOTAL exacto** de reportados: API `?count=exact` (count head, respeta filtros, NO topado
+por 1000). El mapa lo muestra grande (abajo-izq) + "N en vista". Verificado live: total 12.399 (subiendo
+con la ingesta), missing 11.873. Clusters: ciudad→zona→puntos de colores al acercar (MarkerCluster).
+Mejora futura (no bloqueante): AbortController en panning; índice `(source, source_id)` para acelerar la
+ingesta (hoy el dedup es O(n²) → el `--apply` es lento, pero idempotente).
 
 ## 🟡 LISTO pero requiere ACCIÓN del founder ("Level B")
 Estos flujos están construidos + revisados, pero NO funcionan hasta setear secretos (el classifier exige
