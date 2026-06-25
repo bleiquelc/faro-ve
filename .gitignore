@@ -1,0 +1,57 @@
+# Dependencias
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+.svelte-kit/
+build/
+dist/
+.vercel/
+.netlify/
+.wrangler/
+
+# Env y secretos
+.env
+.env.local
+.env.*.local
+.env.production
+*.pem
+*.key
+
+# Supabase local
+supabase/.branches/
+supabase/.temp/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+logs/
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Tests
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+
+# Auto-memory
+.auto-memory/
+
+# Worktrees
+.claude/worktrees/
+
+# Misc
+.cache/
+*.tsbuildinfo
+.eslintcache
