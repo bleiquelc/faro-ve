@@ -45,7 +45,9 @@ export function obfuscatePoint(
   }
 
   const bearing = rng() * 2 * Math.PI;
-  const distance = minR + Math.sqrt(rng()) * (maxR - minR);
+  // Distribución uniforme por área en el anillo: r = sqrt(r_min² + U·(r_max² - r_min²))
+  // (sqrt(random) lineal sesga al borde externo más de lo correcto.)
+  const distance = Math.sqrt(minR * minR + rng() * (maxR * maxR - minR * minR));
 
   return projectPoint(p, distance, bearing);
 }

@@ -32,7 +32,10 @@ begin
     return null;
   end if;
   bearing_rad := random() * 2 * pi();
-  distance_m  := rmin + sqrt(random()) * (rmax - rmin);
+  -- Distribución uniforme por área en el anillo:
+  --   r = sqrt(r_min² + U·(r_max² - r_min²))
+  -- (sqrt(random()) lineal sesga al borde externo más de lo correcto.)
+  distance_m  := sqrt(rmin * rmin + random() * (rmax * rmax - rmin * rmin));
   return ST_Project(p::geography, distance_m, bearing_rad)::geography(Point, 4326);
 end;
 $$;
