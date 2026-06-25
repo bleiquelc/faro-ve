@@ -11,12 +11,16 @@
 - **Data REAL cargada**: ~17.339 personas de venezuela-te-busca (16.382 desaparecidas + 957 a salvo), auto-aprobadas, con atribución. (Ver "Ingesta" abajo.)
 - 2 correos en footer: **contacto@** (general) + **opt-out@** (cumplimiento). Aún NO reciben (falta Email Routing).
 
-## 🗺️ bbox-loading (mostrar TODAS las personas)
+## 🗺️ bbox-loading (mostrar TODAS las personas) — ✅ DESPLEGADO + VERIFICADO
 PostgREST topa en 1000 filas/request, así que el mapa carga por **viewport (bbox)** y acumula deduplicado
 al mover/zoomear → se ven las 17k+ explorando. La **búsqueda por nombre** carga todas las coincidencias y
-encuadra el mapa. Archivos: `src/lib/components/Map.svelte` (addPersons/loadData/bboxParam/scheduleLoad),
-`src/routes/mapa/+page.svelte` (buscador submit-only). Estado: commiteado; revisión adversarial + deploy
-(ver al final qué quedó).
+encuadra el mapa. Archivos: `src/lib/components/Map.svelte`, `src/routes/mapa/+page.svelte`, `api/persons` (bbox+order).
+Revisión adversarial: 13 hallazgos reales, **0 bloqueantes**, todos los de correctitud/rendimiento aplicados:
+clamp + `maxBounds` Venezuela (no world-wrap → no vistas en blanco), `.order('created_at')` (truncado
+determinista), `addLayers` en bloque + `chunkedLoading`, aviso "Acércate para ver más" en zonas densas,
+conteo honesto ("N en vista"), techo de 7000 marcadores con recarga, API valida/ignora bbox inválido.
+Verificado en vivo: bbox La Guaira → 1000, mar → 0 (filtro espacial OK).
+Mejora futura (no bloqueante): badge de total exacto (count head) y AbortController en panning.
 
 ## 🟡 LISTO pero requiere ACCIÓN del founder ("Level B")
 Estos flujos están construidos + revisados, pero NO funcionan hasta setear secretos (el classifier exige
