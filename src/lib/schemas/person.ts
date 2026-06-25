@@ -100,11 +100,11 @@ export const reportPersonSchema = z.object({
   clothing_shoes: z.string().trim().max(200).optional(),
   distinguishing_marks: z.string().trim().max(500).optional(),
 
-  // Foto: PATH en el bucket privado report-photos (formato uuid.jpg que produce
-  // /api/upload-url). Restringido para evitar inyección de paths arbitrarios.
+  // Foto: PATH en el bucket privado report-photos (UUID.jpg que produce
+  // /api/upload-url). UUID estricto → cero inyección de paths arbitrarios.
   photo_url: z
     .string()
-    .regex(/^[0-9a-f-]{36}\.jpg$/i, 'photo_url inválido')
+    .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.jpg$/i, 'photo_url inválido')
     .optional(),
 
   // Urgencia médica

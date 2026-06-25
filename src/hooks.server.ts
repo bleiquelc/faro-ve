@@ -302,7 +302,7 @@ const RATE_LIMITS: Record<string, { windowSec: number; max: number }> = {
   '/api/aid-points': { windowSec: 3600, max: 10 },
   '/api/offline-sync': { windowSec: 60, max: 20 },
   '/api/ai/ask': { windowSec: 86400, max: 10 },
-  '/api/upload-url': { windowSec: 3600, max: 20 }
+  '/api/upload-url': { windowSec: 3600, max: 8 }
 };
 
 const handleRateLimit: Handle = async ({ event, resolve }) => {

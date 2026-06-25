@@ -72,6 +72,8 @@
       photoPath = null;
       photoError = r.error;
       photoState = 'error';
+      if (photoPreview) URL.revokeObjectURL(photoPreview);
+      photoPreview = null;
     }
   }
   function removePhoto() {
@@ -111,6 +113,10 @@
       errorMsg = 'Escribe al menos el nombre de la persona.';
       return;
     }
+    if (photoState === 'uploading') {
+      errorMsg = 'La foto aún se está procesando, espera un momento.';
+      return;
+    }
     submitting = true;
     try {
       const body: Record<string, unknown> = {
@@ -148,6 +154,7 @@
         errorMsg = j.message || 'No se pudo enviar el reporte. Verifica la conexión e intenta de nuevo.';
         return;
       }
+      if (photoPreview) URL.revokeObjectURL(photoPreview);
       done = true;
     } catch {
       errorMsg = 'No se pudo enviar el reporte. Verifica la conexión e intenta de nuevo.';

@@ -50,9 +50,11 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders }) => {
     if (/^https?:\/\//i.test(raw)) {
       photoUrl = raw;
     } else {
+      // TTL corto: suficiente para que el navegador cargue la imagen; minimiza
+      // reenvío/cacheo de una foto sensible fuera de la app.
       const { data: signed } = await locals.supabaseAdmin.storage
         .from('report-photos')
-        .createSignedUrl(raw, 3600);
+        .createSignedUrl(raw, 120);
       photoUrl = signed?.signedUrl ?? null;
     }
   }
