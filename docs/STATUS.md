@@ -111,6 +111,15 @@ Detalle: `docs/SESSIONS/2026-06-26-aid-points-comunidad.md`.
   como secreto de Pages** (la lista muestra 4 secretos, sin APP_SALT; el config-guard lo exige). El founder
   debe setearlo (1 comando) + redeploy. RATE_LIMIT KV está bien en wrangler.toml.
 
+## 2026-06-26 (noche) — Limpieza de datos de prueba en producción
+- ✅ **30 perfiles `source='test'` ELIMINADOS** (eran los 30 seed de D2 para validar clusters; mostraban
+  "Fuente: test" en popup/ficha → el founder los vio "como TEST"). Total bajó 13.821 → **13.791** (verificado live).
+- ✅ **4 descripciones reales corregidas**: "test" era un typo de **"tez"** (complexión) en gente real de
+  venezuela-te-busca ("delgada de test clara" → "tez clara"). Corregido `test`→`tez` (palabra suelta).
+- ✅ Resultado: **0 perfiles dicen "test"** como palabra; los 30 con "testigo/contestura" (palabras españolas
+  legítimas, substring) intactos — son personas reales. Solo quedan perfiles reales (venezuela-te-busca).
+- ⚠️ NO re-correr `scripts/seed-test-persons.mjs` contra prod (re-inserta los 30 de prueba).
+
 ## Bloqueadores / pendientes founder
 
 1. **Tarjeta en Cloudflare** → para registrar `faro-ve.com` (disponible ✓; yo no puedo meter datos de tarjeta). El PLAN agenda DNS final en D6, así que no bloquea — seguimos en pages.dev.
