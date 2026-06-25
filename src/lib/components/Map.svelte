@@ -33,6 +33,7 @@
   let loading = true;
   let errorMsg = '';
   let count = 0;
+  let total = 0; // TOTAL exacto de reportados (con filtros activos) — el "número grande"
   // Lista accesible (sr-only): los clusters de Leaflet no son tabbables y el
   // lector de pantalla no puede llegar a las fichas. Esta lista da una ruta de
   // teclado/lector a cada /persona/[id] sin depender del mapa (hallazgo a11y).
@@ -204,6 +205,20 @@
     loadTimer = setTimeout(() => loadData(true), 400);
   }
 
+  // Total EXACTO de reportados (con los filtros activos). Informativo: si falla,
+  // no rompe el mapa.
+  async function loadTotal(): Promise<void> {
+    try {
+      const sep = endpoint.includes('?') ? '&' : '?';
+      const res = await fetch(`${endpoint}${sep}count=exact`);
+      if (!res.ok) return;
+      const data = (await res.json()) as { total?: number };
+      total = data.total ?? 0;
+    } catch {
+      /* total informativo */
+    }
+  }
+
   onMount(async () => {
     const L = (await import('leaflet')).default;
     await import('leaflet.markercluster');
@@ -271,6 +286,7 @@
     map.on('moveend zoomend', () => mapEl.classList.remove('faro-still'));
 
     Lref = L;
+    loadTotal(); // el "número grande" del total reportado (independiente del viewport)
     const hasQuery = /[?&]q=/.test(endpoint);
 
     if (hasQuery) {
@@ -317,12 +333,18 @@
     </div>
   {/if}
 
-  {#if !loading && !errorMsg && interactive}
+  {#if total > 0 && !errorMsg}
     <div class="absolute bottom-2 left-2 z-[400] flex flex-col items-start gap-1">
-      <span class="rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-faro-900 shadow">
-        ✨ {count} {count === 1 ? 'persona en vista' : 'personas en vista'}
-      </span>
-      {#if truncated}
+      <!-- El "número grande": TOTAL exacto de reportados (no topado por el 1000). -->
+      <div class="rounded-xl bg-faro-900/92 px-3.5 py-2 text-white shadow-lg backdrop-blur-sm">
+        <div class="text-2xl font-bold leading-none tabular-nums">
+          {total.toLocaleString('es-VE')}
+        </div>
+        <div class="text-[10px] font-medium text-white/85">
+          personas reportadas{count && interactive ? ` · ${count} en vista` : ''}
+        </div>
+      </div>
+      {#if truncated && interactive}
         <span
           class="rounded-full bg-amber-500/95 px-3 py-1 text-[11px] font-medium text-white shadow"
           role="status"

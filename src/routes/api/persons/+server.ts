@@ -16,6 +16,27 @@ export const GET: RequestHandler = async ({ url, locals, setHeaders }) => {
   }
   const f = parsed.data;
 
+  // Modo conteo: total EXACTO de reportados (con los filtros activos, SIN bbox).
+  // Para el "número grande" del mapa — no lo topa el límite de 1000 de PostgREST.
+  if (url.searchParams.get('count') === 'exact') {
+    let cq = locals.supabase
+      .from('persons_public')
+      .select('id', { count: 'exact', head: true })
+      .not('lat', 'is', null);
+    if (f.status) cq = cq.eq('status', f.status);
+    if (f.is_minor !== undefined) cq = cq.eq('is_minor', f.is_minor);
+    if (f.medical_urgent !== undefined) cq = cq.eq('medical_urgent', f.medical_urgent);
+    if (f.sector) cq = cq.ilike('home_neighborhood', `%${f.sector.replace(/[\\%_]/g, '\\$&')}%`);
+    if (f.q) cq = cq.ilike('full_name', `%${f.q.replace(/[\\%_]/g, '\\$&')}%`);
+    const { count, error: cErr } = await cq;
+    if (cErr) {
+      console.error('[GET /api/persons count]', cErr.message);
+      throw error(502, { message: 'No se pudo contar los reportes.' });
+    }
+    setHeaders({ 'cache-control': 'public, max-age=30, s-maxage=60' });
+    return json({ ok: true, total: count ?? 0 });
+  }
+
   // persons_public ya filtra approved + non-withdrawn y enmascara columnas.
   // Lectura pública vía cliente anon (la vista es el portal seguro).
   let q = locals.supabase
