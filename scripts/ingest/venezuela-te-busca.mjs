@@ -27,6 +27,7 @@
  *   DATABASE_URL="..." node scripts/ingest/venezuela-te-busca.mjs --apply [--pages N]
  */
 import pg from 'pg';
+import { geocode } from './geocode.mjs';
 
 const BASE = 'https://venezuela-te-busca-app.hellogafaro.workers.dev';
 const SOURCE = 'venezuela-te-busca';
@@ -58,61 +59,22 @@ function decode(arr) {
   return R(0);
 }
 
-async function fetchPage(query) {
-  const url = `${BASE}/_root.data${query ? `?${query}` : ''}`;
+// La fuente pagina por número de página: pagination = { page, hasMore }. (Antes
+// exponía nextHref; cambió de formato y dejó la ingesta estancada en la página 1.)
+async function fetchPage(page) {
+  const url = `${BASE}/_root.data${page > 1 ? `?page=${page}` : ''}`;
   const res = await fetch(url, { headers: { 'user-agent': UA, accept: 'text/x-script' } });
   if (!res.ok) throw new Error(`HTTP ${res.status} en ${url}`);
   const text = await res.text();
   const arr = JSON.parse(text.split('\n')[0]);
   const data = decode(arr)['routes/_index'].data;
   const persons = data.persons || [];
-  // nextHref viene como "/?page_info=...&limit=50" → extraemos el query string.
-  const nextHref = data.pagination?.nextHref || null;
-  const nextQuery = nextHref ? nextHref.split('?')[1] || null : null;
-  return { persons, nextQuery, totalCount: data.totalCount, stats: data.stats };
+  const hasMore = !!data.pagination?.hasMore;
+  return { persons, hasMore, totalCount: data.totalCount, stats: data.stats };
 }
 
-// ── geocoding: texto de lugar → [lat,lng]. Tabla de Vargas/Caracas (la data está
-//    concentrada ahí) + matching por substring normalizado. Sin match → null. ──
-const GEO = [
-  ['la guaira', 10.6, -66.9314],
-  ['guaira', 10.6, -66.9314],
-  ['maiquetia', 10.6, -66.9814],
-  ['catia la mar', 10.5959, -67.0257],
-  ['catialamar', 10.5959, -67.0257],
-  ['macuto', 10.6086, -66.8911],
-  ['caraballeda', 10.6125, -66.8492],
-  ['caraballera', 10.6125, -66.8492],
-  ['tanaguarena', 10.6178, -66.8222],
-  ['naiguata', 10.6242, -66.7411],
-  ['los corales', 10.6121, -66.8607],
-  ['tanaguarenas', 10.6178, -66.8222],
-  ['oricao', 10.5447, -67.0986],
-  ['caribe', 10.5959, -67.0257],
-  ['vargas', 10.6, -66.9],
-  ['punta de mulato', 10.6133, -66.8333],
-  ['pastora', 10.5089, -66.9216], // La Pastora, Caracas
-  ['caracas', 10.4806, -66.9036],
-  ['petare', 10.4773, -66.8186],
-  ['valencia', 10.162, -67.9972],
-  ['maracay', 10.2469, -67.5958],
-  ['maracaibo', 10.6545, -71.6406],
-  ['barquisimeto', 10.0647, -69.3475],
-  ['merida', 8.5897, -71.1561],
-  ['perez carreno', 10.4842, -66.9486] // Hospital
-];
-function geocode(text) {
-  if (!text) return null;
-  const t = String(text)
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '') // quita acentos
-    .trim();
-  for (const [needle, lat, lng] of GEO) {
-    if (t.includes(needle)) return [lat, lng];
-  }
-  return null;
-}
+// geocoding: texto de lugar → [lat,lng]. Tabla determinista nacional + selección
+// por aguja más larga (más específica). Ver scripts/ingest/geocode.mjs (testeado).
 
 function classify(status) {
   if (status === 'found') return 'found_alive';
@@ -149,12 +111,12 @@ function mapRecord(p) {
 async function collect() {
   const out = [];
   const seenIds = new Set();
-  let query = null;
-  let page = 0;
+  let pageNum = 1;
+  let pagesFetched = 0;
   let totalCount = null;
   let stats = null;
-  while (page < MAX_PAGES) {
-    const { persons, nextQuery, totalCount: tc, stats: st } = await fetchPage(query);
+  while (pagesFetched < MAX_PAGES) {
+    const { persons, hasMore, totalCount: tc, stats: st } = await fetchPage(pageNum);
     if (totalCount === null) {
       totalCount = tc;
       stats = st;
@@ -165,12 +127,12 @@ async function collect() {
       const rec = mapRecord(p);
       if (rec) out.push(rec);
     }
-    page++;
-    if (!nextQuery || persons.length === 0) break;
-    query = nextQuery;
+    pagesFetched++;
+    if (!hasMore || persons.length === 0) break;
+    pageNum++;
     await sleep(THROTTLE_MS);
   }
-  return { records: out, pages: page, totalCount, stats, scanned: seenIds.size };
+  return { records: out, pages: pagesFetched, totalCount, stats, scanned: seenIds.size };
 }
 
 async function insertAll(records) {
