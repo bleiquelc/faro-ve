@@ -19,6 +19,17 @@ export const PERSON_STATUS = [
   'withdrawn'
 ] as const;
 
+// Subconjunto que un REPORTE PÚBLICO puede crear (espeja la whitelist dura de
+// la RPC create_person_report). found_*/withdrawn son de ciclo de vida/moderación
+// y NUNCA se crean desde el endpoint público → el borde Zod los rechaza con 400.
+export const PUBLIC_REPORT_STATUS = [
+  'missing',
+  'safe_self_report',
+  'unidentified_body',
+  'sheltered',
+  'hospitalized'
+] as const;
+
 export const SEX = ['male', 'female', 'other', 'unknown'] as const;
 
 export const MEDICAL_CATEGORY = [
@@ -44,12 +55,22 @@ export const REPORTER_RELATION = [
   'unknown'
 ] as const;
 
-// Venezuela bounding box (aprox) — rechaza coords obviamente fuera del país.
+// Venezuela bounding box (aprox). Las coords fuera de VE NO fallan el reporte:
+// se DESCARTAN (la ubicación es opcional). Así un GPS con deriva en la costa, un
+// Wi-Fi de escritorio, o un familiar de la diáspora reportando desde el exterior
+// no pierden un reporte crítico — solo no se guarda esa coordenada.
 const VE_LAT = { min: 0.6, max: 12.3 };
 const VE_LNG = { min: -73.4, max: -59.8 };
 
-const latitude = z.coerce.number().min(VE_LAT.min).max(VE_LAT.max);
-const longitude = z.coerce.number().min(VE_LNG.min).max(VE_LNG.max);
+export function isInVenezuela(lat: number, lng: number): boolean {
+  return lat >= VE_LAT.min && lat <= VE_LAT.max && lng >= VE_LNG.min && lng <= VE_LNG.max;
+}
+
+// Rango "tierra válida" (no el bbox de VE): rechaza basura real (NaN, 999) pero
+// deja pasar cualquier coord terrestre; el transform de abajo descarta las que
+// caen fuera de Venezuela.
+const latitude = z.coerce.number().min(-90).max(90);
+const longitude = z.coerce.number().min(-180).max(180);
 
 /** POST /api/persons — reporte público nuevo. */
 export const reportPersonSchema = z.object({
@@ -60,9 +81,9 @@ export const reportPersonSchema = z.object({
   sex: z.enum(SEX).default('unknown'),
   age: z.coerce.number().int().min(0).max(130).optional(),
 
-  status: z.enum(PERSON_STATUS).default('missing'),
+  status: z.enum(PUBLIC_REPORT_STATUS).default('missing'),
 
-  // Última ubicación conocida (opcional; si viene, se valida dentro de VE).
+  // Última ubicación conocida (opcional). Coords fuera de VE se descartan abajo.
   last_known_location_text: z.string().trim().max(300).optional(),
   lat: latitude.optional(),
   lng: longitude.optional(),
@@ -87,6 +108,11 @@ export const reportPersonSchema = z.object({
   // Auto-reporte "a salvo" — opt-in para compartir coord exacta (default OFF).
   share_exact_location_with_searchers: z.coerce.boolean().optional().default(false),
 
+  // Auto-reporte "a salvo" — teléfono PÚBLICO opt-in del propio sujeto (default
+  // vacío). La RPC lo ignora salvo status='safe_self_report'. NO es PII de
+  // reportante de terceros: la persona elige publicarlo para que la contacten.
+  contact_phone_public: z.string().trim().max(40).optional(),
+
   // Reportante (PII — se hashea/encripta server-side, NUNCA se expone).
   reporter_relation: z.enum(REPORTER_RELATION).default('unknown'),
   reporter_name: z.string().trim().max(120).optional(),
@@ -108,6 +134,14 @@ export const reportPersonSchema = z.object({
   .refine((d) => !d.medical_category || d.medical_urgent, {
     message: 'medical_category requiere medical_urgent=true',
     path: ['medical_category']
+  })
+  // Coords fuera de Venezuela → se descartan (no fallan el reporte). La ubicación
+  // es opcional; nunca queremos perder un reporte crítico por una coord imprecisa.
+  .transform((d) => {
+    if (d.lat != null && d.lng != null && !isInVenezuela(d.lat, d.lng)) {
+      return { ...d, lat: undefined, lng: undefined };
+    }
+    return d;
   });
 
 export type ReportPersonInput = z.infer<typeof reportPersonSchema>;
@@ -163,6 +197,10 @@ export interface PersonPublic {
   share_exact_location_with_searchers: boolean;
   lat_exact_optional: number | null;
   lng_exact_optional: number | null;
+  // Teléfono público OPT-IN del sujeto (solo safe_self_report que lo compartió
+  // explícitamente). Lo expone persons_public a partir de la migración 0010;
+  // opcional aquí para forward-compat antes de aplicarla.
+  contact_phone_optional?: string | null;
   created_at: string;
   last_seen_at: string | null;
 }

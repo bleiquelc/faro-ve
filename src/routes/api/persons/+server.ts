@@ -1,6 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { personFiltersSchema } from '$schemas/person';
+import { personFiltersSchema, reportPersonSchema } from '$schemas/person';
 
 /**
  * GET /api/persons — datos públicos para el mapa.
@@ -8,8 +8,6 @@ import { personFiltersSchema } from '$schemas/person';
  * Lee SIEMPRE de la vista persons_public (coords ofuscadas, sin PII, solo
  * approved + no-withdrawn). Soporta filtros: status, is_minor, medical_urgent,
  * sector (barrio), bbox (viewport) y limit.
- *
- * POST se implementa aparte (reporte con Zod + EXIF strip + encripta PII).
  */
 export const GET: RequestHandler = async ({ url, locals, setHeaders }) => {
   const parsed = personFiltersSchema.safeParse(Object.fromEntries(url.searchParams));
@@ -56,4 +54,58 @@ export const GET: RequestHandler = async ({ url, locals, setHeaders }) => {
   setHeaders({ 'cache-control': 'public, max-age=15, s-maxage=30' });
 
   return json({ ok: true, count: data?.length ?? 0, persons: data ?? [] });
+};
+
+/**
+ * POST /api/persons — reporte público nuevo (desaparecido / a-salvo / etc.).
+ *
+ * Cadena de seguridad (en hooks.server.ts, antes de llegar aquí): config-guard
+ * (503 si faltan controles en prod) → Turnstile (403) → rate-limit 5/h por IP
+ * (429) → kill-switch INSERTS_PAUSED (503). Aquí: validación Zod estricta +
+ * RPC create_person_report (cifra/hashea la PII DENTRO de la DB; la clave nunca
+ * sale de Postgres) → inserta 'pending' → devuelve {id, edit_token}.
+ *
+ * La PII del reportante (email/phone) NUNCA se persiste en claro ni se devuelve.
+ * El edit_token raw se entrega una sola vez para editar/retirar sin login.
+ */
+export const POST: RequestHandler = async ({ request, locals }) => {
+  // Defensa en profundidad: hooks ya bloqueó si no verificó Turnstile, pero no
+  // confiamos solo en eso.
+  if (!locals.turnstileVerified) {
+    throw error(403, { message: 'Verificación anti-bot requerida.' });
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    throw error(400, { message: 'Cuerpo JSON inválido.' });
+  }
+
+  const parsed = reportPersonSchema.safeParse(body);
+  if (!parsed.success) {
+    throw error(400, {
+      message: 'Datos inválidos: ' + parsed.error.issues.map((i) => i.message).join(', ')
+    });
+  }
+
+  // Payload para la RPC: datos validados + IP ya hasheada (nunca en claro).
+  // Quitamos el token Turnstile (no va a la DB).
+  const { 'cf-turnstile-response': _t, ...clean } = parsed.data;
+  void _t;
+  const payload = { ...clean, reporter_ip_hashed: locals.ipHashed };
+
+  const { data, error: dbError } = await locals.supabaseAdmin.rpc('create_person_report', {
+    payload
+  });
+
+  if (dbError) {
+    // Sin service_role, supabaseAdmin cae al cliente anon y la RPC (revocada a
+    // anon) falla aquí — visible y correcto: falta configurar el secret.
+    console.error('[POST /api/persons]', dbError.message);
+    throw error(502, { message: 'No se pudo registrar el reporte. Intenta de nuevo en unos minutos.' });
+  }
+
+  const result = (data ?? {}) as { id?: string; edit_token?: string };
+  return json({ ok: true, id: result.id, edit_token: result.edit_token }, { status: 201 });
 };
