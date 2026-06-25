@@ -72,11 +72,21 @@
   <button
     type="button"
     on:click={onInstallClick}
-    class="min-h-tap inline-flex items-center justify-center gap-2 rounded-full bg-faro-900 px-6 py-3 font-semibold text-white shadow-lg transition active:scale-[0.98] hover:bg-faro-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-faro-700"
+    class="min-h-tap group inline-flex items-center gap-3 rounded-2xl border border-faro-100 bg-white px-5 py-3 text-faro-900 shadow-[0_1px_3px_rgba(11,79,108,0.08)] transition-all duration-200 hover:border-faro-200 hover:shadow-[0_6px_18px_rgba(11,79,108,0.12)] active:scale-[0.985] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-faro-300"
     aria-label="Instalar Faro VE en tu teléfono"
   >
-    <span aria-hidden="true">📲</span>
-    <span>Instalar app en mi teléfono</span>
+    <span
+      class="flex h-9 w-9 items-center justify-center rounded-xl bg-faro-50 text-faro-900 transition group-hover:bg-faro-100"
+      aria-hidden="true"
+    >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="6.5" y="2.5" width="11" height="19" rx="2.6" />
+        <path d="M12 6.5v6.5" />
+        <path d="M9.5 10.5 12 13l2.5-2.5" />
+        <line x1="10.5" y1="18.7" x2="13.5" y2="18.7" />
+      </svg>
+    </span>
+    <span class="text-[15px] font-medium tracking-tight">Instalar en mi teléfono</span>
   </button>
 {/if}
 
