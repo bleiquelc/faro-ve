@@ -65,13 +65,18 @@ order, minor-photo generated-column). **Total: 13 bugs antes de producción.**
 - ✅ KV namespace `RATE_LIMIT` id `c2a055cea3ca4dc098144ec69e948274` (en wrangler.toml).
 - ✅ Botón "Instalar app" (InstallPrompt) live en home.
 
-## Día 2 — EN PROGRESO (base del mapa lista)
-- ✅ `lib/schemas/person.ts` — Zod (reportPersonSchema + personFiltersSchema + PersonPublic).
-- ✅ `routes/api/persons/+server.ts` — GET desde persons_public (filtros status/is_minor/medical/sector/bbox), lee con cliente anon.
-- ✅ `lib/components/Map.svelte` — Leaflet + MarkerCluster + DivIcon SVG color/pulso + popup SIN navegación + "ubicación aproximada". Ruta `/mapa`.
-- ✅ `scripts/seed-test-persons.mjs` — 30 reportes test insertados (10 menores, 6 médicos). persons_public los sirve ofuscados (213m verificado).
-- ⏳ **Falta para ver el mapa live**: setear `PUBLIC_SUPABASE_ANON_KEY` como Pages secret + redeploy. Luego `/mapa` muestra los 30 pines.
-- ⏳ Pendiente D2: POST /api/persons (reporte + EXIF strip), form reportar/desaparecido, persona/[id], FilterChips, animaciones pulse en CSS global.
+## Día 2 — EN PROGRESO (mapa hallable + flujo de reporte listo)
+- ✅ API live OK: `/api/persons` sirve las 30 (anon key corregida por founder).
+- ✅ `lib/components/Map.svelte` — Leaflet + MarkerCluster + popup → ficha; prop `interactive` (modo fondo); a11y (sr-list, role=alert, tap 44px).
+- ✅ **Home = mapa de fondo** + tarjeta de bienvenida; "Ver el mapa" abre `/mapa`. (Resuelve "no encuentro el mapa".)
+- ✅ `routes/persona/[id]` — ficha SSR desde persons_public; display opt-in: coord exacta + NavigateButton para `safe_self_report` con opt-in.
+- ✅ **POST `/api/persons`** — Zod + RPC `create_person_report` (cifra/hashea PII en DB) → `pending` → `{id, edit_token}`.
+- ✅ **Migración 0010** — `contact_phone_public` (teléfono opt-in) + recreación `persons_public` (+`contact_phone_optional`) + RPC. *(falta aplicarla)*
+- ✅ Formularios `reportar/a-salvo` (opt-in estricto ubicación/teléfono, default OFF) y `reportar/desaparecido` + `Turnstile.svelte`.
+- ✅ Recon fuente ingesta `venezuela-te-busca` (22.096 registros, turbo-stream) → `docs/INGEST-venezuela-te-busca.md`.
+- ✅ 2 revisiones adversariales multi-agente (Tier-1 UI + Tier-2 server/SQL): **0 bloqueantes**; hallazgos reales arreglados (gate teléfono, esc(), coords fuera-VE no tumban reporte, whitelist status, etc.).
+- ⏳ **Para activar reportes en prod** (founder): aplicar 0010 + setear `SUPABASE_SERVICE_ROLE_KEY` + `TURNSTILE_*` + redeploy. Ver `docs/HANDOFF-dia2-deploy.md`.
+- ⏳ Pendiente D2/D3: subida de foto con EXIF strip, FilterChips ya commiteado, moderación, relay /mensaje.
 
 ## Bloqueadores / pendientes founder
 
