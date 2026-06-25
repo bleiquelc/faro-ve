@@ -101,7 +101,8 @@
       </div>
 
       <p class="text-xs text-white/70 [text-shadow:0_1px_6px_rgb(0_0_0_/0.7)]">
-        Sin ánimo de lucro · Privacidad por diseño ·
+        Sin ánimo de lucro ·
+        <a href="mailto:contacto@faro-ve.com" class="underline">Contacto</a> ·
         <a href="mailto:opt-out@faro-ve.com" class="underline">opt-out</a>
       </p>
     </div>
