@@ -3,6 +3,10 @@ import type { Database } from '$lib/schemas/database';
 
 declare global {
   namespace App {
+    interface Error {
+      message: string;
+      errorId?: string;
+    }
     interface Locals {
       supabase: SupabaseClient<Database>;
       supabaseAdmin: SupabaseClient<Database>;
