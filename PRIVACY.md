@@ -31,7 +31,7 @@ Faro VE es una iniciativa humanitaria sin ánimo de lucro creada en respuesta al
 
 ## Cómo protegemos los datos
 
-1. **Ubicación pública ofuscada 200–500m**. Las coordenadas exactas SOLO las ven moderadores verificados, NUNCA público.
+1. **Ubicación pública ofuscada 200–500m**. Las coordenadas exactas SOLO las ven moderadores verificados, NUNCA público. El desplazamiento se calcula una sola vez por ubicación y es **estable** (no se regenera en cada edición) para impedir que se promedien múltiples muestras y se recupere el punto exacto. **Limitación conocida**: en zonas rurales de muy baja densidad, un radio de 300m puede seguir señalando una única vivienda. Estamos trabajando en un radio adaptativo a densidad poblacional para esos casos; mientras tanto, si reportas desde una zona aislada y te preocupa, contáctanos a privacidad@faro-ve.com para ampliar el radio de tu reporte.
 2. **Email/teléfono del reportante NUNCA expuestos**. Hasheamos con SHA-256+salt. Encriptamos con PGP_sym_encrypt. Mensajes a reportantes pasan por relay server-side.
 3. **Foto de menores NUNCA pública**. Solo descripción de ropa y características. Foto accesible únicamente a moderadores y autoridades verificadas.
 4. **EXIF GPS strip obligatorio** en fotos antes de subir.
