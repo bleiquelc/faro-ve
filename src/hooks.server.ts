@@ -110,6 +110,10 @@ const handleSupabase: Handle = async ({ event, resolve }) => {
         { status: 503, headers: { 'content-type': 'application/json' } }
       );
     }
+    // Páginas no-API (home, legales): seguir sin Supabase para no crashear el
+    // sitio si el env aún no está configurado (createServerClient lanza con URL
+    // vacía). Los handlers de mutación pública ya exigen config aparte.
+    return resolve(event);
   }
 
   event.locals.supabase = createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {

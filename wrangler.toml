@@ -1,0 +1,29 @@
+# Configuración Cloudflare Pages — Faro VE (frontend SvelteKit).
+# Los Workers de cron tienen su propio wrangler.toml en workers/*/.
+#
+# SECRETOS (NO van aquí — se inyectan con `wrangler pages secret put NOMBRE`):
+#   APP_SALT · SUPABASE_SERVICE_ROLE_KEY · PUBLIC_SUPABASE_ANON_KEY
+#   TURNSTILE_SECRET_KEY · PUBLIC_TURNSTILE_SITE_KEY · RESEND_API_KEY
+#   ANTHROPIC_API_KEY · ANTHROPIC_GATEWAY_URL
+
+name = "faro-ve"
+pages_build_output_dir = ".svelte-kit/cloudflare"
+compatibility_date = "2026-06-20"
+compatibility_flags = ["nodejs_compat"]
+
+# Rate-limit KV (creado: wrangler kv namespace create RATE_LIMIT)
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "c2a055cea3ca4dc098144ec69e948274"
+
+# Variables públicas (no-secretos). PUBLIC_SUPABASE_URL es pública por diseño
+# (va al bundle cliente). El resto son flags de configuración.
+[vars]
+PUBLIC_SUPABASE_URL = "https://blmiebnnprwaupyatsyb.supabase.co"
+LLM_MODEL_DEFAULT = "claude-haiku-4-5-20251001"
+LLM_MODEL_COMPLEX = "claude-sonnet-4-6"
+LLM_DAILY_BUDGET_USD = "5"
+INSERTS_PAUSED = "false"
+FACE_MATCH_ENABLED = "false"
+INGEST_USER_AGENT = "FaroVE-IngestBot/1.0 (+contacto@faro-ve.com)"
+RESEND_INBOUND_OPTOUT = "opt-out@faro-ve.com"
