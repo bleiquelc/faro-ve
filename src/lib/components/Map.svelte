@@ -21,6 +21,9 @@
   export let endpoint = '/api/persons';
   export let center: [number, number] = [10.4806, -66.9036]; // Caracas
   export let zoom = 6;
+  // interactive=false → "papel tapiz": el mapa es ambiente, sin controles ni
+  // gestos (la home lo usa de fondo; el mapa completo se abre en /mapa).
+  export let interactive = true;
 
   let mapEl: HTMLDivElement;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -30,6 +33,10 @@
   let loading = true;
   let errorMsg = '';
   let count = 0;
+  // Lista accesible (sr-only): los clusters de Leaflet no son tabbables y el
+  // lector de pantalla no puede llegar a las fichas. Esta lista da una ruta de
+  // teclado/lector a cada /persona/[id] sin depender del mapa (hallazgo a11y).
+  let people: PersonPublic[] = [];
 
   const SUBTITLE: Record<string, string> = {
     minor: 'Prioridad · ayúdanos a encontrarle',
@@ -41,7 +48,10 @@
   };
 
   function esc(s: string): string {
-    return s.replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c] || c);
+    return s.replace(
+      /[<>&"']/g,
+      (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' })[c] || c
+    );
   }
 
   // Solo permite http(s) en hrefs externos (bloquea javascript:/data: de fuentes scrapeadas).
@@ -64,6 +74,18 @@
       </span>`;
   }
 
+  // ¿Auto-reporte "a salvo" cuyo sujeto aceptó compartir su ubicación exacta?
+  // (CLAUDE #26: navegación SOLO por opt-in del propio sujeto). El detalle con
+  // NavigateButton + "Llamar" vive en /persona/[id] — aquí solo cambia el copy.
+  function isSafeOptIn(p: PersonPublic): boolean {
+    return (
+      p.status === 'safe_self_report' &&
+      p.share_exact_location_with_searchers === true &&
+      p.lat_exact_optional != null &&
+      p.lng_exact_optional != null
+    );
+  }
+
   function popupHtml(p: PersonPublic): string {
     const cat = categoryForPerson(p);
     const name = p.full_name || 'Sin nombre';
@@ -71,6 +93,18 @@
     const sector = p.home_neighborhood || p.home_city || p.last_known_location_text || 'zona desconocida';
     const clothes = [p.clothing_top, p.clothing_bottom].filter(Boolean).join(', ');
     const sub = SUBTITLE[cat] ?? '';
+    const optIn = isSafeOptIn(p);
+
+    const locHtml = optIn
+      ? `<p class="faro-popup-loc">📍 Esta persona compartió su ubicación exacta para que la encuentren.<br/><small>${esc(sector)}</small></p>`
+      : `<p class="faro-popup-loc">📍 Ubicación aproximada (~300m por privacidad)<br/><small>Última zona conocida: ${esc(sector)}</small></p>`;
+
+    // CTA → siempre la ficha /persona/[id] (allí: NavigateButton si opt-in;
+    // "Tengo información" para personas buscadas). Evita el link muerto a /mensaje.
+    // El "Llamar" (teléfono opt-in) se activa con la migración 0010 → hasta
+    // entonces el copy promete solo "llegar", que sí se cumple.
+    const ctaLabel = optIn ? 'Cómo llegar' : 'Ver detalles';
+
     return `
       <div class="faro-popup">
         <div class="faro-popup-badge" style="background:${COLOR[cat]};color:${COLOR_ON[cat]}">${LABEL_ES[cat]}</div>
@@ -78,8 +112,8 @@
         ${sub ? `<p class="faro-popup-sub">${sub}</p>` : ''}
         ${clothes ? `<p class="faro-popup-desc">Vestía: ${esc(clothes)}</p>` : ''}
         ${p.distinguishing_marks ? `<p class="faro-popup-desc">Señas: ${esc(p.distinguishing_marks)}</p>` : ''}
-        <p class="faro-popup-loc">📍 Ubicación aproximada (~300m por privacidad)<br/><small>Última zona conocida: ${esc(sector)}</small></p>
-        <a class="faro-popup-btn" href="/mensaje/${encodeURIComponent(p.id)}">Tengo información</a>
+        ${locHtml}
+        <a class="faro-popup-btn" href="/persona/${encodeURIComponent(p.id)}">${ctaLabel}</a>
         ${p.source && p.source !== 'faro-ve' ? `<a class="faro-popup-src" href="${esc(safeUrl(p.source_url))}" target="_blank" rel="noopener noreferrer">Fuente: ${esc(p.source)}</a>` : ''}
       </div>`;
   }
@@ -88,9 +122,20 @@
     const L = (await import('leaflet')).default;
     await import('leaflet.markercluster');
 
-    map = L.map(mapEl, { zoomControl: false, attributionControl: true }).setView(center, zoom);
+    map = L.map(mapEl, {
+      zoomControl: false,
+      attributionControl: true,
+      // Modo "papel tapiz": sin gestos (la home no debe robar el scroll ni
+      // dejar arrastrar; el mapa interactivo completo está en /mapa).
+      dragging: interactive,
+      scrollWheelZoom: interactive,
+      touchZoom: interactive,
+      doubleClickZoom: interactive,
+      boxZoom: interactive,
+      keyboard: interactive
+    }).setView(center, zoom);
     // Zoom abajo-derecha (alcance del pulgar en mobile, no choca con los filtros).
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    if (interactive) L.control.zoom({ position: 'bottomright' }).addTo(map);
 
     // Tile "Faro Dusk": CARTO Positron (gratis, sin key) + filtro de marca en CSS.
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
@@ -133,6 +178,7 @@
       const res = await fetch(endpoint);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as { persons: PersonPublic[] };
+      people = data.persons.filter((p) => p.lat != null && p.lng != null);
       data.persons.forEach((p, i) => {
         if (p.lat == null || p.lng == null) return;
         const icon = L.divIcon({
@@ -171,16 +217,38 @@
     </div>
   {/if}
 
-  {#if errorMsg}
-    <div class="absolute left-1/2 top-4 z-[400] -translate-x-1/2 rounded-lg bg-red-600 px-4 py-2 text-sm text-white shadow">
+  {#if errorMsg && interactive}
+    <div
+      class="absolute left-1/2 top-4 z-[400] -translate-x-1/2 rounded-lg bg-red-600 px-4 py-2 text-sm text-white shadow"
+      role="alert"
+    >
       {errorMsg}
     </div>
   {/if}
 
-  {#if !loading && !errorMsg}
+  {#if !loading && !errorMsg && interactive}
     <div class="absolute bottom-2 left-2 z-[400] rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-faro-900 shadow">
       ✨ {count} {count === 1 ? 'luz encendida' : 'luces encendidas'}
     </div>
+  {/if}
+
+  <!-- Ruta accesible no-mapa: teclado y lector de pantalla llegan a cada ficha
+       sin depender de los clusters de Leaflet. Visualmente oculta. -->
+  {#if people.length && interactive}
+    <nav class="sr-only" aria-label="Lista de personas reportadas en el mapa">
+      <h2>Personas reportadas ({people.length})</h2>
+      <ul>
+        {#each people as p (p.id)}
+          <li>
+            <a href="/persona/{p.id}">
+              {LABEL_ES[categoryForPerson(p)]}: {p.full_name || 'Sin nombre'}{p.age != null
+                ? `, ${p.age} años`
+                : ''} — {p.home_neighborhood || p.home_city || 'zona desconocida'}
+            </a>
+          </li>
+        {/each}
+      </ul>
+    </nav>
   {/if}
 </div>
 
@@ -349,9 +417,11 @@
     color: #6b7280;
   }
   :global(.faro-popup-btn) {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px; /* tap target a11y ≥44px */
     margin-top: 0.4rem;
-    padding: 8px 14px;
+    padding: 10px 16px;
     border-radius: 8px;
     background: #0b4f6c;
     color: #fff;

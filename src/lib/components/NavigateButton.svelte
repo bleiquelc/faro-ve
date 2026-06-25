@@ -109,6 +109,7 @@
     role="dialog"
     aria-modal="true"
     aria-labelledby="nav-sheet-title"
+    tabindex="-1"
     on:click|self={() => (showSelector = false)}
     on:keydown={(e) => e.key === 'Escape' && (showSelector = false)}
   >

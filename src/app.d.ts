@@ -17,7 +17,9 @@ declare global {
       insertsPaused: boolean;
     }
     interface PageData {
-      session: Session | null;
+      // Opcional: solo las páginas que cargan sesión (panel-org, moderar) la
+      // proveen vía su +layout.server.ts. Las públicas (mapa, persona) no.
+      session?: Session | null;
     }
     interface Platform {
       env: {
