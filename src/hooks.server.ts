@@ -126,9 +126,14 @@ const handleSupabase: Handle = async ({ event, resolve }) => {
     }
   });
 
-  event.locals.supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { autoRefreshToken: false, persistSession: false }
-  });
+  // supabaseAdmin solo si hay service_role. Sin él, fallback al cliente anon
+  // (endpoints de solo-lectura como el mapa funcionan; los que necesitan admin
+  // —encriptar PII al reportar— fallarán visiblemente, lo cual es correcto).
+  event.locals.supabaseAdmin = SUPABASE_SERVICE_ROLE_KEY
+    ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+        auth: { autoRefreshToken: false, persistSession: false }
+      })
+    : event.locals.supabase;
 
   event.locals.getSession = async () => {
     const { data } = await event.locals.supabase.auth.getSession();
