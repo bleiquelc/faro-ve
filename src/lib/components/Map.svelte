@@ -38,6 +38,14 @@
   // teclado/lector a cada /persona/[id] sin depender del mapa (hallazgo a11y).
   let people: PersonPublic[] = [];
 
+  // Carga por viewport (bbox): hay decenas de miles de personas y PostgREST topa
+  // en 1000 filas por request. Cargamos la zona visible y acumulamos (deduplicado
+  // por id) al mover/zoomear → se ven TODAS explorando, sin recargar lo ya puesto.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let Lref: any = null;
+  const addedIds = new Set<string>();
+  let loadTimer: ReturnType<typeof setTimeout> | null = null;
+
   const SUBTITLE: Record<string, string> = {
     minor: 'Prioridad · ayúdanos a encontrarle',
     medical: 'Necesita atención médica',
@@ -118,6 +126,64 @@
       </div>`;
   }
 
+  // Agrega marcadores NUEVOS (deduplicados por id). Devuelve cuántos agregó.
+  function addPersons(persons: PersonPublic[]): number {
+    let added = 0;
+    for (const p of persons) {
+      if (p.lat == null || p.lng == null || addedIds.has(p.id)) continue;
+      addedIds.add(p.id);
+      people.push(p);
+      const icon = Lref.divIcon({
+        html: pinHtml(p, addedIds.size),
+        className: 'faro-pin-wrap',
+        iconSize: [30, 30],
+        iconAnchor: [15, 15],
+        popupAnchor: [0, -14]
+      });
+      const m = Lref.marker([p.lat, p.lng], { icon, keyboard: true, title: p.full_name || 'Persona' });
+      m.bindPopup(popupHtml(p), { maxWidth: 280 });
+      cluster.addLayer(m);
+      added++;
+    }
+    if (added) {
+      people = people; // dispara reactividad de la sr-list
+      count = addedIds.size;
+    }
+    return added;
+  }
+
+  // bbox "minLng,minLat,maxLng,maxLat" de la vista actual.
+  function bboxParam(): string {
+    const b = map.getBounds();
+    return [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]
+      .map((n: number) => n.toFixed(5))
+      .join(',');
+  }
+
+  async function loadData(useBbox: boolean): Promise<void> {
+    try {
+      const sep = endpoint.includes('?') ? '&' : '?';
+      const url = useBbox
+        ? `${endpoint}${sep}bbox=${bboxParam()}&limit=2000`
+        : `${endpoint}${sep}limit=2000`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as { persons: PersonPublic[] };
+      addPersons(data.persons);
+      errorMsg = '';
+    } catch (e) {
+      if (interactive) errorMsg = 'No se pudo encender el mapa. Revisa tu conexión.';
+      console.error('[Map] loadData', e);
+    } finally {
+      loading = false;
+    }
+  }
+
+  function scheduleLoad(): void {
+    if (loadTimer) clearTimeout(loadTimer);
+    loadTimer = setTimeout(() => loadData(true), 400);
+  }
+
   onMount(async () => {
     const L = (await import('leaflet')).default;
     await import('leaflet.markercluster');
@@ -175,34 +241,29 @@
     map.on('movestart zoomstart', () => mapEl.classList.add('faro-still'));
     map.on('moveend zoomend', () => mapEl.classList.remove('faro-still'));
 
-    try {
-      const res = await fetch(endpoint);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as { persons: PersonPublic[] };
-      people = data.persons.filter((p) => p.lat != null && p.lng != null);
-      data.persons.forEach((p, i) => {
-        if (p.lat == null || p.lng == null) return;
-        const icon = L.divIcon({
-          html: pinHtml(p, i),
-          className: 'faro-pin-wrap',
-          iconSize: [30, 30],
-          iconAnchor: [15, 15],
-          popupAnchor: [0, -14]
-        });
-        const m = L.marker([p.lat, p.lng], { icon, keyboard: true, title: p.full_name || 'Persona' });
-        m.bindPopup(popupHtml(p), { maxWidth: 280 });
-        cluster.addLayer(m);
-      });
-      count = data.persons.length;
-    } catch (e) {
-      errorMsg = 'No se pudo encender el mapa. Revisa tu conexión.';
-      console.error('[Map] fetch', e);
-    } finally {
-      loading = false;
+    Lref = L;
+    const hasQuery = /[?&]q=/.test(endpoint);
+
+    if (hasQuery) {
+      // Búsqueda por nombre: carga TODAS las coincidencias (sin bbox) y encuadra
+      // el mapa a ellas, aunque estén fuera de la vista inicial.
+      await loadData(false);
+      if (count > 0 && interactive) {
+        try {
+          map.fitBounds(cluster.getBounds(), { padding: [40, 40], maxZoom: 14 });
+        } catch {
+          /* sin bounds válidos: dejamos la vista por defecto */
+        }
+      }
+    } else {
+      // Navegación: carga la zona visible y, al mover/zoomear, carga más (acumula).
+      if (interactive) map.on('moveend zoomend', scheduleLoad);
+      await loadData(true);
     }
   });
 
   onDestroy(() => {
+    if (loadTimer) clearTimeout(loadTimer);
     if (map) map.remove();
   });
 </script>
@@ -239,7 +300,9 @@
     <nav class="sr-only" aria-label="Lista de personas reportadas en el mapa">
       <h2>Personas reportadas ({people.length})</h2>
       <ul>
-        {#each people as p (p.id)}
+        <!-- Cap a 1000 nodos: con decenas de miles, renderizar todos satura el DOM.
+             La búsqueda por nombre llega a cualquier persona específica. -->
+        {#each people.slice(0, 1000) as p (p.id)}
           <li>
             <a href="/persona/{p.id}">
               {LABEL_ES[categoryForPerson(p)]}: {p.full_name || 'Sin nombre'}{p.age != null

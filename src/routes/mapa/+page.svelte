@@ -48,11 +48,10 @@
           <!-- svelte-ignore a11y_autofocus -->
           <input
             bind:value={query}
-            on:input={runSearch}
             type="search"
             inputmode="search"
             autofocus
-            placeholder="Buscar por nombre…"
+            placeholder="Buscar por nombre y presiona Enter…"
             aria-label="Buscar persona por nombre"
             class="min-h-tap w-full bg-transparent text-sm outline-none"
           />
