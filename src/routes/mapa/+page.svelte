@@ -4,6 +4,7 @@
   import { goto } from '$app/navigation';
   import FilterChips from '$components/FilterChips.svelte';
   import RefreshButton from '$components/RefreshButton.svelte';
+  import FaroIcon from '$components/FaroIcon.svelte';
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let MapComp: any = null;
 
@@ -103,7 +104,7 @@
         data-sveltekit-preload-data="hover"
         class="min-h-tap flex flex-col items-center justify-center rounded-full px-4 py-1.5 text-[11px] font-medium text-white/90 transition-all duration-200 ease-out active:scale-[0.95] hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white/60"
       >
-        <span class="text-lg leading-none" aria-hidden="true">🏠</span>
+        <FaroIcon name="home" size={20} />
         <span>Inicio</span>
       </a>
       <button
@@ -114,7 +115,7 @@
           ? 'bg-white/20'
           : 'hover:bg-white/15'} focus:outline-none focus:ring-2 focus:ring-white/60"
       >
-        <span class="text-lg leading-none" aria-hidden="true">🔎</span>
+        <FaroIcon name="search" size={20} />
         <span>Buscar</span>
       </button>
       <a
@@ -122,7 +123,7 @@
         data-sveltekit-preload-data="hover"
         class="min-h-tap flex flex-col items-center justify-center rounded-full px-4 py-1.5 text-[11px] font-medium text-white/90 transition-all duration-200 ease-out active:scale-[0.95] hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white/60"
       >
-        <span class="text-lg leading-none" aria-hidden="true">💚</span>
+        <FaroIcon name="safe" size={20} />
         <span>Estoy bien</span>
       </a>
     </div>

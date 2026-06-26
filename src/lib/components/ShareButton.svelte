@@ -1,4 +1,5 @@
 <script lang="ts">
+  import FaroIcon from '$components/FaroIcon.svelte';
   /**
    * Compartir una ficha — más ojos sobre un caso = más posibilidades de hallazgo.
    * Web Share API nativa (ideal en celular) con fallback a WhatsApp (dominante en
@@ -56,7 +57,7 @@
         on:click={nativeShare}
         class="min-h-tap flex flex-1 items-center justify-center gap-2 rounded-lg bg-faro-900 px-4 py-3 font-semibold text-white transition hover:bg-faro-800 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-faro-700 focus:ring-offset-2"
       >
-        <span aria-hidden="true">📣</span> Compartir
+<FaroIcon name="share" size={18} /> Compartir
       </button>
     {/if}
 
@@ -66,7 +67,7 @@
       rel="noopener noreferrer"
       class="min-h-tap flex flex-1 items-center justify-center gap-2 rounded-lg border border-faro-900 px-4 py-3 font-semibold text-faro-900 transition hover:bg-faro-50 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-faro-700"
     >
-      <span aria-hidden="true">💬</span> WhatsApp
+<FaroIcon name="message" size={18} /> WhatsApp
     </a>
 
     <button
@@ -75,8 +76,8 @@
       class="min-h-tap flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 transition hover:bg-gray-100 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-faro-700"
       aria-live="polite"
     >
-      <span aria-hidden="true">{copied ? '✅' : '🔗'}</span>
-      {copied ? 'Copiado' : 'Copiar enlace'}
+<FaroIcon name="copy" size={18} />
+      {copied ? '¡Copiado!' : 'Copiar enlace'}
     </button>
   </div>
   <p class="mt-1.5 text-center text-xs text-gray-500">

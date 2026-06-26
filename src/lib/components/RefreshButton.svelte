@@ -14,6 +14,8 @@
    * Accesible: <button> real, aria-label, estado ocupado anunciado, tap ≥44px.
    */
 
+  import FaroIcon from '$components/FaroIcon.svelte';
+
   export let label = 'Actualizar';
   export let compact = false; // solo ícono (para barras compactas)
   export let tone: 'light' | 'dark' = 'dark'; // dark = sobre fondo claro
@@ -82,7 +84,7 @@
     ? 'border-gray-200 bg-white/90 text-faro-900 hover:border-faro-300 focus:ring-2 focus:ring-faro-300'
     : 'border-white/25 bg-white/15 text-white backdrop-blur-md hover:bg-white/25 focus:ring-2 focus:ring-white/60'} focus:outline-none"
 >
-  <span class="text-base leading-none" class:faro-spin={busy} aria-hidden="true">↻</span>
+  <span class="inline-flex leading-none" class:faro-spin={busy}><FaroIcon name="refresh" size={18} /></span>
   {#if !compact}
     <span>{busy ? 'Actualizando…' : label}</span>
   {/if}

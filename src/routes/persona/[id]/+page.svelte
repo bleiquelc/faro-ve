@@ -2,6 +2,7 @@
   import NavigateButton from '$components/NavigateButton.svelte';
   import ShareButton from '$components/ShareButton.svelte';
   import InfoForm from '$components/InfoForm.svelte';
+  import FaroIcon from '$components/FaroIcon.svelte';
   import { COLOR, COLOR_ON, LABEL_ES, categoryForPerson } from '$utils/colors';
   import type { PageData } from './$types';
 
@@ -146,7 +147,7 @@
         href={telHref}
         class="min-h-tap flex w-full items-center justify-center gap-2 rounded-lg bg-faro-900 px-4 py-3 font-semibold text-white transition hover:bg-faro-800 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-faro-700 focus:ring-offset-2"
       >
-        <span aria-hidden="true">📞</span> Llamar a {p.full_name || 'esta persona'}
+<FaroIcon name="phone" size={18} /> Llamar a {p.full_name || 'esta persona'}
       </a>
     {/if}
 

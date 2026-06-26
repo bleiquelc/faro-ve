@@ -11,6 +11,7 @@
     copyAddressToClipboard,
     type MapApp
   } from '$utils/navigation';
+  import FaroIcon from '$components/FaroIcon.svelte';
 
   /**
    * NavigateButton — botón único multi-app para "🧭 Llegar aquí".
@@ -87,7 +88,7 @@
       : 'bg-white border border-faro-900 text-faro-900 hover:bg-faro-50'}"
     aria-label="Iniciar navegación a {name ?? 'este lugar'}"
   >
-    <span aria-hidden="true">🧭</span>
+    <FaroIcon name="navigate" size={20} />
     <span>Llegar aquí</span>
   </button>
 
@@ -98,7 +99,7 @@
     aria-label="Copiar dirección al portapapeles"
     aria-live="polite"
   >
-    <span aria-hidden="true">📋</span>
+    <FaroIcon name="copy" size={18} />
     <span>{copied ? '¡Copiado!' : 'Copiar dirección'}</span>
   </button>
 </div>

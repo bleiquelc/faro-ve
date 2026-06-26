@@ -1,5 +1,6 @@
 <script lang="ts">
   import Turnstile from '$components/Turnstile.svelte';
+  import FaroIcon from '$components/FaroIcon.svelte';
   import { tick } from 'svelte';
 
   /**
@@ -119,7 +120,7 @@
       on:click={openForm}
       class="min-h-tap flex w-full items-center justify-center gap-2 rounded-lg border border-faro-900 px-4 py-3 font-semibold text-faro-900 transition hover:bg-faro-50 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-faro-700"
     >
-      <span aria-hidden="true">💡</span> Tengo información / La vi
+<FaroIcon name="info" size={20} /> Tengo información / La vi
     </button>
   {:else}
     <form bind:this={formEl} class="space-y-4 rounded-xl border border-gray-200 p-4" on:submit|preventDefault={submit}>
