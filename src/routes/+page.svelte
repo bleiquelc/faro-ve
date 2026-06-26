@@ -89,7 +89,7 @@
         this={MapComp}
         interactive={false}
         dusk={true}
-        center={[10.555, -66.915]}
+        center={[10.63, -66.9]}
         zoom={11}
       />
     {/if}

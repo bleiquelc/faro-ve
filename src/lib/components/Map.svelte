@@ -631,7 +631,7 @@
     </div>
   {/if}
 
-  {#if total > 0 && !errorMsg}
+  {#if total > 0 && !errorMsg && interactive}
     <div class="absolute bottom-2 left-2 z-[400] flex flex-col items-start gap-1">
       <!-- El "número grande": TOTAL exacto de reportados (no topado por el 1000). -->
       <div class="rounded-xl bg-faro-900/92 px-3.5 py-2 text-white shadow-lg backdrop-blur-sm">
