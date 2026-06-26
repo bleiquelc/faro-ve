@@ -1,6 +1,7 @@
 <script lang="ts">
   import NavigateButton from '$components/NavigateButton.svelte';
   import ShareButton from '$components/ShareButton.svelte';
+  import InfoForm from '$components/InfoForm.svelte';
   import { COLOR, COLOR_ON, LABEL_ES, categoryForPerson } from '$utils/colors';
   import type { PageData } from './$types';
 
@@ -33,11 +34,13 @@
   $: clothes = [p.clothing_top, p.clothing_bottom].filter(Boolean).join(', ');
   $: age = p.age != null ? `, ${p.age} años` : '';
 
-  // "Tengo información": el relay anti-PII (/mensaje/[id]) llega en D3. Interino:
-  // canalizamos al inbox de Faro (NO al reportante) — nunca expone PII de terceros.
-  $: infoHref = `mailto:contacto@faro-ve.com?subject=${encodeURIComponent(
-    `Información sobre ${p.full_name || 'persona'} (${p.id})`
-  )}`;
+  // Aportes de la comunidad ya aprobados (avistamientos / info).
+  $: notes = data.notes ?? [];
+
+  function noteWhen(iso: string): string {
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('es-VE', { dateStyle: 'medium' });
+  }
 </script>
 
 <svelte:head>
@@ -129,22 +132,42 @@
       </a>
     {/if}
 
-    {#if p.status !== 'safe_self_report'}
-      <a
-        href={infoHref}
-        class="min-h-tap flex w-full items-center justify-center gap-2 rounded-lg border border-faro-900 px-4 py-3 font-semibold text-faro-900 transition hover:bg-faro-50 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-faro-700"
-      >
-        <span aria-hidden="true">✉️</span> Tengo información
-      </a>
-      <p class="text-center text-xs text-gray-500">
-        Tu mensaje llega al equipo de Faro VE, que lo hace seguir sin exponer datos de nadie.
-      </p>
-    {/if}
   </section>
+
+  <!-- Aportar información / avistamiento (va a moderación antes de publicarse). -->
+  {#if p.status !== 'safe_self_report'}
+    <InfoForm personId={p.id} personName={p.full_name || 'esta persona'} />
+  {/if}
 
   <!-- Compartir: más ojos sobre el caso = más posibilidades de hallazgo. -->
   {#if data.shareUrl}
     <ShareButton name={p.full_name || 'esta persona'} url={data.shareUrl} {searching} />
+  {/if}
+
+  <!-- Aportes de la comunidad ya aprobados (avistamientos / info). -->
+  {#if notes.length}
+    <section class="mt-6">
+      <h2 class="text-sm font-semibold text-gray-900">Información de la comunidad</h2>
+      <ul class="mt-2 space-y-3">
+        {#each notes as n (n.id)}
+          <li class="rounded-xl border border-gray-200 p-3">
+            <div class="flex items-center gap-2 text-xs text-gray-500">
+              <span class="rounded-full bg-gray-100 px-2 py-0.5 font-medium text-gray-700">
+                {n.type === 'sighting' ? '👁 Avistamiento' : '💬 Información'}
+              </span>
+              {#if n.created_at}<span>{noteWhen(n.created_at)}</span>{/if}
+            </div>
+            <p class="mt-1.5 whitespace-pre-line text-sm text-gray-800">{n.text}</p>
+            {#if n.sighting_location_text}
+              <p class="mt-1 text-xs text-gray-500">📍 {n.sighting_location_text} <span class="text-gray-400">(zona aproximada)</span></p>
+            {/if}
+          </li>
+        {/each}
+      </ul>
+      <p class="mt-2 text-xs text-gray-400">
+        Aportes revisados por moderación. Las ubicaciones se muestran aproximadas por privacidad.
+      </p>
+    </section>
   {/if}
 
   {#if p.source && p.source !== 'faro-ve'}

@@ -1,6 +1,7 @@
 import { error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { moderationDecisionSchema, type ModerationQueue } from '$schemas/moderation';
+import type { NotesModerationQueue } from '$schemas/note';
 import { requireModerator } from '$server/auth';
 
 const BUCKET_PATH_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.jpg$/i;
@@ -14,9 +15,11 @@ const PAGE_SIZE = 25;
 export const load: PageServerLoad = async ({ locals }) => {
   const moderator = requireModerator(locals);
 
-  const [queueRes, statsRes] = await Promise.all([
+  const [queueRes, statsRes, notesRes, notesStatsRes] = await Promise.all([
     locals.supabaseAdmin.rpc('moderation_queue', { p_limit: PAGE_SIZE, p_offset: 0 }),
-    locals.supabaseAdmin.rpc('moderation_stats')
+    locals.supabaseAdmin.rpc('moderation_stats'),
+    locals.supabaseAdmin.rpc('notes_moderation_queue', { p_limit: PAGE_SIZE, p_offset: 0 }),
+    locals.supabaseAdmin.rpc('notes_moderation_stats')
   ]);
 
   if (queueRes.error) {
@@ -27,6 +30,10 @@ export const load: PageServerLoad = async ({ locals }) => {
   const queue = (queueRes.data ?? { total: 0, items: [] }) as ModerationQueue;
   const stats = statsRes.error ? null : (statsRes.data as Record<string, number> | null);
   if (statsRes.error) console.error('[moderar stats]', statsRes.error.message);
+
+  const notesQueue = (notesRes.error ? { total: 0, items: [] } : notesRes.data) as NotesModerationQueue;
+  if (notesRes.error) console.error('[moderar notes]', notesRes.error.message);
+  const notesStats = notesStatsRes.error ? null : (notesStatsRes.data as Record<string, number> | null);
 
   // Firmar fotos del bucket privado para que el moderador las vea (TTL corto).
   // URLs externas (fuentes ingestadas) se usan tal cual. En paralelo (cola ≤25).
@@ -48,7 +55,15 @@ export const load: PageServerLoad = async ({ locals }) => {
     })
   );
 
-  return { moderator, total: queue.total, items, stats };
+  return {
+    moderator,
+    total: queue.total,
+    items,
+    stats,
+    notesTotal: notesQueue.total,
+    notes: notesQueue.items,
+    notesStats
+  };
 };
 
 export const actions: Actions = {
@@ -85,6 +100,43 @@ export const actions: Actions = {
 
     if (rpcError) {
       console.error('[moderar decide]', rpcError.message);
+      return fail(502, { ok: false, id, error: 'No se pudo aplicar la decisión. Intenta de nuevo.' });
+    }
+
+    return { ok: true, id, decision, result: data };
+  },
+
+  decideNote: async ({ request, locals }) => {
+    if (!locals.moderator) {
+      return fail(403, { error: 'Tu sesión expiró. Vuelve a iniciar sesión.' });
+    }
+
+    const form = await request.formData();
+    const rawId = form.get('id');
+    const idStr = typeof rawId === 'string' ? rawId : '';
+    const parsed = moderationDecisionSchema.safeParse({
+      id: idStr,
+      decision: form.get('decision'),
+      notes: (form.get('notes') as string)?.trim() || undefined
+    });
+    if (!parsed.success) {
+      return fail(400, {
+        ok: false,
+        id: idStr,
+        error: parsed.error.issues[0]?.message ?? 'Datos inválidos.'
+      });
+    }
+    const { id, decision, notes } = parsed.data;
+
+    const { data, error: rpcError } = await locals.supabaseAdmin.rpc('moderate_note', {
+      p_id: id,
+      p_decision: decision,
+      p_moderator_id: locals.moderator.id,
+      p_notes: notes ?? null
+    });
+
+    if (rpcError) {
+      console.error('[moderar decideNote]', rpcError.message);
       return fail(502, { ok: false, id, error: 'No se pudo aplicar la decisión. Intenta de nuevo.' });
     }
 

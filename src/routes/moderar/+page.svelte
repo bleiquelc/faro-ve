@@ -273,4 +273,91 @@
       {/each}
     </ul>
   {/if}
+
+  <!-- ── Cola de avistamientos / información de la comunidad ─────────────── -->
+  <div class="mt-12 flex flex-wrap items-baseline justify-between gap-2 border-t border-gray-200 pt-6">
+    <h2 class="text-xl font-bold text-gray-900">Avistamientos e información</h2>
+    <p class="text-sm text-gray-500">
+      {data.notesTotal}
+      {data.notesTotal === 1 ? 'pendiente' : 'pendientes'}
+      {#if data.notesStats}· {data.notesStats.approved ?? 0} aprobados{/if}
+    </p>
+  </div>
+
+  {#if data.notes.length === 0}
+    <p class="mt-4 rounded-xl border border-dashed border-gray-300 px-6 py-10 text-center text-sm text-gray-500">
+      No hay aportes pendientes.
+    </p>
+  {:else}
+    <ul class="mt-4 space-y-4">
+      {#each data.notes as nt (nt.id)}
+        <li class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+          <div class="p-4">
+            <div class="flex flex-wrap items-center gap-1.5 text-xs">
+              <span class="rounded-full bg-gray-100 px-2 py-0.5 font-semibold text-gray-700">
+                {nt.type === 'sighting' ? '👁 Avistamiento' : '💬 Información'}
+              </span>
+              <span class="text-gray-500">
+                sobre <a href={`/persona/${nt.person_id}`} target="_blank" rel="noopener" class="font-medium text-faro-900 underline">{nt.person_name || 'persona'}</a>
+              </span>
+            </div>
+            <p class="mt-2 whitespace-pre-line text-sm text-gray-800">{nt.text}</p>
+            {#if nt.sighting_location_text}
+              <p class="mt-1 text-sm text-gray-600">📍 {nt.sighting_location_text}</p>
+            {/if}
+            {#if nt.lat_exact != null && nt.lng_exact != null}
+              <p class="mt-0.5 text-xs text-gray-500">
+                Coord exacta: {nt.lat_exact.toFixed(5)}, {nt.lng_exact.toFixed(5)}
+                · <a href={`https://www.google.com/maps?q=${nt.lat_exact},${nt.lng_exact}`} target="_blank" rel="noopener noreferrer" class="underline">ver</a>
+              </p>
+            {/if}
+            <p class="mt-2 text-xs text-gray-500">
+              Autor: {nt.author_name || 'anónimo'}
+              {#if nt.has_author_contact}· <span class="text-green-700">dejó contacto</span>{/if}
+            </p>
+          </div>
+
+          <form
+            method="POST"
+            action="?/decideNote"
+            use:enhance={() => {
+              processingId = nt.id;
+              return async ({ result, update }) => {
+                if (result.type === 'failure' && result.status === 403) {
+                  await goto('/moderar/login');
+                  return;
+                }
+                await update();
+                processingId = null;
+              };
+            }}
+            class="border-t border-gray-100 bg-gray-50/60 p-4"
+          >
+            <input type="hidden" name="id" value={nt.id} />
+            <label class="sr-only" for={`note-notes-${nt.id}`}>Motivo del rechazo</label>
+            <textarea
+              id={`note-notes-${nt.id}`}
+              name="notes"
+              rows="2"
+              placeholder="Motivo (obligatorio para rechazar)"
+              class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-faro-700 focus:outline-none focus:ring-2 focus:ring-faro-700"
+            ></textarea>
+            {#if cardError(form, nt.id)}
+              <p class="mt-1.5 text-sm text-red-700" role="alert">{cardError(form, nt.id)}</p>
+            {/if}
+            <div class="mt-3 flex flex-wrap gap-2">
+              <button name="decision" value="approved" disabled={processingId === nt.id}
+                class="min-h-tap flex-1 rounded-lg bg-green-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-green-800 active:scale-[0.98] disabled:opacity-50">
+                ✅ Aprobar
+              </button>
+              <button name="decision" value="rejected" disabled={processingId === nt.id}
+                class="min-h-tap rounded-lg bg-red-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-800 active:scale-[0.98] disabled:opacity-50">
+                ✖ Rechazar
+              </button>
+            </div>
+          </form>
+        </li>
+      {/each}
+    </ul>
+  {/if}
 </main>

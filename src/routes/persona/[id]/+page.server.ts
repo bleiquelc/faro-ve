@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import type { PersonPublic } from '$schemas/person';
+import type { NotePublic } from '$schemas/note';
 
 /**
  * Ficha pública de una persona — lee SIEMPRE de persons_public (coords
@@ -59,10 +60,23 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders, url }) 
     }
   }
 
+  // Aportes de la comunidad ya aprobados (avistamientos / info). notes_public solo
+  // expone approved + no-hidden, con la ubicación del avistamiento ofuscada.
+  const { data: notesData, error: notesError } = await locals.supabase
+    .from('notes_public')
+    .select(
+      'id, person_id, source, type, text, sighting_location_text, sighting_lat, sighting_lng, sighting_date, created_at'
+    )
+    .eq('person_id', params.id)
+    .order('created_at', { ascending: false })
+    .limit(50);
+  if (notesError) console.error('[persona/[id] notes]', notesError.message);
+  const notes = (notesData ?? []) as unknown as NotePublic[];
+
   setHeaders({ 'cache-control': 'private, max-age=15' });
 
   // URL absoluta y canónica para compartir (sin query). origin viene del request.
   const shareUrl = `${url.origin}/persona/${params.id}`;
 
-  return { person, photoUrl, shareUrl };
+  return { person, photoUrl, shareUrl, notes };
 };
