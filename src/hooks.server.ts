@@ -126,8 +126,16 @@ const handleContext: Handle = async ({ event, resolve }) => {
 
 const handleSupabase: Handle = async ({ event, resolve }) => {
   const SUPABASE_URL = env(event, 'PUBLIC_SUPABASE_URL');
-  const SUPABASE_ANON_KEY = env(event, 'PUBLIC_SUPABASE_ANON_KEY');
+  // 🔒 SEGURIDAD (incidente 2026-06-26): la anon key se lee de un secreto NO
+  // público para que JAMÁS termine en el bundle del cliente — SvelteKit publica
+  // TODO `PUBLIC_*` en el HTML. Orden: SUPABASE_ANON_KEY (no público) → fallback a
+  // service_role (el server es de confianza; las lecturas públicas van por las
+  // vistas _public security_barrier, nunca tablas base) → PUBLIC_ solo en dev.
   const SUPABASE_SERVICE_ROLE_KEY = env(event, 'SUPABASE_SERVICE_ROLE_KEY');
+  const SUPABASE_ANON_KEY =
+    env(event, 'SUPABASE_ANON_KEY') ||
+    SUPABASE_SERVICE_ROLE_KEY ||
+    env(event, 'PUBLIC_SUPABASE_ANON_KEY');
 
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     if (event.url.pathname.startsWith('/api/')) {

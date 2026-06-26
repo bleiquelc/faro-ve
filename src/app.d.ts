@@ -25,6 +25,8 @@ declare global {
       env: {
         SUPABASE_URL: string;
         SUPABASE_SERVICE_ROLE_KEY: string;
+        // Anon key NO pública (incidente 2026-06-26): no se publica al cliente.
+        SUPABASE_ANON_KEY: string;
         PUBLIC_SUPABASE_URL: string;
         PUBLIC_SUPABASE_ANON_KEY: string;
         APP_SALT: string;
