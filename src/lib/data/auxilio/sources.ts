@@ -148,6 +148,80 @@ export const SOURCES: Record<string, Source> = {
     title: "Arma tu kit de emergencia (Build A Kit)",
     url: "https://www.ready.gov/kit",
   },
+  "stop-the-bleed": {
+    id: "stop-the-bleed",
+    org: "American College of Surgeons · Stop the Bleed",
+    title: "Cómo controlar una hemorragia (torniquete)",
+    url: "https://www.stopthebleed.org/",
+  },
+  "redcross-bleeding": {
+    id: "redcross-bleeding",
+    org: "Cruz Roja Americana",
+    title: "Sangrado externo que amenaza la vida",
+    url: "https://www.redcross.org/take-a-class/resources/learn-first-aid/bleeding-life-threatening-external",
+  },
+  "aha-pediatric": {
+    id: "aha-pediatric",
+    org: "American Heart Association (AHA)",
+    title: "Soporte vital básico pediátrico — RCP en niño y bebé",
+    url: "https://cpr.heart.org/en/resuscitation-science/cpr-and-ecc-guidelines/pediatric-basic-life-support",
+  },
+  "redcross-child-cpr": {
+    id: "redcross-child-cpr",
+    org: "Cruz Roja Americana",
+    title: "RCP en niños y bebés",
+    url: "https://www.redcross.org/take-a-class/cpr/performing-cpr/child-baby-cpr",
+  },
+  "cdc-seizure": {
+    id: "cdc-seizure",
+    org: "CDC (EE.UU.)",
+    title: "Primeros auxilios para convulsiones",
+    url: "https://www.cdc.gov/epilepsy/first-aid-for-seizures/index.html",
+  },
+  "epilepsy-foundation": {
+    id: "epilepsy-foundation",
+    org: "Epilepsy Foundation",
+    title: "Primeros auxilios para convulsiones (Quédate · Protege · De lado)",
+    url: "https://www.epilepsy.com/recognition/first-aid-resources",
+  },
+  "redcross-seizure": {
+    id: "redcross-seizure",
+    org: "Cruz Roja Americana",
+    title: "Convulsiones: primeros auxilios",
+    url: "https://www.redcross.org/take-a-class/resources/learn-first-aid/seizures",
+  },
+  "mayo-electrical": {
+    id: "mayo-electrical",
+    org: "Mayo Clinic",
+    title: "Descarga eléctrica: primeros auxilios",
+    url: "https://www.mayoclinic.org/first-aid/first-aid-electrical-shock/basics/art-20056695",
+  },
+  "esfi-powerlines": {
+    id: "esfi-powerlines",
+    org: "Electrical Safety Foundation (ESFI)",
+    title: "Seguridad con líneas eléctricas caídas",
+    url: "https://www.esfi.org/power-lines-safety-tips/",
+  },
+  "who-pfa": {
+    id: "who-pfa",
+    org: "OMS / WHO",
+    title:
+      "Primeros auxilios psicológicos: guía para trabajadores de campo (2011)",
+    url: "https://www.who.int/publications/i/item/9789241548205",
+  },
+  "ifrc-pfa": {
+    id: "ifrc-pfa",
+    org: "IFRC · Centro de Referencia de Apoyo Psicosocial",
+    title:
+      "Guía de Primeros Auxilios Psicológicos (Observar · Escuchar · Conectar)",
+    url: "https://pscentre.org/wp-content/uploads/2019/05/PFA-Guide-low-res.pdf",
+  },
+  "paho-pfa": {
+    id: "paho-pfa",
+    org: "OPS / OMS",
+    title: "Observar, escuchar y conectar: cuidado de la salud mental",
+    url: "https://www.paho.org/es/noticias/12-6-2020-observar-escuchar-conectar-clave-para-cuidado-mutuo-salud-mental",
+  },
   // ── Fuentes de contactos ───────────────────────────────────────────────
   "ven911-oficial": {
     id: "ven911-oficial",
