@@ -439,6 +439,52 @@
     });
   }
 
+  // Home: puntos de color REALES (muestra), pequeños, SIN clustering → se
+  // concentran solos donde de verdad están las emergencias (Caracas/La Guaira y
+  // las demás zonas). Así desde el inicio se ve el panorama real. Si la carga
+  // falla, caen las luces de ciudades de respaldo (addAmbientLights).
+  async function addHomeRealPoints(): Promise<void> {
+    try {
+      const sep = endpoint.includes('?') ? '&' : '?';
+      const res = await fetch(`${endpoint}${sep}limit=300`);
+      if (!res.ok) throw new Error('http');
+      const data = (await res.json()) as { persons: PersonPublic[] };
+      const pts = (data.persons ?? []).filter((p) => p.lat != null && p.lng != null);
+      if (!pts.length) {
+        addAmbientLights();
+        return;
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const markers: any[] = [];
+      pts.forEach((p, i) => {
+        const cat = categoryForPerson(p);
+        const pulse = PULSE_CLASS[cat] ?? 'animate-glow-breath';
+        const delay = `animation-delay:${((i % 16) * 0.18).toFixed(2)}s`;
+        const html = `
+          <span class="faro-pin faro-home faro-cat-${cat}" style="--pin:${COLOR[cat]};--ring:${COLOR_ON[cat]}" aria-hidden="true">
+            <i class="faro-glow ${pulse || 'animate-glow-breath'}" style="${delay}"></i>
+            <i class="faro-core"></i>
+          </span>`;
+        const icon = Lref.divIcon({
+          html,
+          className: 'faro-pin-wrap',
+          iconSize: [18, 18],
+          iconAnchor: [9, 9]
+        });
+        markers.push(
+          Lref.marker([p.lat as number, p.lng as number], {
+            icon,
+            interactive: false,
+            keyboard: false
+          })
+        );
+      });
+      Lref.layerGroup(markers).addTo(map);
+    } catch {
+      addAmbientLights();
+    }
+  }
+
   onMount(async () => {
     const L = (await import('leaflet')).default;
     await import('leaflet.markercluster');
@@ -538,10 +584,10 @@
       map.on('moveend zoomend', scheduleRefresh);
       refresh();
     } else {
-      // Home (papel tapiz / "Mapa de Esperanza"): luces de color que respiran
-      // sobre las ciudades — ambiente, no datos. La data real e interactiva (con
-      // sus burbujas/pines y filtros) vive en /mapa. loadTotal() ya trajo el total.
-      addAmbientLights();
+      // Home: panorama REAL — muestra de puntos de color concentrados donde están
+      // las emergencias (la data interactiva completa vive en /mapa). loadTotal()
+      // ya trajo el total. Fallback interno a luces de ciudades si falla la carga.
+      await addHomeRealPoints();
     }
 
     // Habilita la sincronización reactiva de la capa de ayuda (showAid).
@@ -715,6 +761,29 @@
   :global(.faro-ambient .faro-core) {
     width: 16px;
     height: 16px;
+  }
+
+  /* Home: puntos REALES pequeños (muestra concentrada). Núcleo pequeño + halo tenue
+     → muchos juntos se leen como una concentración encendida en la zona real. */
+  :global(.faro-home) {
+    width: 18px;
+    height: 18px;
+  }
+  :global(.faro-home .faro-glow) {
+    width: 18px;
+    height: 18px;
+  }
+  :global(.faro-home .faro-core) {
+    width: 8px;
+    height: 8px;
+    border-width: 1.5px;
+  }
+  /* Respeta "reducir movimiento": las luces del home/ambiente quedan quietas. */
+  @media (prefers-reduced-motion: reduce) {
+    :global(.faro-home .faro-glow),
+    :global(.faro-ambient .faro-glow) {
+      animation: none !important;
+    }
   }
 
   /* menor: anillo de prioridad fijo (presencia, no animación) */

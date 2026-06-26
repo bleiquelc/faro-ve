@@ -4,6 +4,7 @@
   import { cubicOut } from 'svelte/easing';
   import InstallPrompt from '$components/InstallPrompt.svelte';
   import FaroLogo from '$components/FaroLogo.svelte';
+  import { COLOR } from '$utils/colors';
 
   /**
    * Home — el MAPA VIVO es el fondo (luces de color que respiran sobre las
@@ -14,16 +15,31 @@
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let MapComp: any = null;
 
-  // Conteo animado del total real de personas reportadas.
+  // Conteo animado del total real + burbujas por categoría (con conteos reales).
   let total = 0;
+  let stats: Record<string, number> | null = null;
   const shown = tweened(0, { duration: 1800, easing: cubicOut });
+
+  // Burbujas con los colores de los filtros internos. Solo se muestran las que
+  // tienen datos reales (>0) — no inventamos categorías vacías.
+  const CAT_DEFS = [
+    { token: 'missing', label: 'Desaparecidos', key: 'missing' },
+    { token: 'minor', label: 'Niños', key: 'minors' },
+    { token: 'medical', label: 'Emergencias', key: 'medical' },
+    { token: 'deceased', label: 'Fallecidos', key: 'deceased' },
+    { token: 'safe', label: 'A salvo', key: 'safe' }
+  ] as const;
+  $: bubbles = stats
+    ? CAT_DEFS.map((d) => ({ ...d, count: stats?.[d.key] ?? 0 })).filter((b) => b.count > 0)
+    : [];
 
   onMount(async () => {
     MapComp = (await import('$components/Map.svelte')).default;
     try {
-      const res = await fetch('/api/persons?count=exact');
+      const res = await fetch('/api/persons/stats');
       if (res.ok) {
-        const d = (await res.json()) as { total?: number };
+        const d = (await res.json()) as Record<string, number>;
+        stats = d;
         total = d.total ?? 0;
         const reduce =
           typeof window !== 'undefined' &&
@@ -31,7 +47,7 @@
         await shown.set(total, { duration: reduce ? 0 : 1800 });
       }
     } catch {
-      /* el número es decorativo; si falla, no rompe el home */
+      /* los números son informativos; si falla, no rompe el home */
     }
   });
 </script>
@@ -108,6 +124,26 @@
           </span>
         </p>
       {/if}
+
+      <!-- Burbujas por categoría (conteos reales, colores de filtro, vivas). -->
+      {#if bubbles.length}
+        <div class="flex max-w-xs flex-wrap items-center justify-center gap-1.5">
+          {#each bubbles as b (b.token)}
+            <span
+              class="flex items-center gap-1.5 rounded-full bg-black/35 px-2.5 py-1 shadow-sm backdrop-blur-sm"
+            >
+              <span
+                class="hope-dot h-2.5 w-2.5 shrink-0 rounded-full"
+                style="background:{COLOR[b.token]};color:{COLOR[b.token]}"
+              ></span>
+              <span class="text-xs font-bold tabular-nums text-white">
+                {b.count.toLocaleString('es-VE')}
+              </span>
+              <span class="text-[11px] font-medium text-white/85">{b.label}</span>
+            </span>
+          {/each}
+        </div>
+      {/if}
     </div>
 
     <!-- Abajo: acciones flotantes -->
@@ -162,3 +198,27 @@
     </div>
   </main>
 </div>
+
+<style>
+  /* Las burbujas se sienten vivas: el punto de color respira con su propio glow. */
+  .hope-dot {
+    box-shadow: 0 0 7px 1px currentColor;
+    animation: hope-breath 2.6s ease-in-out infinite;
+  }
+  @keyframes hope-breath {
+    0%,
+    100% {
+      opacity: 0.7;
+      transform: scale(0.82);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.1);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hope-dot {
+      animation: none;
+    }
+  }
+</style>
