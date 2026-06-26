@@ -448,10 +448,32 @@
   async function addHomeRealPoints(): Promise<void> {
     try {
       const sep = endpoint.includes('?') ? '&' : '?';
-      const res = await fetch(`${endpoint}${sep}limit=300`);
-      if (!res.ok) throw new Error('http');
-      const data = (await res.json()) as { persons: PersonPublic[] };
-      const pts = (data.persons ?? []).filter((p) => p.lat != null && p.lng != null);
+      // Dos cargas para cubrir TODAS las zonas visibles con sus reportes reales:
+      //  (1) el área visible (mayoría: costa de La Guaira) y
+      //  (2) el valle de Caracas explícito (sus ~354 reportes reales) — si no, la
+      //      ciudad queda vacía porque el 97% se geocodificó a la costa.
+      const visBbox = bboxParam();
+      const valleyBbox = '-67.02,10.41,-66.77,10.565'; // Caracas valle
+      const urls = [
+        visBbox ? `${endpoint}${sep}bbox=${visBbox}&limit=230` : `${endpoint}${sep}limit=230`,
+        `${endpoint}${sep}bbox=${valleyBbox}&limit=180`
+      ];
+      const results = await Promise.all(
+        urls.map((u) =>
+          fetch(u)
+            .then((r) => (r.ok ? r.json() : { persons: [] }))
+            .catch(() => ({ persons: [] }))
+        )
+      );
+      const seen = new Set<string>();
+      const pts: PersonPublic[] = [];
+      for (const data of results as { persons: PersonPublic[] }[]) {
+        for (const p of data.persons ?? []) {
+          if (p.lat == null || p.lng == null || seen.has(p.id)) continue;
+          seen.add(p.id);
+          pts.push(p);
+        }
+      }
       if (!pts.length) {
         addAmbientLights();
         return;
