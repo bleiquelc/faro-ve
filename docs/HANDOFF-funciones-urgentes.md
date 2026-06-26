@@ -28,10 +28,11 @@
 
 # FUNCIONES PRIORITARIAS (orden de urgencia)
 
-## 1. Restaurar reportes auto-ocultados + ver alertas (válvula de la Fase 2) 🔴 LA MÁS URGENTE
-- **Qué es:** poder ver y DESHACER los perfiles que la comunidad auto-ocultó, por si un troll ocultó un reporte REAL de un desaparecido.
-- **Cómo se aplica:** (a) Founder activa el login `/moderar` (pendiente #1). (b) En `/moderar` agregar una sección que lea `founder_alerts where kind='person_auto_hidden'` + un botón "Restaurar" → nueva RPC `restore_person(p_id)` que pone `auto_hidden=false, hidden_at=null` (reusar el patrón de `reactivate_aid_point` en 0014; migración vía SQL Editor) + endpoint admin. (c) Opcional: cron/worker que drene `founder_alerts` a Telegram/Resend.
-- **Qué significa para los usuarios:** si trolls ocultan el reporte verdadero de alguien atrapado, el founder lo restaura en segundos → no se pierde un caso real. Es el seguro de la autolimpieza que ya está live.
+## 1. IA-moderadora: restaurar reportes reales auto-ocultados SIN founder 🔴 LA MÁS URGENTE
+- **Qué es:** que la IA (no el founder) decida sobre los perfiles auto-ocultados por la comunidad. El founder NO modera nada.
+- **Cómo se aplica:** extender el worker `workers/ai-triage/` (ya construido, Haiku 4.5, `stripPii`, budget guard) para que, además del triaje, procese los `persons where auto_hidden = true`: la IA juzga real-vs-falso con SOLO campos públicos y **sesgo fuerte a RESTAURAR** (prompt tipo: "si PODRÍA ser un desaparecido real, restaurar; ocultar solo si es spam/gibberish/troll evidente"). Si decide restaurar → llama una RPC nueva `restore_person(p_id)` (pone `auto_hidden=false, hidden_at=null`; reusar patrón de `reactivate_aid_point` 0014; migración vía SQL Editor). Si confirma falso → lo deja oculto. Requiere `ANTHROPIC_API_KEY` como secret del Worker (`cd workers/ai-triage && wrangler secret put ANTHROPIC_API_KEY && wrangler deploy`) y bajar el cron a ~2-5 min para restaurar rápido. Si la IA falla/no está disponible → default = NO ocultar / restaurar (proteger al real). Founder solo recibe el aviso en `founder_alerts` (opcional).
+  - **Variante AÚN más simple (sin IA):** cambiar la Fase 2 para que en vez de ocultar (`auto_hidden`), MARQUE el perfil con un flag `community_flagged` que muestre "⚠ varios lo reportaron como dudoso" pero lo deje VISIBLE. Nunca se pierde un reporte real; los falsos quedan con advertencia. Cero IA, cero moderación. (Trade-off: los falsos no se quitan, solo se marcan.)
+- **Qué significa para los usuarios:** si trolls intentan ocultar el reporte verdadero de alguien atrapado, la IA lo detecta y lo restaura solo en minutos → no se pierde ningún caso real, y el founder no tiene que moderar nada.
 
 ## 2. Triaje IA — priorizar a quien MÁS urge (heridos, niños, médico) 🔴 YA CONSTRUIDO, SOLO DESPLEGAR
 - **Qué es:** clasifica automáticamente cada reporte por urgencia (médico/menor/crítico) y los ordena.
