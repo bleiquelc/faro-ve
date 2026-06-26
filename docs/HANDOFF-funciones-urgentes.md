@@ -10,6 +10,7 @@
 - **Autolimpieza comunitaria** (migración 0022): botón "Reportar perfil falso" en cada ficha → `vote_person` → net (reports−confirms) ≥ 3 → `auto_hidden=true` (reversible) + `founder_alerts` + audit. `persons_public` filtra `not auto_hidden`. Reusa el patrón de aid_points (0014).
 - **Turnstile arreglado** (era el bug que bloqueaba los formularios): `PUBLIC_TURNSTILE_SITE_KEY` = sitekey real `0x4AAAAAADrgU4bxPZz44lTt`. Todos los formularios funcionan.
 - **Federación PFIF** activa (`/api/pfif`). **Fotos** limpiadas (rotas /migrated/ → null). **Incidente de seguridad cerrado** (keys rotadas/revocadas).
+- **🆕 FARO AUXILIO — núcleo ESTÁTICO LIVE** (`/auxilio`, commit `c3d66b5`, 27-jun): guía offline de primeros auxilios + supervivencia + contactos verificados. 18 procedimientos (2 categorías), por pasos (qué hacer / qué NO hacer / cuándo llamar 911) **con cita de fuente oficial por cada uno** (IFRC 2020/ILCOR, AHA, Cruz Roja Americana, CDC, EPA, OMS, FoodSafety.gov, FUNVISIS/Protección Civil VE). **Cero invención**; cifras críticas verificadas vía web por agentes (RCP 100-120/min ≥5cm, atragantamiento 5+5, agua hervir/cloro, comida 4h/4°C). Contactos por **tier de verificación**: SOLO los verificados son marcables (911, CICR personas-desaparecidas, Cruz Roja VE, Bomberos Caracas); los NO verificados (Protección Civil 0800, FUNVISIS, hospitales) muestran ubicación y remiten al 911 (un número errado cuesta vidas). Aviso visible "en revisión · no reemplaza atención profesional". Marca FaroAuxilio (faro con cruz blanca) + **botón flotante siempre visible** en toda la app. Es **GLOBAL** (el founder lo prueba desde Suiza). Contenido aislado en el chunk de la ruta (44KB/12KB gzip), no infla el bundle inicial. Revisión adversarial (código + seguridad + fidelidad médica) aplicada antes de prod.
 
 ## ⚠️ Restricciones operativas (LEER ANTES DE EJECUTAR)
 - **La DB directa NO es alcanzable desde la máquina local** (`db.blmiebnnprwaupyatsyb.supabase.co` es IPv6, la red local es IPv4 → `ENOTFOUND`). El pooler tampoco resolvió. → **Las migraciones SQL se aplican en el SQL Editor de Supabase** (el founder pega y corre). No uses `apply-migrations.mjs` (falla la conexión).
@@ -64,7 +65,11 @@
 - **Cómo se aplica:** ya hay `medical_urgent` e `is_minor` en `persons_public` y tokens de color (`lib/utils/colors`). Añadir filtros/realce en el mapa (combinar con `ai_priority` de la función 2).
 - **Qué significa para los usuarios:** la atención y la búsqueda se concentran en los casos más delicados (niños solos, heridos).
 
-## 8. "Faro Auxilio" — asistente de primeros auxilios + supervivencia + contactos (solo VE) 🟠 ALTO IMPACTO
+## 8. "Faro Auxilio" — asistente de primeros auxilios + supervivencia + contactos 🟠 ALTO IMPACTO
+
+> **ESTADO 27-jun:** ✅ **Paso 1 (núcleo ESTÁTICO) HECHO y LIVE** en `/auxilio` (commit `c3d66b5`). Falta: paso 2 (chat IA encima) y paso 3 (geo-interruptor global⇄solo-VE) — ver "PENDIENTE para el chat IA" al final de esta función.
+>
+> **🔴 Pendiente del founder (antes de "quitar el aviso en revisión"):** validar el contenido médico (idealmente un profesional de salud) y confirmar 4 datos marcados "sin verificar" en `src/lib/data/auxilio/contacts.ts`: el **0800 de Protección Civil**, el teléfono de **FUNVISIS**, y los teléfonos de **hospitales** (hoy solo se muestran dirección + "marca 911", no son marcables a propósito). El 911, CICR (0412-636.50.15 / 0424-172.13.64), Cruz Roja VE (0212-571.43.80) y Bomberos Caracas (0212-545.45.45) sí están verificados y son marcables.
 - **Qué es:** un chat/asistente simple, accesible en toda la app, con primeros auxilios, qué hacer en sismo, herramientas caseras, y **contactos de emergencia verificados** (bomberos/Protección Civil/Cruz Roja/hospitales de Caracas). Ayuda a mantener la calma e instruye en lo básico que salva vidas.
 - **Cómo se aplica (DISEÑO HÍBRIDO — clave para costo y fiabilidad):**
   1. **Núcleo ESTÁTICO (gratis, offline, SIEMPRE disponible) — el "corazón", con reglas de contenido ESTRICTAS:**
@@ -88,6 +93,21 @@
      - **El mapa/búsqueda/reportes siguen GLOBALES siempre** (no consumen IA; un familiar en el exterior debe poder buscar/reportar).
   4. **Marca:** "Faro Auxilio" / "Faro Vida" — el faro con una **cruz blanca iluminada** en el centro. Botón flotante siempre visible. PWA → web/Android/iOS automático, responsive.
 - **Qué significa para los usuarios:** en la hora dorada tras el sismo, cualquiera —sin entrenamiento médico— recibe instrucciones claras para controlar hemorragias, RCP, atragantamiento, qué hacer si está atrapado, purificar agua, improvisar herramientas, y a quién llamar. Mantiene la calma y **salva vidas directamente**. Costo controlado y enfocado solo en quienes están en la zona.
+
+### PENDIENTE para el chat IA (pasos 2 y 3) — el núcleo estático ya es el fallback
+- **Robustez ya garantizada:** el núcleo estático funciona SIEMPRE (sin IA, offline). Cualquier chat IA va ENCIMA; si está apagado, bloqueado o sin red → el usuario igual tiene la guía completa. El interruptor por defecto debe ser **IA apagada / solo estático** (default seguro).
+- **Geo-interruptor (global⇄solo-VE sin redeploy)** = una fila en `app_config`. Migración lista-para-pegar en el SQL Editor de Supabase (la DB no se alcanza desde local):
+```sql
+insert into app_config (key, value) values ('ai_ve_only', 'false')
+on conflict (key) do nothing;
+```
+- Para encender solo-VE más tarde (1 SQL, sin redeploy):
+```sql
+update app_config set value = 'true', updated_at = now() where key = 'ai_ve_only';
+```
+- **Endpoint `/api/ai/ask` a construir:** Zod + Turnstile + rate-limit 10/IP/día (ya en hooks) → Haiku 4.5 (`claude-haiku-4-5-20251001`) vía **Cloudflare AI Gateway** (caché ~90%) → budget guard `LLM_DAILY_BUDGET_USD=5` (ya existe). Lee `app_config.ai_ve_only` con caché corto; si `true`, gatea por país con `event.platform.cf.country === 'VE'` (server-side, no esquivable) y oculta el botón fuera de VE. **Si no hay `ANTHROPIC_API_KEY`, falla la lectura del config, o falta la cabecera de país → IA apagada + responde "usá la guía" (nunca gasta).** El sistema-prompt debe apoyarse SOLO en el contenido verificado de `src/lib/data/auxilio/` (no improvisar) y NUNCA recibir PII ni coords exactas (regla #16).
+- **Founder debe setear** (cuando se construya): `ANTHROPIC_API_KEY` como secret del Worker / Pages, y configurar el AI Gateway. `cd workers/ai-triage` ya tiene el patrón de budget/stripPii a reusar.
+- **No desplegar el chat hasta verificarlo en vivo** (regla del founder): probar en GLOBAL desde Suiza, confirmar fallback cuando la IA está apagada, y SOLO ENTONCES considerar encender solo-VE.
 
 ---
 
