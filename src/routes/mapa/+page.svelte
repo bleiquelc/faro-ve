@@ -11,8 +11,12 @@
   // El mapa Leaflet se monta SOLO en cliente (import dinámico).
   onMount(async () => {
     MapComp = (await import('$components/Map.svelte')).default;
-    // "Buscar" desde el home (/mapa?buscar=1) → abre el buscador de una.
-    if ($page.url.searchParams.get('buscar') === '1') showSearch = true;
+    // Estado inicial del buscador desde la URL, UNA sola vez. A partir de aquí el
+    // input lo controla el usuario (no es un espejo reactivo de la URL) → al borrar
+    // el nombre NO reaparece solo.
+    query = $page.url.searchParams.get('q') ?? '';
+    // "Buscar" desde el home (/mapa?buscar=1) o si llega con ?q → abre el buscador.
+    if ($page.url.searchParams.get('buscar') === '1' || query) showSearch = true;
   });
 
   // Endpoint reactivo: arrastra los filtros de la URL (?status=…, ?q=…) pero
@@ -30,14 +34,19 @@
   // Buscador por nombre — preserva los filtros activos y setea ?q=.
   let showSearch = false;
   let query = '';
-  $: query = $page.url.searchParams.get('q') ?? '';
 
   function runSearch() {
     const params = new URLSearchParams($page.url.searchParams);
+    params.delete('buscar');
     const v = query.trim();
     if (v) params.set('q', v);
     else params.delete('q');
     goto(`/mapa${params.toString() ? `?${params}` : ''}`, { keepFocus: true, noScroll: true });
+  }
+  // Borrar (✕): limpia el input Y el filtro (quita ?q) → vuelven todos los resultados.
+  function clearSearch() {
+    query = '';
+    runSearch();
   }
   function toggleSearch() {
     showSearch = !showSearch;
@@ -53,7 +62,17 @@
   <div
     class="absolute inset-x-0 top-0 z-[1001] bg-gradient-to-b from-black/20 to-transparent pt-[env(safe-area-inset-top)]"
   >
-    <div class="flex items-center gap-2 pr-2">
+    <div class="flex items-center gap-2 px-2">
+      <!-- Inicio SIEMPRE accesible aquí arriba (la barra inferior puede quedar
+           tapada por el teclado en la PWA). Garantiza "volver a inicio". -->
+      <a
+        href="/"
+        data-sveltekit-preload-data="hover"
+        aria-label="Volver al inicio"
+        class="min-h-tap grid shrink-0 place-items-center rounded-full border border-white/20 bg-faro-900/90 px-3 text-white shadow-lg backdrop-blur-md transition active:scale-95 hover:bg-faro-900 focus:outline-none focus:ring-2 focus:ring-white/60"
+      >
+        <FaroIcon name="home" size={20} />
+      </a>
       <div class="min-w-0 flex-1"><FilterChips /></div>
       <RefreshButton tone="dark" />
     </div>
@@ -64,13 +83,24 @@
           <!-- svelte-ignore a11y_autofocus -->
           <input
             bind:value={query}
-            type="search"
+            type="text"
             inputmode="search"
+            enterkeyhint="search"
             autofocus
             placeholder="Buscar por nombre y presiona Enter…"
             aria-label="Buscar persona por nombre"
-            class="min-h-tap w-full bg-transparent text-sm outline-none"
+            class="min-h-tap w-full bg-transparent text-sm text-gray-900 outline-none"
           />
+          {#if query}
+            <button
+              type="button"
+              on:click={clearSearch}
+              aria-label="Borrar búsqueda"
+              class="grid h-7 w-7 shrink-0 place-items-center rounded-full text-base text-gray-500 transition hover:bg-gray-100 active:scale-95"
+            >
+              ✕
+            </button>
+          {/if}
         </div>
       </form>
     {/if}

@@ -7,9 +7,12 @@
     <link rel="apple-touch-icon" href="%sveltekit.assets%/icons/apple-touch-icon.png?v=3" />
     <link rel="manifest" href="%sveltekit.assets%/manifest.webmanifest" />
     <meta name="theme-color" content="#0B4F6C" />
+    <!-- interactive-widget=resizes-content: al abrir el teclado, el layout se
+         REDIMENSIONA (no se desplaza) → la barra inferior fija no queda detrás del
+         teclado ni se "pierde". Se mantiene el zoom de página (accesibilidad). -->
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=yes"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
     />
     <meta
       name="description"
