@@ -36,3 +36,24 @@
 - `src/lib/data/auxilio/{types,sources,first-aid,survival,contacts,index}.ts`
 - `src/lib/components/{FaroAuxilio,FaroAuxilioButton}.svelte`
 - `src/routes/auxilio/+page.svelte` · modificado `src/routes/+layout.svelte`
+
+---
+
+## Continuación (mismo día) — modo automático
+
+El founder dejó en automático ("decide prioridades por lo que más ayuda, verifica y deploya si estás seguro") + regla nueva: **toda feature nueva lleva ícono estilo Faro, coherencia total**.
+
+Decisión por confianza × impacto (las funciones de IA están bloqueadas por el secret del founder; tocar el service worker es riesgoso en vivo). Se entregaron dos features autónomas, verificadas y LIVE:
+
+### A) Faro Auxilio deepening: 18 → 23 guías (commit `98df51a`)
++5 procedimientos críticos de sismo: torniquete, RCP niño/bebé, convulsiones, electrocución, apoyo psicológico. Investigados con un **workflow multi-agente** (1 investigador + 1 verificador adversarial por procedimiento). El stage adversarial **atrapó y se corrigió antes de prod**:
+- electrocución: distancia de cable de alta tensión **15 m era INVENTADA** → 11 m (ESFI).
+- RCP bebé: técnica **invertida** → dos pulgares rodeando es lo preferido (AHA 2025), no los 2 dedos.
+- RCP niño: se quitó "2 dedos de profundidad" (confuso).
+- apoyo psicológico: errata "de inicia" → "de inmediato".
+Verificado en vivo (23 guías, "11 metros", "dos PULGARES", typo corregido) + prod 200.
+
+### B) Cuerpos NN: formulario LIVE (commit `b44c006`)
+`/reportar/cuerpo-nn` reusa el camino probado `POST /api/persons` (status `unidentified_body`). La vista (filtro + marcadores) ya existía → cierra la función 6. Revisión de regresión confirmó cero merma de privacidad. Ícono Faro nuevo `candle` (vela cuya llama es el punto de luz). Foto sin forzar cámara + advertencia de sensibilidad. Verificado: render + payload schema-válido en dev; prod 200 (no se inyecta data falsa al mapa por ética).
+
+Hallazgo de scouting: el mapa YA colorea/pulsa por menor/urgencia médica y FilterChips YA filtra (función 7 esencialmente hecha). Forms aún vacías: avistamiento, condicion-medica, refugio.
