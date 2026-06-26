@@ -185,6 +185,13 @@
         Gracias. Un moderador revisará el reporte antes de publicarlo en el mapa, para proteger a la
         persona y evitar abusos.
       </p>
+      <p class="mt-3 flex items-start gap-2 rounded-xl bg-white/70 px-4 py-3 text-left text-sm text-faro-900 ring-1 ring-faro-200">
+        <span aria-hidden="true">🌐</span>
+        <span
+          >Una vez publicado, tu reporte también se compartirá con la <strong>red global de
+          búsqueda</strong> (Cruz Roja · Person Finder) — más personas buscándolo.</span
+        >
+      </p>
       <a href="/mapa" class="min-h-tap mt-5 inline-flex items-center justify-center rounded-lg bg-faro-900 px-5 py-3 font-semibold text-white">
         Ver el mapa
       </a>

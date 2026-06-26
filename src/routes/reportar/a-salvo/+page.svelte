@@ -119,6 +119,14 @@
         Gracias por avisar que estás bien. Tu reporte pasará por una revisión rápida antes de
         aparecer en el mapa.
       </p>
+      <p class="mt-3 flex items-start gap-2 rounded-xl bg-white/70 px-4 py-3 text-left text-sm text-green-900 ring-1 ring-green-200">
+        <span aria-hidden="true">🌐</span>
+        <span
+          >Una vez publicado, tu aviso también se compartirá con la <strong>red global de
+          búsqueda</strong> (Cruz Roja · Person Finder) — así, si alguien te busca allí, sabrá que
+          estás bien.</span
+        >
+      </p>
       <a href="/mapa" class="min-h-tap mt-5 inline-flex items-center justify-center rounded-lg bg-faro-900 px-5 py-3 font-semibold text-white">
         Ver el mapa
       </a>
