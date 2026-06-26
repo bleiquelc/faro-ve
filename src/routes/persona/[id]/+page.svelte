@@ -3,6 +3,7 @@
   import ShareButton from '$components/ShareButton.svelte';
   import InfoForm from '$components/InfoForm.svelte';
   import FaroIcon from '$components/FaroIcon.svelte';
+  import ReportPersonButton from '$components/ReportPersonButton.svelte';
   import { COLOR, COLOR_ON, LABEL_ES, categoryForPerson } from '$utils/colors';
   import type { PageData } from './$types';
 
@@ -168,6 +169,10 @@
   {#if data.shareUrl}
     <ShareButton name={p.full_name || 'esta persona'} url={data.shareUrl} {searching} />
   {/if}
+
+  <!-- Autorregulación comunitaria (publish-first): reportar un perfil falso →
+       si varios lo reportan, se auto-oculta para revisión. -->
+  <ReportPersonButton personId={p.id} />
 
   <!-- Aportes de la comunidad ya aprobados (avistamientos / info). -->
   {#if notes.length}

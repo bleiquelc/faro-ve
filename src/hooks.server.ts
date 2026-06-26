@@ -92,6 +92,11 @@ const PUBLIC_POST_PATTERNS: { re: RegExp; key: string; rl: { windowSec: number; 
     re: /^\/api\/aid-points\/[0-9a-f-]{36}\/reactivate$/i,
     key: '/api/aid-points/:id/reactivate',
     rl: { windowSec: 3600, max: 3 }
+  },
+  {
+    re: /^\/api\/persons\/[0-9a-f-]{36}\/vote$/i,
+    key: '/api/persons/:id/vote',
+    rl: { windowSec: 600, max: 30 }
   }
 ];
 
