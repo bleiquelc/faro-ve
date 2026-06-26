@@ -397,6 +397,48 @@
     return null;
   }
 
+  // Luces de esperanza (home / papel tapiz): puntos de color que RESPIRAN sobre
+  // las ciudades de Venezuela. Son AMBIENTE — no datos clicables (la data real e
+  // interactiva vive en /mapa). Refuerzan la metáfora "cada persona, un punto de luz".
+  const AMBIENT_LIGHTS: { lat: number; lng: number; cat: string }[] = [
+    { lat: 10.49, lng: -66.88, cat: 'missing' }, // Caracas
+    { lat: 10.62, lng: -66.93, cat: 'minor' }, // La Guaira
+    { lat: 10.64, lng: -71.61, cat: 'medical' }, // Maracaibo
+    { lat: 10.16, lng: -67.99, cat: 'sighting' }, // Valencia
+    { lat: 10.25, lng: -67.6, cat: 'safe' }, // Maracay
+    { lat: 10.07, lng: -69.32, cat: 'missing' }, // Barquisimeto
+    { lat: 8.62, lng: -70.24, cat: 'minor' }, // Barinas
+    { lat: 8.6, lng: -71.14, cat: 'sighting' }, // Mérida
+    { lat: 7.77, lng: -72.22, cat: 'medical' }, // San Cristóbal
+    { lat: 8.35, lng: -62.64, cat: 'missing' }, // Ciudad Guayana
+    { lat: 9.75, lng: -63.18, cat: 'safe' }, // Maturín
+    { lat: 10.13, lng: -64.68, cat: 'sighting' }, // Barcelona
+    { lat: 10.45, lng: -64.18, cat: 'minor' }, // Cumaná
+    { lat: 11.41, lng: -69.68, cat: 'medical' } // Coro
+  ];
+
+  function addAmbientLights(): void {
+    AMBIENT_LIGHTS.forEach((p, i) => {
+      const cat = p.cat as keyof typeof COLOR;
+      // Todas respiran (incluso las categorías normalmente estáticas) — el home
+      // debe sentirse VIVO. Escalonadas para que no latan a la vez.
+      const pulse = PULSE_CLASS[cat] ?? 'animate-glow-breath';
+      const delay = `animation-delay:${((i % 12) * 0.24).toFixed(2)}s`;
+      const html = `
+        <span class="faro-pin faro-ambient faro-cat-${cat}" style="--pin:${COLOR[cat]};--ring:${COLOR_ON[cat]}" role="img" aria-hidden="true">
+          <i class="faro-glow ${pulse || 'animate-glow-breath'}" style="${delay}"></i>
+          <i class="faro-core"></i>
+        </span>`;
+      const icon = Lref.divIcon({
+        html,
+        className: 'faro-pin-wrap',
+        iconSize: [38, 38],
+        iconAnchor: [19, 19]
+      });
+      Lref.marker([p.lat, p.lng], { icon, interactive: false, keyboard: false }).addTo(map);
+    });
+  }
+
   onMount(async () => {
     const L = (await import('leaflet')).default;
     await import('leaflet.markercluster');
@@ -496,9 +538,10 @@
       map.on('moveend zoomend', scheduleRefresh);
       refresh();
     } else {
-      // Home (papel tapiz): luces individuales (las "luces de esperanza"), sin
-      // agregación — una sola carga de la zona visible.
-      await loadData(true);
+      // Home (papel tapiz / "Mapa de Esperanza"): luces de color que respiran
+      // sobre las ciudades — ambiente, no datos. La data real e interactiva (con
+      // sus burbujas/pines y filtros) vive en /mapa. loadTotal() ya trajo el total.
+      addAmbientLights();
     }
 
     // Habilita la sincronización reactiva de la capa de ayuda (showAid).
@@ -653,6 +696,27 @@
       0 0 0 1.5px color-mix(in srgb, var(--pin) 60%, transparent),
       0 1px 3px rgba(0, 0, 0, 0.35);
   }
+  /* Luces de esperanza del home: más grandes y con halo más fuerte para resaltar
+     sobre el mapa claro de fondo. */
+  :global(.faro-ambient) {
+    width: 38px;
+    height: 38px;
+  }
+  :global(.faro-ambient .faro-glow) {
+    width: 38px;
+    height: 38px;
+    background: radial-gradient(
+      circle,
+      color-mix(in srgb, var(--pin) 92%, transparent) 0%,
+      color-mix(in srgb, var(--pin) 52%, transparent) 42%,
+      color-mix(in srgb, var(--pin) 0%, transparent) 76%
+    );
+  }
+  :global(.faro-ambient .faro-core) {
+    width: 16px;
+    height: 16px;
+  }
+
   /* menor: anillo de prioridad fijo (presencia, no animación) */
   :global(.faro-cat-minor .faro-core) {
     box-shadow:

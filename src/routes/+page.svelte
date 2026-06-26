@@ -1,19 +1,38 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { tweened } from 'svelte/motion';
+  import { cubicOut } from 'svelte/easing';
   import InstallPrompt from '$components/InstallPrompt.svelte';
   import FaroLogo from '$components/FaroLogo.svelte';
 
   /**
-   * Home — el MAPA VIVO es el fondo (con sus puntos de luz). El faro, el texto y
-   * los botones FLOTAN directo sobre el mapa (sin tarjeta). Detrás del faro, un
-   * halo oscuro para que su luz animada resalte. "Ver el mapa" abre /mapa.
-   *
-   * Mapa de fondo = ambiente (interactive=false): no roba scroll ni se arrastra.
+   * Home — el MAPA VIVO es el fondo (luces de color que respiran sobre las
+   * ciudades). El faro, el texto y los botones FLOTAN sobre el mapa. El número
+   * REAL de personas reportadas cuenta hacia arriba al cargar → sensación de
+   * "vivo". "Ver el mapa" abre /mapa (data real e interactiva).
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let MapComp: any = null;
+
+  // Conteo animado del total real de personas reportadas.
+  let total = 0;
+  const shown = tweened(0, { duration: 1800, easing: cubicOut });
+
   onMount(async () => {
     MapComp = (await import('$components/Map.svelte')).default;
+    try {
+      const res = await fetch('/api/persons?count=exact');
+      if (res.ok) {
+        const d = (await res.json()) as { total?: number };
+        total = d.total ?? 0;
+        const reduce =
+          typeof window !== 'undefined' &&
+          window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        await shown.set(total, { duration: reduce ? 0 : 1800 });
+      }
+    } catch {
+      /* el número es decorativo; si falla, no rompe el home */
+    }
   });
 </script>
 
@@ -73,6 +92,22 @@
       <p class="max-w-xs text-sm text-white/90 [text-shadow:0_1px_8px_rgb(0_0_0_/0.7)]">
         Reporta y busca personas tras el terremoto del 24-jun-2026 en Venezuela.
       </p>
+
+      <!-- Número REAL contando hacia arriba — el mapa está vivo. -->
+      {#if total > 0}
+        <p class="mt-1 flex flex-col items-center leading-none" aria-label="{total} personas reportadas">
+          <span
+            class="text-4xl font-extrabold tabular-nums text-white [text-shadow:0_2px_16px_rgb(0_0_0_/0.85)]"
+          >
+            {Math.round($shown).toLocaleString('es-VE')}
+          </span>
+          <span
+            class="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/85 [text-shadow:0_1px_8px_rgb(0_0_0_/0.7)]"
+          >
+            personas reportadas
+          </span>
+        </p>
+      {/if}
     </div>
 
     <!-- Abajo: acciones flotantes -->
