@@ -102,96 +102,115 @@ function mapRecord(p) {
     status: classify(p.status),
     last_known_location_text: String(p.lastSeen).trim().slice(0, 300),
     description: p.description ? String(p.description).trim().slice(0, 2000) : null,
-    photo_url: p.photoUrl ? `${BASE}${p.photoUrl}` : null,
+    // Foto LIMPIA (founder): solo URLs que existen. Las '/migrated/' de la fuente
+    // dan 404 (no se migraron, confirmado 0/20) → null, para no re-meter íconos
+    // rotos. Las uuid válidas (que sí cargan) se conservan.
+    photo_url: p.photoUrl && !p.photoUrl.includes('/migrated/') ? `${BASE}${p.photoUrl}` : null,
     lat,
     lng
   };
 }
 
-async function collect() {
-  const out = [];
-  const seenIds = new Set();
-  let pageNum = 1;
-  let pagesFetched = 0;
-  let totalCount = null;
-  let stats = null;
-  while (pagesFetched < MAX_PAGES) {
-    const { persons, hasMore, totalCount: tc, stats: st } = await fetchPage(pageNum);
-    if (totalCount === null) {
-      totalCount = tc;
-      stats = st;
+// Reintenta una página con backoff (corridas largas: una falla transitoria no
+// debe tumbar las ~1.400 páginas). Misma decodificación validada.
+async function fetchPageRetry(page, tries = 4) {
+  for (let i = 0; i < tries; i++) {
+    try {
+      return await fetchPage(page);
+    } catch (e) {
+      if (i === tries - 1) throw e;
+      await sleep(THROTTLE_MS * (i + 2));
     }
-    for (const p of persons) {
-      if (!p.id || seenIds.has(p.id)) continue;
-      seenIds.add(p.id);
-      const rec = mapRecord(p);
-      if (rec) out.push(rec);
-    }
-    pagesFetched++;
-    if (!hasMore || persons.length === 0) break;
-    pageNum++;
-    await sleep(THROTTLE_MS);
   }
-  return { records: out, pages: pagesFetched, totalCount, stats, scanned: seenIds.size };
 }
 
-async function insertAll(records) {
-  const client = new pg.Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
-  });
-  await client.connect();
-  let inserted = 0;
-  try {
-    for (const r of records) {
-      // Inserta solo si no existe ya (source, source_id) → idempotente.
-      const res = await client.query(
-        `insert into persons
-           (source, source_id, source_url, given_name, family_name, age, sex, status,
-            last_known_location_text, description, photo_url, last_known_location_point,
-            moderation_status)
-         select $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,
-                ST_SetSRID(ST_MakePoint($12,$13),4326)::geography, 'approved'
-         where not exists (select 1 from persons where source=$1 and source_id=$2)`,
-        [
-          r.source, r.source_id, r.source_url, r.given_name, r.family_name, r.age, r.sex,
-          r.status, r.last_known_location_text, r.description, r.photo_url, r.lng, r.lat
-        ]
-      );
-      inserted += res.rowCount;
-    }
-  } finally {
-    await client.end();
+// Inserta un lote — idempotente por (source, source_id). Query EXACTA de siempre.
+async function insertBatch(client, records) {
+  let n = 0;
+  for (const r of records) {
+    const res = await client.query(
+      `insert into persons
+         (source, source_id, source_url, given_name, family_name, age, sex, status,
+          last_known_location_text, description, photo_url, last_known_location_point,
+          moderation_status)
+       select $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,
+              ST_SetSRID(ST_MakePoint($12,$13),4326)::geography, 'approved'
+       where not exists (select 1 from persons where source=$1 and source_id=$2)`,
+      [
+        r.source, r.source_id, r.source_url, r.given_name, r.family_name, r.age, r.sex,
+        r.status, r.last_known_location_text, r.description, r.photo_url, r.lng, r.lat
+      ]
+    );
+    n += res.rowCount;
   }
-  return inserted;
+  return n;
 }
 
-// ── main ────────────────────────────────────────────────────────────────────
+// ── main (incremental + resiliente) ──────────────────────────────────────────
 const t0 = Date.now();
 console.log(`[ingest] ${SOURCE} — ${DRY ? 'DRY RUN (no escribe)' : 'APPLY (escribe a DB)'}` +
   (MAX_PAGES !== Infinity ? ` · max ${MAX_PAGES} páginas` : ''));
 
-const { records, pages, totalCount, stats, scanned } = await collect();
-const byStatus = records.reduce((a, r) => ((a[r.status] = (a[r.status] || 0) + 1), a), {});
-const withPhoto = records.filter((r) => r.photo_url).length;
-
-console.log(`\nFuente: totalCount=${totalCount} ${JSON.stringify(stats)}`);
-console.log(`Escaneados: ${scanned} en ${pages} páginas`);
-console.log(`Geocodificables (irían al mapa): ${records.length}`);
-console.log(`  por status: ${JSON.stringify(byStatus)}`);
-console.log(`  con foto: ${withPhoto}`);
-console.log(`Muestra:`);
-for (const r of records.slice(0, 5)) {
-  console.log(`  • ${r.given_name || ''} ${r.family_name || ''} [${r.status}] @ ${r.last_known_location_text} → ${r.lat},${r.lng}${r.photo_url ? ' (foto)' : ''}`);
-}
-
+let client = null;
 if (!DRY) {
   if (!process.env.DATABASE_URL) {
-    console.error('\n✖ Falta DATABASE_URL para --apply.');
+    console.error('✖ Falta DATABASE_URL para --apply.');
     process.exit(1);
   }
-  console.log(`\nInsertando ${records.length} registros…`);
-  const n = await insertAll(records);
-  console.log(`✓ Insertados ${n} nuevos (idempotente por source_id).`);
+  client = new pg.Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+  await client.connect();
 }
-console.log(`\n(${((Date.now() - t0) / 1000).toFixed(1)}s)`);
+
+const seenIds = new Set();
+const byStatus = {};
+let pageNum = 1, pagesFetched = 0, geocodable = 0, withPhoto = 0, inserted = 0;
+let totalCount = null, stats = null, stopped = '';
+
+try {
+  while (pagesFetched < MAX_PAGES) {
+    let pageData;
+    try {
+      pageData = await fetchPageRetry(pageNum);
+    } catch (e) {
+      stopped = `página ${pageNum} falló tras reintentos (${e.message}) — corto y conservo lo insertado`;
+      console.error('✖ ' + stopped);
+      break;
+    }
+    const { persons, hasMore, totalCount: tc, stats: st } = pageData;
+    if (totalCount === null) {
+      totalCount = tc;
+      stats = st;
+      console.log(`Fuente: totalCount=${totalCount} ${JSON.stringify(stats)} (~${Math.ceil(totalCount / 20)} págs)`);
+    }
+    const batch = [];
+    for (const p of persons) {
+      if (!p.id || seenIds.has(p.id)) continue;
+      seenIds.add(p.id);
+      const rec = mapRecord(p);
+      if (rec) {
+        batch.push(rec);
+        geocodable++;
+        byStatus[rec.status] = (byStatus[rec.status] || 0) + 1;
+        if (rec.photo_url) withPhoto++;
+      }
+    }
+    if (!DRY && batch.length) inserted += await insertBatch(client, batch);
+    pagesFetched++;
+    if (pagesFetched <= 3 || pagesFetched % 25 === 0) {
+      console.log(`[pág ${pageNum}] escaneados ${seenIds.size} · geocodables ${geocodable} · con foto ${withPhoto}` +
+        (!DRY ? ` · NUEVOS insertados ${inserted}` : ''));
+    }
+    if (!hasMore || persons.length === 0) break;
+    pageNum++;
+    await sleep(THROTTLE_MS);
+  }
+} finally {
+  if (client) await client.end();
+}
+
+console.log(`\n── Resumen ──`);
+console.log(`Escaneados: ${seenIds.size} en ${pagesFetched} páginas (fuente total ${totalCount})`);
+console.log(`Geocodables: ${geocodable} · por status ${JSON.stringify(byStatus)} · con foto ${withPhoto}`);
+if (!DRY) console.log(`✓ NUEVOS insertados: ${inserted} (idempotente por source_id; lo demás ya existía).`);
+if (stopped) console.log(`⚠ Cortado: ${stopped}. Re-correr es seguro (idempotente).`);
+console.log(`(${((Date.now() - t0) / 1000 / 60).toFixed(1)} min)`);
