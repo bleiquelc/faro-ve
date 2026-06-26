@@ -1,46 +1,36 @@
 <script lang="ts">
   import Turnstile from "$components/Turnstile.svelte";
+  import FaroIcon from "$components/FaroIcon.svelte";
   import { uploadPhoto } from "$lib/client/photo";
 
   /**
-   * "Reportar a alguien que no encuentro" — reporte de un tercero desaparecido.
-   * La ubicación (último lugar visto) se muestra SIEMPRE ofuscada (~300m) en el
-   * mapa. La PII del reportante (email/phone) se cifra server-side y solo se usa
-   * por relay anti-PII; NUNCA se hace pública.
+   * "Reportar a una persona fallecida sin identificar" (cuerpo NN).
+   * Reusa el mismo camino probado que el reporte de desaparecidos:
+   * POST /api/persons con status='unidentified_body' (whitelisteado en la RPC
+   * create_person_report y en el schema Zod). La ubicación de hallazgo se muestra
+   * SIEMPRE ofuscada (~300m) en el mapa, igual que cualquier persona (regla 26).
+   * La PII del reportante se cifra server-side; nunca es pública.
+   *
+   * Tono digno: el objetivo es que una familia encuentre e identifique a su ser
+   * querido. No es una urgencia médica → sin campos médicos.
    */
 
-  const MEDICAL_OPTS: { value: string; label: string }[] = [
-    { value: "chronic_disease", label: "Enfermedad crónica" },
-    { value: "dialysis", label: "Diálisis" },
-    { value: "oxygen_dependent", label: "Depende de oxígeno" },
-    { value: "insulin_dependent", label: "Depende de insulina" },
-    { value: "pregnancy", label: "Embarazo" },
-    { value: "pediatric_critical", label: "Pediátrico crítico" },
-    { value: "mental_health", label: "Salud mental" },
-    { value: "mobility_impaired", label: "Movilidad reducida" },
-    { value: "other", label: "Otra" },
-  ];
-
-  let given_name = "";
-  let family_name = "";
-  let age = "";
+  // Datos de la persona encontrada (no hay nombre: se envía 'NN' al backend).
   let sex = "unknown";
-  let last_known_location_text = "";
+  let age = "";
+  let found_location_text = "";
   let clothing_top = "";
   let clothing_bottom = "";
   let distinguishing_marks = "";
   let description = "";
 
-  let medical_urgent = false;
-  let medical_category = "";
-
-  // Ubicación del último avistamiento (opcional). Siempre se ofusca al mostrarse.
+  // Ubicación del hallazgo (opcional). Siempre se ofusca al mostrarse.
   let lat: number | null = null;
   let lng: number | null = null;
   let geoState: "idle" | "loading" | "ok" | "denied" = "idle";
 
   // Reportante (privado — por relay; nunca público).
-  let reporter_relation = "family";
+  let reporter_relation = "witness";
   let reporter_name = "";
   let reporter_email = "";
   let reporter_phone = "";
@@ -50,7 +40,7 @@
   let errorMsg = "";
   let done = false;
 
-  // Foto: se comprime + limpia EXIF y se sube en cuanto se elige (no bloquea el envío).
+  // Foto: se comprime + limpia EXIF y se sube en cuanto se elige.
   let photoState: "idle" | "uploading" | "ok" | "error" = "idle";
   let photoPath: string | null = null;
   let photoError = "";
@@ -105,12 +95,11 @@
     );
   }
 
-  $: if (!medical_urgent) medical_category = "";
-
   async function submit() {
     errorMsg = "";
-    if (!given_name.trim()) {
-      errorMsg = "Escribe al menos el nombre de la persona.";
+    if (!found_location_text.trim()) {
+      errorMsg =
+        "Indica dónde fue encontrada — es lo que ayuda a una familia a ubicarla.";
       return;
     }
     if (!reporter_phone.trim()) {
@@ -125,20 +114,18 @@
     submitting = true;
     try {
       const body: Record<string, unknown> = {
-        status: "missing",
-        given_name: given_name.trim(),
-        family_name: family_name.trim() || undefined,
+        status: "unidentified_body",
+        // No hay nombre: el backend exige given_name; "NN" es el término forense
+        // estándar para "sin identificar".
+        given_name: "NN",
         age: age ? Number(age) : undefined,
         sex,
-        last_known_location_text: last_known_location_text.trim() || undefined,
+        last_known_location_text: found_location_text.trim() || undefined,
         clothing_top: clothing_top.trim() || undefined,
         clothing_bottom: clothing_bottom.trim() || undefined,
         distinguishing_marks: distinguishing_marks.trim() || undefined,
         photo_url: photoPath || undefined,
         description: description.trim() || undefined,
-        medical_urgent,
-        medical_category:
-          medical_urgent && medical_category ? medical_category : undefined,
         reporter_relation,
         reporter_name: reporter_name.trim() || undefined,
         reporter_email: reporter_email.trim() || undefined,
@@ -174,7 +161,7 @@
 </script>
 
 <svelte:head>
-  <title>Reportar a alguien — Faro VE</title>
+  <title>Reportar persona fallecida sin identificar — Faro VE</title>
 </svelte:head>
 
 <main
@@ -189,20 +176,25 @@
 
   {#if done}
     <div class="rounded-2xl border border-faro-200 bg-faro-50 p-6 text-center">
-      <p class="text-4xl" aria-hidden="true">🕯️</p>
+      <p
+        class="mx-auto flex h-12 w-12 items-center justify-center text-faro-900"
+        aria-hidden="true"
+      >
+        <FaroIcon name="candle" size={40} />
+      </p>
       <h1 class="mt-2 text-xl font-bold text-faro-900">Reporte recibido</h1>
       <p class="mt-2 text-sm text-gray-700">
-        Gracias. Un moderador revisará el reporte antes de publicarlo en el
-        mapa, para proteger a la persona y evitar abusos.
+        Gracias por ayudar a que una familia encuentre a quien busca. La
+        información aparecerá en el mapa con la ubicación aproximada, para que
+        quien busca a un ser querido pueda reconocerla.
       </p>
       <p
         class="mt-3 flex items-start gap-2 rounded-xl bg-white/70 px-4 py-3 text-left text-sm text-faro-900 ring-1 ring-faro-200"
       >
         <span aria-hidden="true">🌐</span>
         <span
-          >Una vez publicado, tu reporte también se compartirá con la <strong
-            >red global de búsqueda</strong
-          > (Cruz Roja · Person Finder) — más personas buscándolo.</span
+          >También se comparte con la <strong>red global de búsqueda</strong> (Cruz
+          Roja · Person Finder).</span
         >
       </p>
       <a
@@ -213,81 +205,43 @@
       </a>
     </div>
   {:else}
-    <h1 class="text-2xl font-bold text-gray-900">
-      Reportar a alguien que no encuentro
-    </h1>
-    <p class="mt-1 text-sm text-gray-600">
-      La ubicación se muestra siempre aproximada por seguridad. Tus datos de
-      contacto son privados y solo sirven para que te avisen si hay información.
+    <div class="flex items-center gap-2.5">
+      <span class="text-faro-900" aria-hidden="true"
+        ><FaroIcon name="candle" size={26} /></span
+      >
+      <h1 class="text-2xl font-bold text-gray-900">
+        Persona fallecida sin identificar
+      </h1>
+    </div>
+    <p class="mt-1.5 text-sm text-gray-600">
+      Con respeto: este reporte ayuda a que una familia que busca a un ser
+      querido pueda reconocerlo. La ubicación se muestra siempre aproximada. Tus
+      datos de contacto son privados.
     </p>
 
     <form class="mt-6 space-y-5" on:submit|preventDefault={submit}>
       <fieldset class="space-y-4">
         <legend class="text-sm font-semibold text-gray-900"
-          >Sobre la persona</legend
+          >Sobre la persona encontrada</legend
         >
-
-        <div class="grid grid-cols-2 gap-3">
-          <label class="block">
-            <span class="text-sm font-medium text-gray-700">Nombre *</span>
-            <input
-              bind:value={given_name}
-              required
-              maxlength="120"
-              class="mt-1 min-h-tap w-full rounded-lg border border-gray-300 px-3 py-2"
-            />
-          </label>
-          <label class="block">
-            <span class="text-sm font-medium text-gray-700">Apellido</span>
-            <input
-              bind:value={family_name}
-              maxlength="120"
-              class="mt-1 min-h-tap w-full rounded-lg border border-gray-300 px-3 py-2"
-            />
-          </label>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <label class="block">
-            <span class="text-sm font-medium text-gray-700">Edad</span>
-            <input
-              bind:value={age}
-              type="number"
-              min="0"
-              max="130"
-              inputmode="numeric"
-              class="mt-1 min-h-tap w-full rounded-lg border border-gray-300 px-3 py-2"
-            />
-          </label>
-          <label class="block">
-            <span class="text-sm font-medium text-gray-700">Sexo</span>
-            <select
-              bind:value={sex}
-              class="mt-1 min-h-tap w-full rounded-lg border border-gray-300 px-3 py-2"
-            >
-              <option value="unknown">Sin especificar</option>
-              <option value="female">Femenino</option>
-              <option value="male">Masculino</option>
-              <option value="other">Otro</option>
-            </select>
-          </label>
-        </div>
 
         <label class="block">
           <span class="text-sm font-medium text-gray-700"
-            >¿Dónde se le vio por última vez?</span
+            >¿Dónde fue encontrada? *</span
           >
           <input
-            bind:value={last_known_location_text}
+            bind:value={found_location_text}
+            required
             maxlength="300"
             class="mt-1 min-h-tap w-full rounded-lg border border-gray-300 px-3 py-2"
-            placeholder="Sector, calle, referencia…"
+            placeholder="Sector, calle, referencia, o a qué morgue/hospital fue llevada"
           />
         </label>
 
         <button
           type="button"
           on:click={useLocation}
+          aria-busy={geoState === "loading"}
           class="min-h-tap inline-flex items-center gap-2 rounded-lg border border-faro-900 px-4 py-2 text-sm font-medium text-faro-900 hover:bg-faro-50"
         >
           <span aria-hidden="true">📍</span>
@@ -300,6 +254,35 @@
             No se pudo obtener la ubicación. Describe la zona arriba.
           </p>
         {/if}
+
+        <div class="grid grid-cols-2 gap-3">
+          <label class="block">
+            <span class="text-sm font-medium text-gray-700">Sexo aparente</span>
+            <select
+              bind:value={sex}
+              class="mt-1 min-h-tap w-full rounded-lg border border-gray-300 px-3 py-2"
+            >
+              <option value="unknown">Sin especificar</option>
+              <option value="female">Femenino</option>
+              <option value="male">Masculino</option>
+              <option value="other">No está claro</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="text-sm font-medium text-gray-700"
+              >Edad aproximada</span
+            >
+            <input
+              bind:value={age}
+              type="number"
+              min="0"
+              max="130"
+              inputmode="numeric"
+              class="mt-1 min-h-tap w-full rounded-lg border border-gray-300 px-3 py-2"
+              placeholder="años"
+            />
+          </label>
+        </div>
 
         <div class="grid grid-cols-2 gap-3">
           <label class="block">
@@ -333,8 +316,12 @@
             bind:value={distinguishing_marks}
             maxlength="500"
             class="mt-1 min-h-tap w-full rounded-lg border border-gray-300 px-3 py-2"
-            placeholder="Cicatriz, tatuaje, lentes…"
+            placeholder="Tatuajes, cicatrices, lunares, prótesis…"
           />
+          <span class="mt-1 block text-xs text-gray-500"
+            >Lo que ayuda a una familia a reconocer: tatuajes, cicatrices,
+            lunares, anillos, dientes.</span
+          >
         </label>
 
         <!-- Foto (opcional) — se comprime y se limpia la ubicación antes de subir -->
@@ -363,7 +350,6 @@
               <input
                 type="file"
                 accept="image/*"
-                capture="environment"
                 on:change={onPhoto}
                 class="sr-only"
               />
@@ -373,39 +359,13 @@
             <p class="mt-2 text-xs text-red-600">{photoError}</p>
           {/if}
           <p class="mt-2 text-xs text-gray-500">
-            La foto se comprime y se le borra la ubicación automáticamente. Si
-            la persona es menor de edad, su foto <strong
-              >no se mostrará públicamente</strong
-            >.
+            Por respeto, fotografía señas que ayuden a identificar (ropa,
+            tatuajes, objetos),
+            <strong>no imágenes gráficas</strong>. Las fotos muy explícitas
+            pueden ser ocultadas por moderación. Si la persona es menor de edad,
+            su foto <strong>no se mostrará públicamente</strong>.
           </p>
         </div>
-
-        <label class="flex items-start gap-3">
-          <input
-            type="checkbox"
-            bind:checked={medical_urgent}
-            class="mt-1 h-5 w-5 shrink-0"
-          />
-          <span class="text-sm text-gray-700"
-            ><strong>Tiene una urgencia médica</strong> (necesita medicación o atención)</span
-          >
-        </label>
-        {#if medical_urgent}
-          <label class="block">
-            <span class="text-sm font-medium text-gray-700"
-              >Tipo de urgencia</span
-            >
-            <select
-              bind:value={medical_category}
-              class="mt-1 min-h-tap w-full rounded-lg border border-gray-300 px-3 py-2"
-            >
-              <option value="">Selecciona…</option>
-              {#each MEDICAL_OPTS as o}
-                <option value={o.value}>{o.label}</option>
-              {/each}
-            </select>
-          </label>
-        {/if}
 
         <label class="block">
           <span class="text-sm font-medium text-gray-700">Más detalles</span>
@@ -414,6 +374,7 @@
             maxlength="2000"
             rows="3"
             class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+            placeholder="Estatura aproximada, contextura, cualquier dato que ayude a reconocerla."
           ></textarea>
         </label>
       </fieldset>
@@ -423,8 +384,9 @@
           >Tus datos (privados)</legend
         >
         <p class="text-xs text-gray-500">
-          No se muestran en el mapa. Si alguien tiene información, te llega por
-          un mensaje seguro sin revelar tu correo ni tu teléfono.
+          No se muestran en el mapa. Sirven para que una familia pueda
+          contactarte por un mensaje seguro, sin revelar tu correo ni tu
+          teléfono.
         </p>
         <div class="grid grid-cols-2 gap-3">
           <label class="block">
@@ -433,10 +395,9 @@
               bind:value={reporter_relation}
               class="mt-1 min-h-tap w-full rounded-lg border border-gray-300 px-3 py-2"
             >
-              <option value="family">Familiar</option>
-              <option value="friend">Amigo/a</option>
               <option value="witness">Testigo</option>
-              <option value="volunteer">Voluntario/a</option>
+              <option value="volunteer">Voluntario/a o rescatista</option>
+              <option value="authority">Autoridad / personal de salud</option>
               <option value="unknown">Otro</option>
             </select>
           </label>
@@ -498,18 +459,5 @@
         {submitting ? "Enviando…" : "Enviar reporte"}
       </button>
     </form>
-
-    <p
-      class="mt-8 border-t border-gray-100 pt-4 text-center text-xs leading-relaxed text-gray-500"
-    >
-      Si lamentablemente encontraste a una persona fallecida sin identificar,
-      puedes reportarla con respeto para que su familia pueda hallarla:
-      <a
-        href="/reportar/cuerpo-nn"
-        data-sveltekit-preload-data="hover"
-        class="font-medium text-faro-800 underline"
-        >reportar persona sin identificar</a
-      >.
-    </p>
   {/if}
 </main>
