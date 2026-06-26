@@ -70,7 +70,9 @@ async function fetchPage(page) {
   const data = decode(arr)['routes/_index'].data;
   const persons = data.persons || [];
   const hasMore = !!data.pagination?.hasMore;
-  return { persons, hasMore, totalCount: data.totalCount, stats: data.stats };
+  // echoPage: la página que la fuente DICE haber servido. Si pedimos la 155 y
+  // responde page=1 con persons=0, es un glitch/reset espurio (no el fin real).
+  return { persons, hasMore, totalCount: data.totalCount, stats: data.stats, echoPage: data.pagination?.page };
 }
 
 // geocoding: texto de lugar → [lat,lng]. Tabla determinista nacional + selección
@@ -112,16 +114,24 @@ function mapRecord(p) {
 }
 
 // Reintenta una página con backoff (corridas largas: una falla transitoria no
-// debe tumbar las ~1.400 páginas). Misma decodificación validada.
-async function fetchPageRetry(page, tries = 4) {
+// debe tumbar las ~1.400 páginas). Además detecta el "reset" de la fuente: a
+// veces, en una página intermedia, responde vacío con echoPage=1 (glitch). Eso NO
+// es el fin → reintentamos; si persiste, devolvemos el último y el caller la SALTA
+// (no corta la ingesta). Validado: la pág 155 glitcheaba pero 156+ tenían datos.
+async function fetchPageValid(page, tries = 4) {
+  let last = { persons: [], hasMore: true, echoPage: page };
   for (let i = 0; i < tries; i++) {
     try {
-      return await fetchPage(page);
+      const r = await fetchPage(page);
+      last = r;
+      const glitch = r.persons.length === 0 || (page !== 1 && r.echoPage === 1);
+      if (!glitch) return r;
     } catch (e) {
-      if (i === tries - 1) throw e;
-      await sleep(THROTTLE_MS * (i + 2));
+      if (i === tries - 1 && last.persons.length === 0) throw e;
     }
+    if (i < tries - 1) await sleep(THROTTLE_MS * (i + 2));
   }
+  return last; // tras reintentos sigue vacía/glitcheada → el caller decide saltar
 }
 
 // Inserta un lote — idempotente por (source, source_id). Query EXACTA de siempre.
@@ -163,25 +173,38 @@ if (!DRY) {
 
 const seenIds = new Set();
 const byStatus = {};
-let pageNum = 1, pagesFetched = 0, geocodable = 0, withPhoto = 0, inserted = 0;
-let totalCount = null, stats = null, stopped = '';
+let pageNum = 1, pagesFetched = 0, geocodable = 0, withPhoto = 0, inserted = 0, skipped = 0;
+let totalCount = null, stats = null, maxPages = Infinity, emptyStreak = 0, stopped = '';
 
 try {
-  while (pagesFetched < MAX_PAGES) {
+  while (pageNum <= maxPages && pagesFetched < MAX_PAGES) {
     let pageData;
     try {
-      pageData = await fetchPageRetry(pageNum);
+      pageData = await fetchPageValid(pageNum);
     } catch (e) {
       stopped = `página ${pageNum} falló tras reintentos (${e.message}) — corto y conservo lo insertado`;
       console.error('✖ ' + stopped);
       break;
     }
-    const { persons, hasMore, totalCount: tc, stats: st } = pageData;
+    const { persons, totalCount: tc, stats: st } = pageData;
     if (totalCount === null) {
       totalCount = tc;
       stats = st;
-      console.log(`Fuente: totalCount=${totalCount} ${JSON.stringify(stats)} (~${Math.ceil(totalCount / 20)} págs)`);
+      // El fin se decide por nº de páginas esperadas (no por hasMore, que glitchea).
+      maxPages = totalCount ? Math.ceil(totalCount / 20) + 3 : Infinity;
+      console.log(`Fuente: totalCount=${totalCount} ${JSON.stringify(stats)} (~${maxPages} págs)`);
     }
+    if (persons.length === 0) {
+      // Página vacía: NO cortamos por una aislada (glitch de la fuente). Solo varias
+      // seguidas = fin real. La saltamos y seguimos (la 156+ sí tiene datos).
+      emptyStreak++;
+      skipped++;
+      if (emptyStreak >= 5) break;
+      pageNum++;
+      await sleep(THROTTLE_MS);
+      continue;
+    }
+    emptyStreak = 0;
     const batch = [];
     for (const p of persons) {
       if (!p.id || seenIds.has(p.id)) continue;
@@ -198,9 +221,8 @@ try {
     pagesFetched++;
     if (pagesFetched <= 3 || pagesFetched % 25 === 0) {
       console.log(`[pág ${pageNum}] escaneados ${seenIds.size} · geocodables ${geocodable} · con foto ${withPhoto}` +
-        (!DRY ? ` · NUEVOS insertados ${inserted}` : ''));
+        (!DRY ? ` · NUEVOS ${inserted}` : '') + (skipped ? ` · saltadas ${skipped}` : ''));
     }
-    if (!hasMore || persons.length === 0) break;
     pageNum++;
     await sleep(THROTTLE_MS);
   }
@@ -209,7 +231,7 @@ try {
 }
 
 console.log(`\n── Resumen ──`);
-console.log(`Escaneados: ${seenIds.size} en ${pagesFetched} páginas (fuente total ${totalCount})`);
+console.log(`Escaneados: ${seenIds.size} en ${pagesFetched} páginas (fuente total ${totalCount}; ${skipped} vacías saltadas)`);
 console.log(`Geocodables: ${geocodable} · por status ${JSON.stringify(byStatus)} · con foto ${withPhoto}`);
 if (!DRY) console.log(`✓ NUEVOS insertados: ${inserted} (idempotente por source_id; lo demás ya existía).`);
 if (stopped) console.log(`⚠ Cortado: ${stopped}. Re-correr es seguro (idempotente).`);
