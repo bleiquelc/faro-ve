@@ -120,6 +120,20 @@ Detalle: `docs/SESSIONS/2026-06-26-aid-points-comunidad.md`.
   legítimas, substring) intactos — son personas reales. Solo quedan perfiles reales (venezuela-te-busca).
 - ⚠️ NO re-correr `scripts/seed-test-persons.mjs` contra prod (re-inserta los 30 de prueba).
 
+## 2026-06-26 (autónoma) — Panel /moderar (D3) + fix de ubicación
+Detalle: `docs/SESSIONS/2026-06-26-moderar-y-ubicacion.md`.
+- ✅ **Panel `/moderar`** (D3) LIVE: magic-link Supabase + cola pending ordenada (#20) + decisiones
+  (aprobar/rechazar/duplicado/falta-info) con audit atómico (actor=moderador). Migración `0016` (RPCs
+  SECURITY DEFINER, supresión de audit-fantasma, seed founder admin). Gate `verify-moderation.mjs` 15/15.
+  Revisión adversarial (19 agentes): 3 confirmados + 1 crítico-completitud corregidos. ⚠️ Falta el paso
+  de Supabase Auth (redirect-URL) para el login — ver `HANDOFF-continuar.md` #1.
+- ✅ **Ofuscación consciente de la tierra** (founder: "personas sobre el mar"): migración `0017`
+  (`ve_land` + `obfuscate_point_on_land`, preserva ≥200m, fail-safe). Backfill **1229→23** offshore
+  (los 23 quedan en el mar a propósito: snap violaría los ≥200m → privacidad > cosmético). `Map.svelte`:
+  pines de color más visibles. Revisión adversarial (12 agentes): 5 confirmados (1 high de privacidad)
+  corregidos. Live: franja La Guaira 100→0, total intacto 13.791.
+- ✅ Migraciones en prod: **0001–0017**. svelte-check 0 / 53 tests / build limpio. Commits `74b4e68`, `08370e6`.
+
 ## Bloqueadores / pendientes founder
 
 1. **Tarjeta en Cloudflare** → para registrar `faro-ve.com` (disponible ✓; yo no puedo meter datos de tarjeta). El PLAN agenda DNS final en D6, así que no bloquea — seguimos en pages.dev.

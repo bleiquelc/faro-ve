@@ -21,8 +21,17 @@
 - **Mobile**: zoom +/- 44px elevado sobre la nav, popups con auto-pan, filtros COMBINABLES (estado
   single-select + Menores/Urgencia toggles), botón **Actualizar** PWA-aware, iconos faro minimalistas
   (cache-bust `?v=3`), animaciones de la luz más lentas/suaves.
-- **Migraciones aplicadas en prod: 0001–0015** (verificadas en `_faro_migrations`). 0014 con gate PASS
-  (`scripts/verify-aid-points.mjs`).
+- **Panel de moderación `/moderar`** (D3) LIVE: magic-link Supabase + cola pending ordenada (#20) +
+  aprobar/rechazar/duplicado/falta-info con audit atómico (actor=moderador). Migración 0016 (RPCs
+  SECURITY DEFINER). Gate `scripts/verify-moderation.mjs` 15/15 PASS. Revisión adversarial (19 agentes).
+  Founder `bleiquelc@gmail.com` ya seedeado admin. ⚠️ Falta 1 paso de dashboard para el login → Pendientes #1.
+- **Ofuscación consciente de la tierra** (no más personas sobre el mar): migración 0017 (`ve_land` +
+  `obfuscate_point_on_land`, preserva ≥200m; fail-safe). Backfill 1229→23 offshore (los 23 quedan en el
+  mar A PROPÓSITO: snap a tierra violaría los ≥200m). Mapa: pines de color más visibles (`ZOOM_POINTS`
+  13→12, cluster 50→38, pin mayor). Revisión adversarial (12 agentes, 1 high de privacidad corregido).
+  Live: franja La Guaira 100→0.
+- **Migraciones aplicadas en prod: 0001–0017** (verificadas en `_faro_migrations`). 0014/0016 con gate PASS
+  (`scripts/verify-aid-points.mjs` / `scripts/verify-moderation.mjs`).
 - **Privacidad verificada**: patrón vista-como-owner (anon NO lee tablas base `persons`/`aid_points`, solo
   las vistas `persons_public`/`aid_points_public`). `revoke select on aid_points from anon, authenticated` (0014).
 
@@ -45,23 +54,35 @@
 - ⚠️ NO re-correr `scripts/seed-test-persons.mjs` contra prod (re-mete los 30 de prueba).
 
 ## 📋 Pendientes priorizados
-1. ~~Confirmar escrituras~~ ✅ HECHO — registro confirmado end-to-end en prod (ver sección Secretos/escrituras).
-2. **#4 Tapar-cara de menores — NO desplegado, requiere blur SERVER-SIDE.** La revisión adversarial halló que
+1. **🔑 ACTIVAR LOGIN DE `/moderar` (1 paso de dashboard, founder).** El panel está LIVE y seguro pero el
+   magic-link no completa hasta agregar la redirect-URL en Supabase Auth (no hay token de Management para
+   automatizarlo). En el dashboard de Supabase (proyecto `blmiebnnprwaupyatsyb`):
+   **Authentication → URL Configuration → Redirect URLs → Add URL**, agregar:
+   ```text
+   https://faro-ve.com/moderar/auth/callback
+   https://www.faro-ve.com/moderar/auth/callback
+   ```
+   (y confirmar que **Site URL** sea `https://faro-ve.com` y que Email auth esté habilitado — viene por
+   defecto). Luego entrar en `https://faro-ve.com/moderar/login` con `bleiquelc@gmail.com` → llega el enlace.
+   Nota: la cola hoy está VACÍA (no hay reportes públicos pending todavía) → es correcto que muestre "sin pendientes".
+2. ~~Confirmar escrituras~~ ✅ HECHO — registro confirmado end-to-end en prod (ver sección Secretos/escrituras).
+3. **#4 Tapar-cara de menores — NO desplegado, requiere blur SERVER-SIDE.** La revisión adversarial halló que
    el blur del-lado-cliente NO es verificable por el servidor (un reportante malicioso podría subir la cara sin
    difuminar como `photo_url_blurred` → exponer un menor = retroceso vs. ocultar). Por regla #3 (INVIOLABLE) se
    REVIRTIÓ. Estado actual SEGURO: foto de menor OCULTA. Diseño + blur verificado (24px+blur11) + plan
    server-side (Cloudflare Image Resizing / WASM / Edge Function) en **`docs/HANDOFF-tapar-cara-menores.md`**.
    Decisión del founder pendiente: (A) server-side [recomendado], (B) cliente+moderación, (C) seguir oculto.
-3. **Geocodificación / re-ingesta**: el script `scripts/ingest/venezuela-te-busca.mjs` está ARREGLADO
+4. **Geocodificación / re-ingesta**: el script `scripts/ingest/venezuela-te-busca.mjs` está ARREGLADO
    (la fuente cambió paginación → estaba estancado en pág 1; ahora `page`/`hasMore`) + geocoder nacional
    testeado (`scripts/ingest/geocode.mjs`, 85% cobertura vs ~24 entradas Vargas antes). **Re-correr la ingesta
-   traería ~8-9k personas más al mapa** (la fuente tiene 25.516; el mapa tiene 13.791). Founder OK + ~40 min:
+   traería ~8-9k personas más al mapa** (la fuente tiene 25.516; el mapa tiene 13.791). Founder OK + ~40 min.
+   Nota: la nueva ingesta ya entra con la ofuscación land-aware (0017) → no caerá en el mar.
    ```bash
    cd ~/Desktop/faro-ve && DATABASE_URL="$(cat ~/.secrets/faro-ve/db-url.txt)" node scripts/ingest/venezuela-te-busca.mjs --apply
    ```
-4. **Email Routing** (Cloudflare → faro-ve.com → Email): `contacto@` y `opt-out@` aún no reciben.
-5. **Del plan (D3+)**: panel `/moderar` (magic-link) + aprobar/rechazar, relay `/mensaje/[id]` anti-PII, resto
-   de formularios (cuerpo-nn, avistamiento, refugio, condición-médica), PWA offline/sync, IA (chat/triage/health), i18n, PFIF export.
+5. **Email Routing** (Cloudflare → faro-ve.com → Email): `contacto@` y `opt-out@` aún no reciben.
+6. **Del plan (D3+)**: ~~panel `/moderar`~~ ✅ HECHO; falta relay `/mensaje/[id]` anti-PII, resto de
+   formularios (cuerpo-nn, avistamiento, refugio, condición-médica), PWA offline/sync, IA (chat/triage/health), i18n, PFIF export.
 
 ## 🛠 Operación
 - Aplicar migraciones: `DATABASE_URL="$(cat ~/.secrets/faro-ve/db-url.txt)" node scripts/apply-migrations.mjs`.
