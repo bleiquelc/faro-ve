@@ -134,6 +134,18 @@ Detalle: `docs/SESSIONS/2026-06-26-moderar-y-ubicacion.md`.
   corregidos. Live: franja La Guaira 100→0, total intacto 13.791.
 - ✅ Migraciones en prod: **0001–0017**. svelte-check 0 / 53 tests / build limpio. Commits `74b4e68`, `08370e6`.
 
+## 2026-06-26 (autónoma, tanda 2) — Reconexión + alcance
+Detalle: `docs/SESSIONS/2026-06-26-moderar-y-ubicacion.md` (sección "tanda 2").
+- ✅ **Compartir** en cada ficha (Web Share + WhatsApp + copiar enlace) — más ojos = más hallazgos. `e330b19`.
+- ✅ **Avistamientos / "Tengo información"** — doble vía: quien vio a alguien o tiene un dato lo aporta →
+  moderación → aparece en la ficha. Migración `0018` (create_note_report, notes_moderation_queue,
+  moderate_note), `/api/notes`, InfoForm en la ficha, sección de notas en `/moderar`. Gate `verify-notes.mjs`
+  24/24. Revisión adversarial (15 agentes) → **CRÍTICO cerrado**: anon tenía INSERT directo a notes/persons
+  por PostgREST (saltaba Turnstile/cifrado/whitelist); revocado. `5746129`.
+- ✅ **Previews enriquecidos (Open Graph)** por persona + `og-image.png` branded que faltaba (referencia daba
+  404). Al compartir una ficha: tarjeta con 'Ayúdame a encontrar a {nombre}'. `0201dbe`.
+- ✅ Migraciones en prod: **0001–0018**. svelte-check 0 / 61 tests / builds limpios. Todo verificado live.
+
 ## Bloqueadores / pendientes founder
 
 1. **Tarjeta en Cloudflare** → para registrar `faro-ve.com` (disponible ✓; yo no puedo meter datos de tarjeta). El PLAN agenda DNS final en D6, así que no bloquea — seguimos en pages.dev.

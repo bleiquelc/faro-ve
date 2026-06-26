@@ -30,8 +30,14 @@
   mar A PROPÓSITO: snap a tierra violaría los ≥200m). Mapa: pines de color más visibles (`ZOOM_POINTS`
   13→12, cluster 50→38, pin mayor). Revisión adversarial (12 agentes, 1 high de privacidad corregido).
   Live: franja La Guaira 100→0.
-- **Migraciones aplicadas en prod: 0001–0017** (verificadas en `_faro_migrations`). 0014/0016 con gate PASS
-  (`scripts/verify-aid-points.mjs` / `scripts/verify-moderation.mjs`).
+- **Avistamientos / "Tengo información"** (D3) LIVE: en cada ficha, quien vio a alguien o tiene un dato lo
+  aporta → moderación (`/moderar` tiene su sección) → aparece en la ficha. Migración 0018 (create_note_report,
+  notes_moderation_queue, moderate_note). Gate `scripts/verify-notes.mjs` 24/24. **CRÍTICO cerrado**: 0003
+  daba a anon INSERT directo a notes/persons por PostgREST (saltaba Turnstile/cifrado/whitelist) → revocado.
+- **Compartir + previews ricos**: botón Compartir (Web Share + WhatsApp + copiar) en cada ficha + Open Graph
+  por persona ('Ayúdame a encontrar a {nombre}') + `og-image.png` branded (la referencia global daba 404).
+- **Migraciones aplicadas en prod: 0001–0018** (verificadas en `_faro_migrations`). 0014/0016/0018 con gate PASS
+  (`verify-aid-points.mjs` / `verify-moderation.mjs` / `verify-notes.mjs`).
 - **Privacidad verificada**: patrón vista-como-owner (anon NO lee tablas base `persons`/`aid_points`, solo
   las vistas `persons_public`/`aid_points_public`). `revoke select on aid_points from anon, authenticated` (0014).
 
@@ -65,14 +71,20 @@
    (y confirmar que **Site URL** sea `https://faro-ve.com` y que Email auth esté habilitado — viene por
    defecto). Luego entrar en `https://faro-ve.com/moderar/login` con `bleiquelc@gmail.com` → llega el enlace.
    Nota: la cola hoy está VACÍA (no hay reportes públicos pending todavía) → es correcto que muestre "sin pendientes".
-2. ~~Confirmar escrituras~~ ✅ HECHO — registro confirmado end-to-end en prod (ver sección Secretos/escrituras).
-3. **#4 Tapar-cara de menores — NO desplegado, requiere blur SERVER-SIDE.** La revisión adversarial halló que
+2. **🔑 SECRETOS QUE DESBLOQUEAN FEATURES (founder, `wrangler pages secret put ... --project-name=faro-ve`):**
+   - `RESEND_API_KEY` → desbloquea el **relay anti-PII** (mensajes a reportantes/autores de avistamientos sin
+     exponer datos). Hoy el código de relay no está construido porque sin esta key no entrega; con ella, se construye.
+   - `ANTHROPIC_API_KEY` (+ AI Gateway) → desbloquea **IA** (triaje que prioriza la cola de moderación, chat).
+   - Hoy NO están en Pages (la lista muestra: APP_SALT, PUBLIC_SUPABASE_ANON_KEY, PUBLIC_TURNSTILE_SITE_KEY,
+     SUPABASE_SERVICE_ROLE_KEY, TURNSTILE_SECRET_KEY).
+3. ~~Confirmar escrituras~~ ✅ HECHO — registro confirmado end-to-end en prod (ver sección Secretos/escrituras).
+4. **Tapar-cara de menores — NO desplegado, requiere blur SERVER-SIDE.** La revisión adversarial halló que
    el blur del-lado-cliente NO es verificable por el servidor (un reportante malicioso podría subir la cara sin
    difuminar como `photo_url_blurred` → exponer un menor = retroceso vs. ocultar). Por regla #3 (INVIOLABLE) se
    REVIRTIÓ. Estado actual SEGURO: foto de menor OCULTA. Diseño + blur verificado (24px+blur11) + plan
    server-side (Cloudflare Image Resizing / WASM / Edge Function) en **`docs/HANDOFF-tapar-cara-menores.md`**.
    Decisión del founder pendiente: (A) server-side [recomendado], (B) cliente+moderación, (C) seguir oculto.
-4. **Geocodificación / re-ingesta**: el script `scripts/ingest/venezuela-te-busca.mjs` está ARREGLADO
+5. **Geocodificación / re-ingesta**: el script `scripts/ingest/venezuela-te-busca.mjs` está ARREGLADO
    (la fuente cambió paginación → estaba estancado en pág 1; ahora `page`/`hasMore`) + geocoder nacional
    testeado (`scripts/ingest/geocode.mjs`, 85% cobertura vs ~24 entradas Vargas antes). **Re-correr la ingesta
    traería ~8-9k personas más al mapa** (la fuente tiene 25.516; el mapa tiene 13.791). Founder OK + ~40 min.
@@ -80,9 +92,10 @@
    ```bash
    cd ~/Desktop/faro-ve && DATABASE_URL="$(cat ~/.secrets/faro-ve/db-url.txt)" node scripts/ingest/venezuela-te-busca.mjs --apply
    ```
-5. **Email Routing** (Cloudflare → faro-ve.com → Email): `contacto@` y `opt-out@` aún no reciben.
-6. **Del plan (D3+)**: ~~panel `/moderar`~~ ✅ HECHO; falta relay `/mensaje/[id]` anti-PII, resto de
-   formularios (cuerpo-nn, avistamiento, refugio, condición-médica), PWA offline/sync, IA (chat/triage/health), i18n, PFIF export.
+6. **Email Routing** (Cloudflare → faro-ve.com → Email): `contacto@` y `opt-out@` aún no reciben.
+7. **Del plan (D3+)**: ~~panel `/moderar`~~ ✅ · ~~avistamientos~~ ✅ · ~~compartir~~ ✅; falta relay
+   `/mensaje/[id]` anti-PII (necesita `RESEND_API_KEY`, ver #2), avistamientos como pines en el mapa, resto de
+   formularios (cuerpo-nn, refugio, condición-médica), PWA offline/sync, IA (chat/triage/health), i18n, PFIF export.
 
 ## 🛠 Operación
 - Aplicar migraciones: `DATABASE_URL="$(cat ~/.secrets/faro-ve/db-url.txt)" node scripts/apply-migrations.mjs`.

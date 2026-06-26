@@ -49,3 +49,36 @@ Pedido del founder: en la costa salían reportes sobre el agua; los puntos de co
 - `08370e6` fix(mapa): ofuscación consciente de la tierra + pines de color más visibles
 
 ## Migraciones aplicadas en prod: 0001–0017.
+
+---
+
+## Tanda 2 (autónoma) — Reconexión de doble vía + alcance
+
+Founder en el trabajo; instrucción: "mejora todo lo que puedas que ayude a las personas, en automático,
+revisa/verifica y si funciona despliega". Cada feature con su revisión adversarial antes de prod.
+
+### 3. Compartir (ficha) — ✅ LIVE `e330b19`
+ShareButton: Web Share API nativa + WhatsApp (dominante en VE) + copiar enlace. Mensaje "ayúdame a
+encontrar" para personas buscadas. No expone nada nuevo (ficha ya pública, coords ofuscadas, foto de
+menor oculta). Más alcance = más hallazgos.
+
+### 4. Avistamientos / "Tengo información" — ✅ LIVE `5746129`
+Doble vía: quien vio a una persona o tiene un dato lo aporta → moderación → aparece en la ficha.
+- Migración 0018: create_note_report (cifra PII del autor, ofusca avistamiento land-aware, pending),
+  notes_moderation_queue/stats, moderate_note (atómico + audit, approved/rejected). `/api/notes`, InfoForm
+  en la ficha, visualización de aportes, sección de notas en `/moderar`. Gate verify-notes.mjs 24/24.
+- Revisión adversarial (15 agentes): 10 confirmados + 1 crítico-completitud, corregidos.
+  **CRÍTICO cerrado**: 0003 daba a anon INSERT directo a notes/persons por PostgREST (saltaba
+  Turnstile/cifrado/whitelist de tipo) → revocado, toda alta pasa por las RPC SECURITY DEFINER.
+
+### 5. Previews enriquecidos (Open Graph) — ✅ LIVE `0201dbe`
+Al compartir una ficha: tarjeta rica con 'Ayúdame a encontrar a {nombre}' + edad/zona (solo datos
+públicos). Genera el og-image.png branded que faltaba (la referencia global daba 404). OG por-página sin
+duplicados (saca título/descripción de app.html). og:image absoluto + dimensiones.
+
+### Tareas que solo el founder puede hacer (config externa)
+1. Supabase Auth → redirect-URL del magic-link (login de /moderar). Ver HANDOFF #1.
+2. `RESEND_API_KEY` en Pages → desbloquea relay. `ANTHROPIC_API_KEY` → desbloquea IA. Ver HANDOFF #2.
+3. Email Routing contacto@/opt-out@. Decisiones: tapar-cara (A/B/C), re-ingesta (+8-9k personas).
+
+### Migraciones en prod: 0001–0018. svelte-check 0 · 61 tests · builds limpios · todo verificado live.
