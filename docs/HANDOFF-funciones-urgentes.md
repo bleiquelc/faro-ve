@@ -64,6 +64,15 @@
 - **Cómo se aplica:** ya hay `medical_urgent` e `is_minor` en `persons_public` y tokens de color (`lib/utils/colors`). Añadir filtros/realce en el mapa (combinar con `ai_priority` de la función 2).
 - **Qué significa para los usuarios:** la atención y la búsqueda se concentran en los casos más delicados (niños solos, heridos).
 
+## 8. "Faro Auxilio" — asistente de primeros auxilios + supervivencia + contactos (solo VE) 🟠 ALTO IMPACTO
+- **Qué es:** un chat/asistente simple, accesible en toda la app, con primeros auxilios, qué hacer en sismo, herramientas caseras, y **contactos de emergencia verificados** (bomberos/Protección Civil/Cruz Roja/hospitales de Caracas). Ayuda a mantener la calma e instruye en lo básico que salva vidas.
+- **Cómo se aplica (DISEÑO HÍBRIDO — clave para costo y fiabilidad):**
+  1. **Núcleo ESTÁTICO (gratis, offline, siempre disponible):** contenido curado de primeros auxilios (fuentes Cruz Roja/OMS) + contactos VERIFICADOS (lista estática curada, NUNCA inventados por IA — un número o procedimiento errado cuesta vidas). Con aviso "no reemplaza atención profesional". Funciona sin internet (parte del PWA/offline, función 5).
+  2. **Chat IA encima (acotado):** endpoint `/api/ai/ask` (stub ya existe) + rate-limit 10/día por IP (ya en hooks) + **Haiku 4.5** (regla #15) + **Cloudflare AI Gateway** (caché ~90%, las preguntas se repiten) + **kill-switch `LLM_DAILY_BUDGET_USD=$5/día`** (ya existe). La IA se apoya en la info verificada, NO improvisa. Sistema-prompt con contexto VE/Caracas/terremoto. Si el budget se topa o no hay red → el núcleo estático sigue funcionando.
+  3. **GEO-FILTRO solo Venezuela (optimiza gasto, decisión del founder):** gatear el chat IA (y el feature Faro Auxilio) a país = VE usando la cabecera `CF-IPCountry` (o `event.platform.cf.country`). Bloqueo en el endpoint (servidor, no esquivable) + ocultar el botón en la UI fuera de VE. **El mapa/búsqueda/reportes siguen GLOBALES** (no consumen IA; un familiar en el exterior debe poder buscar/reportar).
+  4. **Marca:** "Faro Auxilio" / "Faro Vida" — el faro con una **cruz blanca iluminada** en el centro. Botón flotante siempre visible. PWA → web/Android/iOS automático, responsive.
+- **Qué significa para los usuarios:** en la hora dorada tras el sismo, cualquiera —sin entrenamiento médico— recibe instrucciones claras para controlar hemorragias, RCP, atragantamiento, qué hacer si está atrapado, purificar agua, improvisar herramientas, y a quién llamar. Mantiene la calma y **salva vidas directamente**. Costo controlado y enfocado solo en quienes están en la zona.
+
 ---
 
 ## Pruebas de humo (smoke) tras cualquier deploy
