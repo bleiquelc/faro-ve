@@ -146,6 +146,24 @@ Detalle: `docs/SESSIONS/2026-06-26-moderar-y-ubicacion.md` (sección "tanda 2").
   404). Al compartir una ficha: tarjeta con 'Ayúdame a encontrar a {nombre}'. `0201dbe`.
 - ✅ Migraciones en prod: **0001–0018**. svelte-check 0 / 61 tests / builds limpios. Todo verificado live.
 
+## 2026-06-27 (autónoma) — Faro Auxilio + Cuerpos NN LIVE
+Detalle: `docs/SESSIONS/2026-06-27-faro-auxilio-nucleo-estatico.md`.
+- ✅ **Faro Auxilio — núcleo estático** (`/auxilio`, `c3d66b5`): guía offline de primeros auxilios + supervivencia + contactos verificados, **23 procedimientos** (con `98df51a`: +torniquete, RCP niño/bebé, convulsiones, electrocución, apoyo psicológico). CERO invención, cita de fuente oficial por procedimiento. Aviso "en revisión". Botón flotante FaroAuxilio (faro con cruz blanca) en toda la app. Contactos por tier: solo verificados marcables (911, CICR, Cruz Roja VE, Bomberos Caracas).
+- ✅ **Cuerpos NN — formulario** (`/reportar/cuerpo-nn`, `b44c006`): reusa `POST /api/persons` status `unidentified_body` (publish-first 0021 → aparece en el mapa al instante; persons_public 0022 lo incluye). Ícono Faro `candle`. Cierra la función 6.
+- **Rigor:** revisión adversarial multi-agente antes de prod (código + seguridad + fidelidad médica + regresión de privacidad). El verify adversarial **atrapó una invención** (distancia de cable 15 m→11 m) y una **técnica de RCP de bebé invertida** (→dos pulgares, AHA 2025) antes de salir live.
+- **Cableado verificado:** 0 dangling source-citations (38 fuentes, todas resuelven); todos los `href` internos resuelven; persons_public incluye `unidentified_body`; svelte-check 0 errores; builds limpios; prod 200 (`/auxilio`, `/reportar/cuerpo-nn`, smoke home/persons/desaparecido).
+
+## Lista de funciones (handoff) — estado
+1. IA-moderadora (restaurar auto-ocultos) — ⏳ requiere `ANTHROPIC_API_KEY` (worker).
+2. Triaje IA — ⏳ requiere deploy worker `ai-triage`.
+3. WhatsApp opt-in reportante — ⏳ (migración).
+4. Relay de mensajes — ⏳ requiere `RESEND_API_KEY`.
+5. Offline PWA (función 5) — ⏳ (riesgo SW; no autónomo-seguro aún).
+6. Cuerpos NN — ✅ LIVE (`/reportar/cuerpo-nn`).
+7. Resaltar urgencia médica/menores en mapa — ✅ ya hecho (marcadores + FilterChips).
+8. Faro Auxilio (núcleo estático) — ✅ LIVE; falta chat IA (paso 2) + geo-switch (paso 3).
+- Forms de reporte aún vacías: `avistamiento`, `condicion-medica`, `refugio`.
+
 ## Bloqueadores / pendientes founder
 
 1. **Tarjeta en Cloudflare** → para registrar `faro-ve.com` (disponible ✓; yo no puedo meter datos de tarjeta). El PLAN agenda DNS final en D6, así que no bloquea — seguimos en pages.dev.
@@ -154,8 +172,8 @@ Detalle: `docs/SESSIONS/2026-06-26-moderar-y-ubicacion.md` (sección "tanda 2").
 4. **AI Gateway** CF (D5): crear gateway `faro-ve`.
 5. **MCP Resend** sigue con key inválida (reconectar) — necesario D3 (relay) / D6 (federación).
 
-## Próxima sesión (D2) arranca con
-1. Confirmar `wrangler login` hecho → deploy preview pages.dev (cierra mitad deploy de Gate D1).
-2. Obtener anon + service_role keys → `.env.local` (gitignored).
-3. `npm run dev` smoke test local contra Supabase real.
-4. Empezar D2: Map.svelte (Leaflet + clusters + DivIcon tokens), CRUD /api/persons, FilterChips.
+## Próxima sesión arranca con (al 27-jun)
+1. **Founder valida** el contenido médico de `/auxilio` (ideal un profesional) antes de quitar "en revisión"; confirma los 4 contactos "sin verificar" (Protección Civil 0800, FUNVISIS, hospitales).
+2. **Chat IA sobre Faro Auxilio** (función 8 paso 2): construir `/api/ai/ask` (Haiku 4.5 + AI Gateway + budget $5/día) con fallback al estático + geo-switch `app_config.ai_ve_only` (SQL listo en el handoff). Requiere `ANTHROPIC_API_KEY` (worker) del founder.
+3. **Forms vacías** restantes: `/reportar/avistamiento`, `/reportar/condicion-medica`, `/reportar/refugio` (mismo patrón reuse que cuerpo-nn).
+4. **Funciones IA bloqueadas** (1, 2) en cuanto el founder setee los secrets.
