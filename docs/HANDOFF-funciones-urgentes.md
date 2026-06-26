@@ -67,7 +67,18 @@
 ## 8. "Faro Auxilio" — asistente de primeros auxilios + supervivencia + contactos (solo VE) 🟠 ALTO IMPACTO
 - **Qué es:** un chat/asistente simple, accesible en toda la app, con primeros auxilios, qué hacer en sismo, herramientas caseras, y **contactos de emergencia verificados** (bomberos/Protección Civil/Cruz Roja/hospitales de Caracas). Ayuda a mantener la calma e instruye en lo básico que salva vidas.
 - **Cómo se aplica (DISEÑO HÍBRIDO — clave para costo y fiabilidad):**
-  1. **Núcleo ESTÁTICO (gratis, offline, siempre disponible):** contenido curado de primeros auxilios (fuentes Cruz Roja/OMS) + contactos VERIFICADOS (lista estática curada, NUNCA inventados por IA — un número o procedimiento errado cuesta vidas). Con aviso "no reemplaza atención profesional". Funciona sin internet (parte del PWA/offline, función 5).
+  1. **Núcleo ESTÁTICO (gratis, offline, SIEMPRE disponible) — el "corazón", con reglas de contenido ESTRICTAS:**
+     - **SOLO información verificada, científica, de manuales reales probados en emergencias. CERO invención.** La IA NO genera este contenido — se **cura fielmente de fuentes oficiales con cita por cada procedimiento**. Fuentes-patrón (basadas en evidencia, con versión en español):
+       - **IFRC — Guías Internacionales de Primeros Auxilios, Reanimación y Educación 2020** (Cruz Roja / Media Luna Roja) — el estándar global.
+       - **AHA** (American Heart Association) — guías de RCP/ECC.
+       - **ERC** (European Resuscitation Council) — guías de reanimación.
+       - **OMS/WHO** — triaje, agua segura, salud en desastres.
+       - **Cruz Roja Venezolana · Protección Civil Venezuela · FUNVISIS** — protocolos locales + contactos + guía sísmica.
+     - **Contactos de emergencia VERIFICADOS** (bomberos, Protección Civil, Cruz Roja, hospitales de Caracas) = lista estática curada de fuentes oficiales. NUNCA inventados/scrapeados por IA (un número errado cuesta vidas).
+     - **Clasificado por categoría + por PASOS numerados** que cualquier persona entienda: hemorragia, RCP, atragantamiento, quemaduras, fracturas, persona atrapada, shock, sismo (durante/después), agua/comida segura, herramientas caseras. Cada uno: **qué hacer / qué NO hacer / cuándo llamar a emergencias**.
+     - **Lenguaje simple, preciso, NO técnico, español LATINO** (ej. "presiona fuerte sobre la herida con un trapo limpio", no "aplique presión hemostática"). Aviso visible: "no reemplaza atención médica profesional".
+     - **Antes de salir LIVE:** revisión del contenido (idealmente por un profesional de salud o verbatim de las guías oficiales) — por responsabilidad y porque son vidas. Cada ficha cita su fuente.
+     - Funciona SIN internet (parte del PWA/offline, función 5).
   2. **Chat IA encima (acotado):** endpoint `/api/ai/ask` (stub ya existe) + rate-limit 10/día por IP (ya en hooks) + **Haiku 4.5** (regla #15) + **Cloudflare AI Gateway** (caché ~90%, las preguntas se repiten) + **kill-switch `LLM_DAILY_BUDGET_USD=$5/día`** (ya existe). La IA se apoya en la info verificada, NO improvisa. Sistema-prompt con contexto VE/Caracas/terremoto. Si el budget se topa o no hay red → el núcleo estático sigue funcionando.
   3. **GEO-FILTRO con INTERRUPTOR (global ⇄ solo-VE, sin redeploy) — requisito del founder:**
      - **Estado inicial = GLOBAL.** El founder lo prueba COMPLETAMENTE desde Suiza antes de restringir.
