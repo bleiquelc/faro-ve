@@ -34,6 +34,18 @@
   $: clothes = [p.clothing_top, p.clothing_bottom].filter(Boolean).join(', ');
   $: age = p.age != null ? `, ${p.age} años` : '';
 
+  // Open Graph por-persona: previsualización rica al compartir (WhatsApp/redes).
+  // Solo datos públicos (nombre, zona aproximada, vestimenta); nunca PII ni coord.
+  $: ogTitle = searching
+    ? `Ayúdame a encontrar a ${p.full_name || 'esta persona'}`
+    : `${p.full_name || 'Persona'} — Faro VE`;
+  $: ogDesc = (() => {
+    const head = [p.age != null ? `${p.age} años` : null, sector].filter(Boolean).join(' · ');
+    const clothes2 = [p.clothing_top, p.clothing_bottom].filter(Boolean).join(', ');
+    const tail = clothes2 ? ` Vestía: ${clothes2}.` : '';
+    return `${head}.${tail} Si la has visto, ayuda en Faro VE.`.trim();
+  })();
+
   // Aportes de la comunidad ya aprobados (avistamientos / info).
   $: notes = data.notes ?? [];
 
@@ -46,6 +58,12 @@
 <svelte:head>
   <title>{p.full_name || 'Persona'} — Faro VE</title>
   <meta name="robots" content="noindex" />
+  <!-- Previsualización rica al compartir (override por-persona, sin duplicar). -->
+  <meta property="og:title" content={ogTitle} />
+  <meta property="og:description" content={ogDesc} />
+  <meta name="twitter:title" content={ogTitle} />
+  <meta name="twitter:description" content={ogDesc} />
+  {#if data.shareUrl}<meta property="og:url" content={data.shareUrl} />{/if}
 </svelte:head>
 
 <main class="mx-auto min-h-[100dvh] w-full max-w-lg px-5 pb-16 pt-[calc(env(safe-area-inset-top)+1rem)]">

@@ -23,6 +23,16 @@
     name="description"
     content="Mapa humanitario para reportar y buscar personas tras el terremoto del 24-jun-2026 en Venezuela. Gratuito, con privacidad por diseño."
   />
+  <meta property="og:title" content="Faro VE — Mapa de Esperanza Venezuela" />
+  <meta
+    property="og:description"
+    content="Reporta y busca personas tras el terremoto del 24-jun-2026 en Venezuela. Mapa instalable, gratuito, anti-estafa."
+  />
+  <meta name="twitter:title" content="Faro VE — Mapa de Esperanza Venezuela" />
+  <meta
+    name="twitter:description"
+    content="Reporta y busca personas tras el terremoto del 24-jun-2026 en Venezuela."
+  />
 </svelte:head>
 
 <div class="relative h-[100dvh] w-full overflow-hidden bg-[#06202b]">

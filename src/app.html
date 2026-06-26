@@ -17,25 +17,20 @@
     />
     <meta name="robots" content="index,follow" />
 
-    <!-- Open Graph -->
+    <!-- Open Graph (invariante del sitio). El título/descripción los pone CADA
+         página en su <svelte:head> → exactamente uno por página, sin duplicados
+         (WhatsApp/FB usan el PRIMER og:title, así que un default aquí ganaría a un
+         override por-página). Las páginas sin og:title caen al <title>. -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Faro VE" />
-    <meta property="og:title" content="Faro VE — Mapa de Esperanza Venezuela" />
-    <meta
-      property="og:description"
-      content="Reporta y busca personas desaparecidas tras el terremoto del 24-jun-2026 en Venezuela. Mapa instalable, gratuito, anti-estafa."
-    />
     <meta property="og:locale" content="es_VE" />
-    <meta property="og:image" content="%sveltekit.assets%/og-image.png" />
-
-    <!-- Twitter / X -->
+    <!-- URL ABSOLUTA: WhatsApp/FB no resuelven og:image relativa de forma fiable. -->
+    <meta property="og:image" content="https://faro-ve.com/og-image.png?v=1" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Faro VE — Mapa de Esperanza Venezuela" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Faro VE — Mapa de Esperanza Venezuela" />
-    <meta
-      name="twitter:description"
-      content="Reporta y busca personas desaparecidas tras el terremoto del 24-jun-2026 en Venezuela."
-    />
-    <meta name="twitter:image" content="%sveltekit.assets%/og-image.png" />
+    <meta name="twitter:image" content="https://faro-ve.com/og-image.png?v=1" />
 
     <!-- Anti-tracking -->
     <meta name="referrer" content="no-referrer" />
