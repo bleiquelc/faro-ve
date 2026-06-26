@@ -1,5 +1,6 @@
 <script lang="ts">
   import NavigateButton from '$components/NavigateButton.svelte';
+  import ShareButton from '$components/ShareButton.svelte';
   import { COLOR, COLOR_ON, LABEL_ES, categoryForPerson } from '$utils/colors';
   import type { PageData } from './$types';
 
@@ -7,6 +8,8 @@
   $: p = data.person;
   $: photoUrl = data.photoUrl;
   $: cat = categoryForPerson(p);
+  // ¿Persona buscada? (ajusta el mensaje de compartir: "ayúdame a encontrar").
+  $: searching = p.status === 'missing' || p.status === 'unidentified_body';
 
   // Opt-in del propio sujeto (CLAUDE #26 ⚠️): un auto-reporte "a salvo" puede
   // compartir su ubicación exacta y/o teléfono para que lo encuentren. Es la
@@ -138,6 +141,11 @@
       </p>
     {/if}
   </section>
+
+  <!-- Compartir: más ojos sobre el caso = más posibilidades de hallazgo. -->
+  {#if data.shareUrl}
+    <ShareButton name={p.full_name || 'esta persona'} url={data.shareUrl} {searching} />
+  {/if}
 
   {#if p.source && p.source !== 'faro-ve'}
     <p class="mt-6 text-center text-xs text-gray-500">

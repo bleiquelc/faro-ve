@@ -20,7 +20,7 @@ const COLUMNS =
   'unaccompanied_minor, medical_urgent, medical_category, share_exact_location_with_searchers, ' +
   'lat_exact_optional, lng_exact_optional, created_at, last_seen_at';
 
-export const load: PageServerLoad = async ({ params, locals, setHeaders }) => {
+export const load: PageServerLoad = async ({ params, locals, setHeaders, url }) => {
   if (!UUID_RE.test(params.id)) {
     throw error(404, { message: 'Persona no encontrada.' });
   }
@@ -61,5 +61,8 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders }) => {
 
   setHeaders({ 'cache-control': 'private, max-age=15' });
 
-  return { person, photoUrl };
+  // URL absoluta y canónica para compartir (sin query). origin viene del request.
+  const shareUrl = `${url.origin}/persona/${params.id}`;
+
+  return { person, photoUrl, shareUrl };
 };
