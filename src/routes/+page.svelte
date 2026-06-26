@@ -198,6 +198,12 @@
         <a href="mailto:contacto@faro-ve.com" class="underline">Contacto</a> ·
         <a href="mailto:opt-out@faro-ve.com" class="underline">opt-out</a>
       </p>
+
+      <!-- Federación: transparencia + descubrible para orgs que quieran ingerir el feed. -->
+      <p class="text-[11px] leading-snug text-white/55 [text-shadow:0_1px_6px_rgb(0_0_0_/0.7)]">
+        Conectado a la red global de búsqueda (Cruz Roja · Person Finder) ·
+        <a href="/api/pfif" class="underline" rel="nofollow">datos abiertos PFIF</a>
+      </p>
     </div>
   </main>
 </div>
