@@ -54,8 +54,9 @@
 
   // Modo de visualización (solo /mapa interactivo): a zoom bajo, burbujas por ZONA
   // con conteo REAL (agregación server-side, no la muestra topada a 1000); al
-  // acercar se refinan y, pasado ZOOM_POINTS, se ven pines individuales.
-  const ZOOM_POINTS = 13;
+  // acercar se refinan y, pasado ZOOM_POINTS, se ven pines individuales de color.
+  // Umbral 12 (no 13): los puntos de color aparecen un nivel de zoom antes.
+  const ZOOM_POINTS = 12;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let aggLayer: any = null;
   let aggCount = 0; // suma de conteos de las burbujas visibles ("N en vista")
@@ -447,7 +448,9 @@
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     cluster = (L as any).markerClusterGroup({
-      maxClusterRadius: 50,
+      // Radio menor → los grupos se separan en pines de color un poco antes al
+      // acercar (el founder quiere ver los colores más fácil), sin saturar.
+      maxClusterRadius: 38,
       showCoverageOnHover: false,
       spiderfyOnMaxZoom: true,
       chunkedLoading: true, // agrega lotes grandes sin congelar el hilo (jank)
@@ -629,24 +632,26 @@
     width: 30px;
     height: 30px;
     border-radius: 50%;
+    /* Halo más denso → el color del punto se distingue mejor sobre el mapa. */
     background: radial-gradient(
       circle,
-      color-mix(in srgb, var(--pin) 70%, transparent) 0%,
-      color-mix(in srgb, var(--pin) 38%, transparent) 38%,
-      color-mix(in srgb, var(--pin) 0%, transparent) 72%
+      color-mix(in srgb, var(--pin) 82%, transparent) 0%,
+      color-mix(in srgb, var(--pin) 46%, transparent) 42%,
+      color-mix(in srgb, var(--pin) 0%, transparent) 75%
     );
     filter: blur(0.5px);
   }
   :global(.faro-pin .faro-core) {
     position: relative;
-    width: 13px;
-    height: 13px;
+    /* Núcleo un poco mayor (13→15px): más visible sin alarmar. */
+    width: 15px;
+    height: 15px;
     border-radius: 50%;
     background: var(--pin);
     border: 2px solid #ffffff;
     box-shadow:
-      0 0 0 1px color-mix(in srgb, var(--pin) 55%, transparent),
-      0 1px 2px rgba(0, 0, 0, 0.3);
+      0 0 0 1.5px color-mix(in srgb, var(--pin) 60%, transparent),
+      0 1px 3px rgba(0, 0, 0, 0.35);
   }
   /* menor: anillo de prioridad fijo (presencia, no animación) */
   :global(.faro-cat-minor .faro-core) {
@@ -663,9 +668,10 @@
       transparent 72%
     );
   }
+  /* Cuerpo NN: núcleo ligeramente mayor que el estándar (15px) — presencia digna. */
   :global(.faro-cat-deceased .faro-core) {
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
   }
 
   /* ── Cluster "constelación" azul-faro ── */
