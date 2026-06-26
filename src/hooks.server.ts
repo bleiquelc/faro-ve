@@ -70,6 +70,14 @@ const PUBLIC_POST_PATHS = new Set([
 // la URL de subida se pide ANTES de que el usuario resuelva el captcha del envío.
 const TURNSTILE_EXEMPT = new Set(['/api/upload-url']);
 
+// Interruptor de EMERGENCIA (default OFF = Turnstile estricto, fail-closed #17).
+// Solo poner en true con OK EXPLÍCITO del founder si Turnstile bloquea reportes y
+// no se pueden corregir las llaves a tiempo: permite el envío pese a fallo de
+// Turnstile (el rate-limit por IP + config-guard + kill-switch siguen activos).
+// Mientras esté en false, los fallos de verificación se registran (abajo) para
+// diagnóstico, pero se sigue devolviendo 403.
+const TURNSTILE_SOFT_FAIL = false;
+
 // Rutas públicas con segmento dinámico ([id]) — no entran en el Set exacto. Cada
 // patrón trae su propio rate-limit y una `key` ESTABLE para el bucket KV (NO por
 // id: así un griefer no esquiva el límite votando/reactivando en puntos distintos).
@@ -292,6 +300,11 @@ const handleTurnstile: Handle = async ({ event, resolve }) => {
   }
 
   if (!token) {
+    if (TURNSTILE_SOFT_FAIL && isProduction(event)) {
+      console.warn(`[turnstile] SOFT-FAIL (sin token) — permitido en ${event.url.pathname}`);
+      event.locals.turnstileVerified = true;
+      return resolve(event);
+    }
     return new Response(JSON.stringify({ error: 'turnstile_required' }), {
       status: 403,
       headers: { 'content-type': 'application/json' }
@@ -307,9 +320,16 @@ const handleTurnstile: Handle = async ({ event, resolve }) => {
       remoteip: event.getClientAddress()
     })
   });
-  const result = (await verify.json()) as { success: boolean };
+  const result = (await verify.json()) as { success: boolean; 'error-codes'?: string[] };
 
   if (!result.success) {
+    console.warn(
+      `[turnstile] verify FALLÓ error-codes=${JSON.stringify(result['error-codes'] ?? [])} en ${event.url.pathname}`
+    );
+    if (TURNSTILE_SOFT_FAIL && isProduction(event)) {
+      event.locals.turnstileVerified = true;
+      return resolve(event);
+    }
     return new Response(JSON.stringify({ error: 'turnstile_failed' }), {
       status: 403,
       headers: { 'content-type': 'application/json' }
