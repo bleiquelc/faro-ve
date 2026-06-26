@@ -83,14 +83,22 @@
   <!-- Fondo: el mapa de esperanza VIVO (ambiente, no interactivo) -->
   <div class="absolute inset-0" aria-hidden="true">
     {#if MapComp}
-      <svelte:component this={MapComp} interactive={false} />
+      <!-- Close-up de la zona más afectada (La Guaira / Caracas) en tono dusk:
+           costa + calles reales, mar/tierra distinguibles, puntos de color vivos. -->
+      <svelte:component
+        this={MapComp}
+        interactive={false}
+        dusk={true}
+        center={[10.555, -66.915]}
+        zoom={11}
+      />
     {/if}
   </div>
 
   <!-- Viñeta sutil arriba/abajo solo para legibilidad del texto flotante.
        El centro queda despejado: se ven las luces del mapa. z-[800] sobre Leaflet. -->
   <div
-    class="pointer-events-none absolute inset-0 z-[800] bg-gradient-to-b from-[#06202b]/75 via-transparent to-[#06202b]/85"
+    class="pointer-events-none absolute inset-0 z-[800] bg-gradient-to-b from-[#06202b]/60 via-transparent to-[#06202b]/78"
     aria-hidden="true"
   ></div>
 

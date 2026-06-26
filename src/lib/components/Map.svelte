@@ -28,6 +28,9 @@
   // Capa de lugares de servicio (aid_points) — toggle por el chip "Ayuda" en
   // /mapa. Carga diferida (import dinámico) para no pesar el bundle si no se usa.
   export let showAid = false;
+  // dusk = mapa en tono atardecer (home): mismas tiles reales (calles/caminos
+  // visibles) pero oscurecidas; el mar sigue azul (se distingue de la tierra).
+  export let dusk = false;
 
   let mapEl: HTMLDivElement;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -418,15 +421,14 @@
   ];
 
   function addAmbientLights(): void {
-    AMBIENT_LIGHTS.forEach((p, i) => {
+    AMBIENT_LIGHTS.forEach((p) => {
       const cat = p.cat as keyof typeof COLOR;
-      // Todas respiran (incluso las categorías normalmente estáticas) — el home
-      // debe sentirse VIVO. Escalonadas para que no latan a la vez.
-      const pulse = PULSE_CLASS[cat] ?? 'animate-glow-breath';
-      const delay = `animation-delay:${((i % 12) * 0.24).toFixed(2)}s`;
+      // Parpadeo aleatorio tipo señal de auxilio (igual que los puntos reales).
+      const dly = (Math.random() * 5).toFixed(2);
+      const dur = (2.2 + Math.random() * 3.6).toFixed(2);
       const html = `
-        <span class="faro-pin faro-ambient faro-cat-${cat}" style="--pin:${COLOR[cat]};--ring:${COLOR_ON[cat]}" role="img" aria-hidden="true">
-          <i class="faro-glow ${pulse || 'animate-glow-breath'}" style="${delay}"></i>
+        <span class="faro-pin faro-ambient faro-sos faro-cat-${cat}" style="--pin:${COLOR[cat]};--ring:${COLOR_ON[cat]};animation-delay:${dly}s;animation-duration:${dur}s" role="img" aria-hidden="true">
+          <i class="faro-glow"></i>
           <i class="faro-core"></i>
         </span>`;
       const icon = Lref.divIcon({
@@ -456,13 +458,16 @@
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const markers: any[] = [];
-      pts.forEach((p, i) => {
+      pts.forEach((p) => {
         const cat = categoryForPerson(p);
-        const pulse = PULSE_CLASS[cat] ?? 'animate-glow-breath';
-        const delay = `animation-delay:${((i % 16) * 0.18).toFixed(2)}s`;
+        // Parpadeo tipo SEÑAL DE AUXILIO: cada punto con su PROPIO desfase y
+        // duración aleatorios → unos se encienden mientras otros bajan, nunca a la
+        // vez (founder). Math.random aquí es runtime de navegador (ok).
+        const dly = (Math.random() * 5).toFixed(2);
+        const dur = (2.2 + Math.random() * 3.6).toFixed(2);
         const html = `
-          <span class="faro-pin faro-home faro-cat-${cat}" style="--pin:${COLOR[cat]};--ring:${COLOR_ON[cat]}" aria-hidden="true">
-            <i class="faro-glow ${pulse || 'animate-glow-breath'}" style="${delay}"></i>
+          <span class="faro-pin faro-home faro-sos faro-cat-${cat}" style="--pin:${COLOR[cat]};--ring:${COLOR_ON[cat]};animation-delay:${dly}s;animation-duration:${dur}s" aria-hidden="true">
+            <i class="faro-glow"></i>
             <i class="faro-core"></i>
           </span>`;
         const icon = Lref.divIcon({
@@ -602,7 +607,12 @@
 </script>
 
 <div class="relative h-full w-full bg-[#0a3a4f]">
-  <div bind:this={mapEl} class="h-full w-full" aria-label="Mapa de personas reportadas"></div>
+  <div
+    bind:this={mapEl}
+    class="h-full w-full"
+    class:faro-dusk={dusk}
+    aria-label="Mapa de personas reportadas"
+  ></div>
 
   {#if loading}
     <div class="faro-loading absolute inset-0 flex items-center justify-center" aria-live="polite">
@@ -695,6 +705,20 @@
   :global(.faro-tiles) {
     filter: saturate(1.08) brightness(0.97) contrast(1.04);
   }
+  /* Dusk (home): atardecer — calles/caminos siguen visibles, el mar azul se
+     distingue de la tierra, sin quedar muy oscuro. */
+  :global(.faro-dusk .faro-tiles) {
+    filter: brightness(0.5) saturate(1.45) contrast(1.08) hue-rotate(-6deg);
+  }
+  /* Velo azul-atardecer un poco más presente sobre el mapa dusk. */
+  :global(.faro-dusk + .faro-veil),
+  :global(.faro-dusk .faro-veil) {
+    background: radial-gradient(
+      130% 100% at 50% 8%,
+      rgba(12, 40, 56, 0) 45%,
+      rgba(9, 28, 40, 0.35) 100%
+    );
+  }
   :global(.faro-veil) {
     position: absolute;
     inset: 0;
@@ -778,11 +802,40 @@
     height: 8px;
     border-width: 1.5px;
   }
-  /* Respeta "reducir movimiento": las luces del home/ambiente quedan quietas. */
+  /* Señal de AUXILIO: cada punto del home parpadea con su propio ritmo (delay y
+     duration inline aleatorios por punto) → unos se encienden mientras otros bajan,
+     nunca todos a la vez. Evoca múltiples pedidos de auxilio. No es estrobo (2-6s). */
+  :global(.faro-sos) {
+    animation-name: faro-sos-blink;
+    animation-iteration-count: infinite;
+    animation-timing-function: ease-in-out;
+    will-change: opacity;
+  }
+  @keyframes faro-sos-blink {
+    0%,
+    100% {
+      opacity: 0.2;
+    }
+    14% {
+      opacity: 1;
+    }
+    30% {
+      opacity: 0.45;
+    }
+    48% {
+      opacity: 0.9;
+    }
+    68% {
+      opacity: 0.26;
+    }
+  }
+  /* Respeta "reducir movimiento": las luces quedan quietas y encendidas. */
   @media (prefers-reduced-motion: reduce) {
     :global(.faro-home .faro-glow),
-    :global(.faro-ambient .faro-glow) {
+    :global(.faro-ambient .faro-glow),
+    :global(.faro-sos) {
       animation: none !important;
+      opacity: 1 !important;
     }
   }
 
