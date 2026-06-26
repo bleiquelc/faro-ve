@@ -104,6 +104,7 @@
                   alt={`Foto de ${it.full_name || 'la persona'}`}
                   class="h-28 w-28 rounded-xl object-cover"
                   loading="lazy"
+                  on:error={(e) => ((e.currentTarget as HTMLImageElement).style.display = 'none')}
                 />
                 {#if it.is_minor}
                   <p class="mt-1 w-28 text-center text-[10px] font-medium text-amber-700">

@@ -10,6 +10,11 @@
   $: p = data.person;
   $: photoUrl = data.photoUrl;
   $: cat = categoryForPerson(p);
+
+  // Si la foto no carga (p.ej. URL rota de la fuente), se oculta limpio en vez de
+  // mostrar el ícono de imagen rota. Se reinicia al cambiar de ficha.
+  let photoFailed = false;
+  $: photoUrl, (photoFailed = false);
   // ¿Persona buscada? (ajusta el mensaje de compartir: "ayúdame a encontrar").
   $: searching = p.status === 'missing' || p.status === 'unidentified_body';
 
@@ -84,12 +89,13 @@
     <h1 class="text-2xl font-bold text-gray-900">{p.full_name || 'Sin nombre'}{age}</h1>
   </header>
 
-  {#if photoUrl}
+  {#if photoUrl && !photoFailed}
     <img
       src={photoUrl}
       alt="Foto de {p.full_name || 'la persona'}"
       class="mt-4 max-h-72 w-full rounded-xl object-cover"
       loading="lazy"
+      on:error={() => (photoFailed = true)}
     />
   {:else if p.is_minor}
     <p class="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
