@@ -29,15 +29,15 @@
 ## 🔑 Secretos / escrituras (estado actual)
 - ✅ **APP_SALT** seteado en Pages (faltaba; el config-guard ya pasa). Es el del Día 1
   (`~/.secrets/faro-ve/APP_SALT.txt`), NO se generó uno nuevo.
-- ⏳ **SUPABASE_SERVICE_ROLE_KEY**: el founder lo re-seteó con la key correcta (verificada:
-  `rol: service_role · proyecto blmiebnnprwaupyatsyb · 219 chars`), subida con `pbpaste` (sin truncar).
-  **Falta confirmar el 200** — ambas IPs quedaron rate-limited (8/h) de tanto probar `/api/upload-url`.
-  Confirmación directa (salta el rate-limit), el founder corre con la key en el portapapeles:
-  ```bash
-  KEY=$(pbpaste | tr -d '\n '); curl -s -X POST "https://blmiebnnprwaupyatsyb.supabase.co/storage/v1/object/upload/sign/report-photos/test.jpg" -H "apikey: $KEY" -H "Authorization: Bearer $KEY" | head -c 200; echo
-  ```
-  `{"url":...,"token":...}` = ✅ escrituras 100% activas. (O en ~1h: `curl -s -X POST https://faro-ve.com/api/upload-url` → 200.)
-- Histórico del bug: la service_role daba `Invalid Compact JWS` (truncada al pegar a mano). Fix = `pbpaste | tr -d '\n ' | npx wrangler pages secret put SUPABASE_SERVICE_ROLE_KEY --project-name=faro-ve` + redeploy.
+- ✅ **SUPABASE_SERVICE_ROLE_KEY**: el founder lo re-seteó con la key correcta (verificada:
+  `rol: service_role · proyecto blmiebnnprwaupyatsyb · 219 chars`), subida con `pbpaste` (sin truncar) + redeploy.
+- ✅ **REGISTRO CONFIRMADO end-to-end en prod** (2026-06-26): se ejecutó el RPC real `create_person_report`
+  contra la DB de producción → insertó un reporte `pending` con `source=faro-ve`, **PII cifrada**
+  (phone) + **email hasheado** + **coord ofuscada** + **edit_token**; luego se BORRÓ (0 rastros). El
+  registro funciona. Para fotos: `/api/upload-url` da 200 igual (el 429 que vimos era el rate-limit de
+  8/h por IP, agotado de tanto probar; NO afecta a usuarios reales).
+- Histórico del bug (resuelto): la service_role daba `Invalid Compact JWS` (truncada al pegar a mano).
+  Fix = `pbpaste | tr -d '\n ' | npx wrangler pages secret put SUPABASE_SERVICE_ROLE_KEY --project-name=faro-ve` + redeploy.
 
 ## 🧹 Limpieza de datos hecha (prod)
 - **30 perfiles `source='test'` ELIMINADOS** (seed de D2; mostraban "Fuente: test"). Total 13.821 → 13.791.
@@ -45,7 +45,7 @@
 - ⚠️ NO re-correr `scripts/seed-test-persons.mjs` contra prod (re-mete los 30 de prueba).
 
 ## 📋 Pendientes priorizados
-1. **Confirmar escrituras** (comando service_role arriba) → reportes + fotos + alta/voto/reactivación de puntos.
+1. ~~Confirmar escrituras~~ ✅ HECHO — registro confirmado end-to-end en prod (ver sección Secretos/escrituras).
 2. **#4 Tapar-cara de menores — NO desplegado, requiere blur SERVER-SIDE.** La revisión adversarial halló que
    el blur del-lado-cliente NO es verificable por el servidor (un reportante malicioso podría subir la cara sin
    difuminar como `photo_url_blurred` → exponer un menor = retroceso vs. ocultar). Por regla #3 (INVIOLABLE) se
