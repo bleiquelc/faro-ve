@@ -10,6 +10,8 @@
   // El mapa Leaflet se monta SOLO en cliente (import dinámico).
   onMount(async () => {
     MapComp = (await import('$components/Map.svelte')).default;
+    // "Buscar" desde el home (/mapa?buscar=1) → abre el buscador de una.
+    if ($page.url.searchParams.get('buscar') === '1') showSearch = true;
   });
 
   // Endpoint reactivo: arrastra los filtros de la URL (?status=…, ?q=…) pero

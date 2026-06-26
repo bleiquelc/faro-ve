@@ -4,7 +4,16 @@
   import { cubicOut } from 'svelte/easing';
   import InstallPrompt from '$components/InstallPrompt.svelte';
   import FaroLogo from '$components/FaroLogo.svelte';
+  import FaroIcon from '$components/FaroIcon.svelte';
   import { COLOR } from '$utils/colors';
+
+  // Acciones secundarias (fila compacta de chips glassy con iconografía propia).
+  const ACTIONS = [
+    { href: '/mapa?buscar=1', icon: 'search', label: 'Buscar' },
+    { href: '/reportar/desaparecido', icon: 'report', label: 'Reportar' },
+    { href: '/reportar/a-salvo', icon: 'safe', label: 'A salvo' },
+    { href: '/reportar/punto-ayuda', icon: 'aid', label: 'Registrar' }
+  ] as const;
 
   /**
    * Home — el MAPA VIVO es el fondo (luces de color que respiran sobre las
@@ -151,40 +160,26 @@
       <a
         href="/mapa"
         data-sveltekit-preload-data="hover"
-        class="min-h-tap flex w-full items-center justify-center gap-2.5 rounded-2xl bg-faro-900 px-6 py-4 text-lg font-semibold text-white shadow-xl shadow-black/40 ring-1 ring-white/10 transition active:scale-[0.98] hover:bg-faro-800 focus:outline-none focus:ring-2 focus:ring-white/60"
+        class="min-h-tap flex w-full items-center justify-center gap-2.5 rounded-2xl bg-faro-900/55 px-6 py-3.5 text-lg font-semibold text-white shadow-xl shadow-black/30 ring-1 ring-white/20 backdrop-blur-md transition active:scale-[0.98] hover:bg-faro-900/70 focus:outline-none focus:ring-2 focus:ring-white/60"
       >
-        <span aria-hidden="true">🗺️</span>
+        <FaroIcon name="map" size={24} />
         <span>Ver el mapa</span>
-        <span aria-hidden="true" class="text-white/80">→</span>
+        <span aria-hidden="true" class="text-white/75">→</span>
       </a>
 
-      <div class="grid grid-cols-2 gap-3">
-        <a
-          href="/reportar/desaparecido"
-          data-sveltekit-preload-data="hover"
-          class="min-h-tap flex flex-col items-center justify-center gap-1 rounded-xl border border-white/25 bg-white/15 px-3 py-3 text-sm font-medium text-white shadow-lg shadow-black/30 backdrop-blur-md transition hover:bg-white/25 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-white/60"
-        >
-          <span class="text-xl" aria-hidden="true">🔎</span>
-          <span>Reportar a alguien</span>
-        </a>
-        <a
-          href="/reportar/a-salvo"
-          data-sveltekit-preload-data="hover"
-          class="min-h-tap flex flex-col items-center justify-center gap-1 rounded-xl border border-white/25 bg-white/15 px-3 py-3 text-sm font-medium text-white shadow-lg shadow-black/30 backdrop-blur-md transition hover:bg-white/25 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-white/60"
-        >
-          <span class="text-xl" aria-hidden="true">💚</span>
-          <span>Estoy a salvo</span>
-        </a>
+      <!-- Acciones con iconografía propia; contenedores transparentes (dejan ver el mapa). -->
+      <div class="grid grid-cols-4 gap-2">
+        {#each ACTIONS as a (a.href)}
+          <a
+            href={a.href}
+            data-sveltekit-preload-data="hover"
+            class="min-h-tap flex flex-col items-center justify-center gap-1.5 rounded-2xl bg-white/10 px-1 py-2.5 text-[11px] font-medium text-white shadow-lg shadow-black/20 ring-1 ring-white/15 backdrop-blur-md transition active:scale-[0.97] hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/60"
+          >
+            <FaroIcon name={a.icon} size={22} />
+            <span>{a.label}</span>
+          </a>
+        {/each}
       </div>
-
-      <a
-        href="/reportar/punto-ayuda"
-        data-sveltekit-preload-data="hover"
-        class="min-h-tap flex w-full items-center justify-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-black/30 backdrop-blur-md transition hover:bg-white/20 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-white/60"
-      >
-        <span aria-hidden="true">🤝</span>
-        <span>Registrar un punto de ayuda</span>
-      </a>
 
       <div class="flex items-center justify-center pt-1">
         <InstallPrompt />
