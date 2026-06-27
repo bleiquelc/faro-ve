@@ -153,6 +153,14 @@ Detalle: `docs/SESSIONS/2026-06-27-faro-auxilio-nucleo-estatico.md`.
 - **Rigor:** revisión adversarial multi-agente antes de prod (código + seguridad + fidelidad médica + regresión de privacidad). El verify adversarial **atrapó una invención** (distancia de cable 15 m→11 m) y una **técnica de RCP de bebé invertida** (→dos pulgares, AHA 2025) antes de salir live.
 - **Cableado verificado:** 0 dangling source-citations (38 fuentes, todas resuelven); todos los `href` internos resuelven; persons_public incluye `unidentified_body`; svelte-check 0 errores; builds limpios; prod 200 (`/auxilio`, `/reportar/cuerpo-nn`, smoke home/persons/desaparecido).
 
+## 2026-06-27 (autónoma, tanda 2) — Formularios de reporte completos
+- ✅ **Hub `/reportar`** + 3 formularios nuevos, todos por REUSE del camino probado y con su ícono Faro:
+  - `condicion-medica` → `/api/persons` (status missing + medical_urgent forzado + categoría requerida) → resalta como urgencia médica en el mapa.
+  - `refugio` → `/api/aid-points` (type shelter, capacidad, coords exactas + dirección/landmark/entrada — lugar de servicio).
+  - `avistamiento` → busca persona (`/api/persons?q=`) y monta el InfoForm probado (nota type=sighting); person_id de resultado real, no inyectable.
+- Íconos Faro nuevos: `sighting` (ojo+luz), `medical` (latido ECG+luz), `shelter` (carpa+luz). Home enlaza al hub sin regresar las 4 acciones rápidas.
+- **Rigor:** payloads schema-válidos verificados en navegador; flujo avistamiento (búsqueda→selección→InfoForm) verificado con fetch mock; revisión adversarial de código + regresión de privacidad (clones fieles, 0 merma); prod 200 en las 4 rutas. Commit `897cc01`.
+
 ## Lista de funciones (handoff) — estado
 1. IA-moderadora (restaurar auto-ocultos) — ⏳ requiere `ANTHROPIC_API_KEY` (worker).
 2. Triaje IA — ⏳ requiere deploy worker `ai-triage`.
@@ -162,7 +170,7 @@ Detalle: `docs/SESSIONS/2026-06-27-faro-auxilio-nucleo-estatico.md`.
 6. Cuerpos NN — ✅ LIVE (`/reportar/cuerpo-nn`).
 7. Resaltar urgencia médica/menores en mapa — ✅ ya hecho (marcadores + FilterChips).
 8. Faro Auxilio (núcleo estático) — ✅ LIVE; falta chat IA (paso 2) + geo-switch (paso 3).
-- Forms de reporte aún vacías: `avistamiento`, `condicion-medica`, `refugio`.
+- ✅ **Formularios de reporte COMPLETOS** (commit `897cc01`): hub `/reportar` + `avistamiento` + `condicion-medica` + `refugio` (todos LIVE). Ya no quedan rutas de reporte vacías.
 
 ## Bloqueadores / pendientes founder
 
@@ -175,5 +183,6 @@ Detalle: `docs/SESSIONS/2026-06-27-faro-auxilio-nucleo-estatico.md`.
 ## Próxima sesión arranca con (al 27-jun)
 1. **Founder valida** el contenido médico de `/auxilio` (ideal un profesional) antes de quitar "en revisión"; confirma los 4 contactos "sin verificar" (Protección Civil 0800, FUNVISIS, hospitales).
 2. **Chat IA sobre Faro Auxilio** (función 8 paso 2): construir `/api/ai/ask` (Haiku 4.5 + AI Gateway + budget $5/día) con fallback al estático + geo-switch `app_config.ai_ve_only` (SQL listo en el handoff). Requiere `ANTHROPIC_API_KEY` (worker) del founder.
-3. **Forms vacías** restantes: `/reportar/avistamiento`, `/reportar/condicion-medica`, `/reportar/refugio` (mismo patrón reuse que cuerpo-nn).
-4. **Funciones IA bloqueadas** (1, 2) en cuanto el founder setee los secrets.
+3. **Funciones IA bloqueadas** (1, 2, y el chat de Faro Auxilio) en cuanto el founder setee `ANTHROPIC_API_KEY` + AI Gateway.
+4. **Relay de mensajes** (función 4) en cuanto el founder setee `RESEND_API_KEY`.
+- (Formularios de reporte: COMPLETOS — ya no quedan vacíos.)

@@ -57,3 +57,17 @@ Verificado en vivo (23 guías, "11 metros", "dos PULGARES", typo corregido) + pr
 `/reportar/cuerpo-nn` reusa el camino probado `POST /api/persons` (status `unidentified_body`). La vista (filtro + marcadores) ya existía → cierra la función 6. Revisión de regresión confirmó cero merma de privacidad. Ícono Faro nuevo `candle` (vela cuya llama es el punto de luz). Foto sin forzar cámara + advertencia de sensibilidad. Verificado: render + payload schema-válido en dev; prod 200 (no se inyecta data falsa al mapa por ética).
 
 Hallazgo de scouting: el mapa YA colorea/pulsa por menor/urgencia médica y FilterChips YA filtra (función 7 esencialmente hecha). Forms aún vacías: avistamiento, condicion-medica, refugio.
+
+---
+
+## Continuación (tanda 3) — formularios de reporte completos (commit `897cc01`)
+
+El founder pidió "deploya los formularios". Antes de construir, scouting de contratos (PLAN.md L232 + schemas): avistamiento="crea note" (necesita person_id), refugio=aid_point shelter, condicion-medica=persona medical_urgent. Todo por REUSE:
+- **condicion-medica** → `/api/persons` (status=missing, medical_urgent=true forzado, medical_category requerido). Payload verificado en navegador.
+- **refugio** → `/api/aid-points` (type shelter_temporary|permanent, capacidad, coords EXACTAS — lugar de servicio). Clon fiel de punto-ayuda.
+- **avistamiento** → como las notas exigen person_id, reusa búsqueda `/api/persons?q=` + el **InfoForm** probado (POST /api/notes, sighting). Flujo búsqueda→selección→InfoForm verificado con fetch mock (DB local inalcanzable). person_id de resultado real, no inyectable.
+- **Hub `/reportar`** lista las 7 formas (5 persona + 2 lugar), cada una con ícono Faro. Home enlaza al hub sin regresar las 4 acciones rápidas.
+- **Íconos Faro nuevos:** sighting (ojo+luz), medical (latido ECG+luz), shelter (carpa con entrada+luz — corregido en vivo: la primera versión parecía señal de ⚠️).
+- **Rigor:** svelte-check 0 errores; revisión adversarial (código + regresión de privacidad: clones fieles, 0 merma); prod 200 en las 4 rutas + hub lista las 7 + home enlaza.
+
+**Cableado auditado este día:** persons_public incluye unidentified_body; create_person_report publica 'approved'; 0 citas de fuente colgadas; todos los href resuelven. Listas actualizadas (STATUS.md + memoria).
