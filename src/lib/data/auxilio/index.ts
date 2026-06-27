@@ -8,6 +8,7 @@ import { COLOR } from "$utils/colors";
 import type { Category } from "./types";
 import { FIRST_AID } from "./first-aid";
 import { EARTHQUAKE } from "./survival";
+import { EXPANSION_FIRST_AID, EXPANSION_SALUD } from "./expansion";
 
 export type {
   Procedure,
@@ -28,7 +29,16 @@ export const CATEGORIES: Category[] = [
     accent: COLOR.medical,
     intro:
       "Qué hacer en los primeros minutos. Si puedes, pide que alguien llame al 911 mientras tú ayudas.",
-    procedures: FIRST_AID,
+    procedures: [...FIRST_AID, ...EXPANSION_FIRST_AID],
+  },
+  {
+    id: "salud-prevencion",
+    title: "Salud y prevención",
+    emoji: "🩺",
+    accent: COLOR.safe,
+    intro:
+      "Cuidar la salud y evitar enfermedades tras el desastre: rehidratación, heridas, higiene y mosquitos.",
+    procedures: EXPANSION_SALUD,
   },
   {
     id: "sismo-supervivencia",

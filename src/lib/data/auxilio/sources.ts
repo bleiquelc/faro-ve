@@ -7,8 +7,9 @@
  * mantiene la URL citada y se actualiza el año.
  */
 import type { Source } from "./types";
+import { EXPANSION_SOURCES } from "./expansion";
 
-export const SOURCES: Record<string, Source> = {
+const BASE_SOURCES: Record<string, Source> = {
   "ifrc-2020": {
     id: "ifrc-2020",
     org: "IFRC · Cruz Roja / Media Luna Roja",
@@ -241,6 +242,12 @@ export const SOURCES: Record<string, Source> = {
     title: "Sede Nacional — Caracas",
     url: "https://cruzroja.ve/",
   },
+};
+
+/** Registro completo = base + expansión verificada (workflow). */
+export const SOURCES: Record<string, Source> = {
+  ...BASE_SOURCES,
+  ...EXPANSION_SOURCES,
 };
 
 /** Devuelve una fuente por id (o undefined si no existe). */

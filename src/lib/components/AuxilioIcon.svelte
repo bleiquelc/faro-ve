@@ -192,6 +192,98 @@
     />
     <path d="M6.5 13 H17.5" />
     <path d="M12 14.5 V18 M10.3 16.2 H13.7" stroke="#FFE39C" />
+  {:else if name === "salud-prevencion"}
+    <!-- Categoría Salud y prevención: corazón con latido de luz -->
+    <path
+      d="M12 20 C6.5 16 3.8 12.5 3.8 9 A3.9 3.9 0 0 1 12 6.7 A3.9 3.9 0 0 1 20.2 9 C20.2 12.5 17.5 16 12 20 Z"
+    />
+    <path d="M7 11.5 H9.5 L11 8.8 L13 13.5 L14.3 11.5 H17" stroke="#FFE39C" />
+  {:else if name === "anafilaxia"}
+    <!-- Reacción alérgica grave: autoinyector (epinefrina) -->
+    <rect x="6.5" y="9.5" width="9" height="5" rx="1.5" />
+    <path d="M15.5 12 H20 M18 9.5 V14.5" />
+    <path d="M6.5 12 H4" />
+    <circle cx="3" cy="12" r="1" fill="#FFE39C" stroke="none" />
+  {:else if name === "intoxicacion-envenenamiento"}
+    <!-- Intoxicación: frasco con señal de peligro -->
+    <path
+      d="M10 3.5 H14 M11 3.5 V8 L7.5 16 A1.6 1.6 0 0 0 9 18.3 H15 A1.6 1.6 0 0 0 16.5 16 L13 8 V3.5"
+    />
+    <path d="M9 13.5 H15" />
+    <path d="M12 9.5 V12" stroke="#FFE39C" />
+    <circle cx="12" cy="14.4" r="0.8" fill="#FFE39C" stroke="none" />
+  {:else if name === "mordedura-serpiente"}
+    <!-- Mordedura de serpiente -->
+    <path d="M4 18 q3.5 -3 6 -1 q2.5 2 5 -0.5 q1.5 -1.5 0 -3" />
+    <circle cx="16.5" cy="10" r="2.2" />
+    <path d="M18.5 10.5 L20 11.6" />
+    <circle cx="17.2" cy="9.4" r="0.7" fill="#FFE39C" stroke="none" />
+  {:else if name === "objeto-clavado"}
+    <!-- Herida con objeto clavado -->
+    <path d="M4 17 H20" />
+    <path d="M12 17 V5" />
+    <path d="M9.8 7.2 L12 5 L14.2 7.2" />
+    <circle cx="12" cy="17" r="1.3" fill="#FFE39C" stroke="none" />
+  {:else if name === "golpe-cabeza"}
+    <!-- Golpe en la cabeza: cabeza con curita -->
+    <circle cx="12" cy="12.5" r="7" />
+    <path d="M8 8.5 L11.2 11.7 M9.2 7.6 L12.4 10.8" stroke="#FFE39C" />
+  {:else if name === "sangrado-nariz"}
+    <!-- Sangrado de nariz -->
+    <circle cx="12" cy="10.5" r="6.5" />
+    <path d="M10.2 9 h1 M12.8 9 h1" />
+    <path d="M12 10 V12.2" />
+    <path
+      d="M12 13.4 c-1.1 1.4 -1.1 2.9 0 2.9 c1.1 0 1.1 -1.5 0 -2.9 Z"
+      fill="#FFE39C"
+      stroke="none"
+    />
+  {:else if name === "inhalacion-humo"}
+    <!-- Inhalación de humo -->
+    <path d="M7 19 q2.2 -2.4 0 -4.8 q-2.2 -2.4 0 -4.8" />
+    <path d="M12 19 q2.2 -2.4 0 -4.8 q-2.2 -2.4 0 -4.8" />
+    <path d="M17 19 q2.2 -2.4 0 -4.8 q-2.2 -2.4 0 -4.8" />
+    <circle cx="12" cy="20.6" r="1.1" fill="#FFE39C" stroke="none" />
+  {:else if name === "rehidratacion-suero-oral"}
+    <!-- Suero oral: vaso con sales (+) -->
+    <path
+      d="M6.5 6 H17.5 L16.3 18.5 A1.4 1.4 0 0 1 14.9 19.8 H9.1 A1.4 1.4 0 0 1 7.7 18.5 Z"
+    />
+    <path d="M7 10 H17" />
+    <path d="M12 12.5 V16 M10.3 14.2 H13.7" stroke="#FFE39C" />
+  {:else if name === "cuidado-heridas-infeccion"}
+    <!-- Cuidado de heridas: curita -->
+    <rect
+      x="4"
+      y="9.5"
+      width="16"
+      height="5"
+      rx="2.5"
+      transform="rotate(-35 12 12)"
+    />
+    <rect
+      x="9.2"
+      y="9.5"
+      width="5.6"
+      height="5"
+      transform="rotate(-35 12 12)"
+    />
+    <circle cx="11" cy="13" r="0.7" fill="#FFE39C" stroke="none" />
+    <circle cx="13" cy="11" r="0.7" fill="#FFE39C" stroke="none" />
+  {:else if name === "higiene-prevencion"}
+    <!-- Higiene: jabón con burbujas -->
+    <rect x="5.5" y="12" width="9" height="6.5" rx="2.2" />
+    <circle cx="16.5" cy="9" r="1.6" />
+    <circle cx="19" cy="12" r="1.1" />
+    <circle cx="17" cy="5.8" r="1" fill="#FFE39C" stroke="none" />
+  {:else if name === "prevencion-mosquitos"}
+    <!-- Prevención de mosquitos -->
+    <ellipse cx="12" cy="13" rx="1.8" ry="3.4" />
+    <path d="M12 11 Q6.5 7 4 10.5 Q8 12.5 11.2 11.5" />
+    <path d="M12 11 Q17.5 7 20 10.5 Q16 12.5 12.8 11.5" />
+    <path d="M12 9.5 V5" />
+    <path d="M10.8 15 L7.5 19 M13.2 15 L16.5 19" />
+    <circle cx="12" cy="5" r="1" fill="#FFE39C" stroke="none" />
   {:else if name === "nacional-emergencia"}
     <!-- Emergencias 911: baliza de luz -->
     <path d="M7.5 19.5 H16.5" />
