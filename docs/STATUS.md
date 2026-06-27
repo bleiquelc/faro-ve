@@ -188,16 +188,21 @@ Detalle: `docs/SESSIONS/2026-06-27-faro-auxilio-nucleo-estatico.md`.
 - ✅ **Chat de Faro Auxilio SIN IA** (commit `7d0ec12`, decisión founder): responde solo con las guías locales (offline, cero llamadas a Anthropic). Reversible con `AI_ENABLED=true` en `AuxilioChat.svelte`. Verificado en vivo: 0 llamadas a `/api/ai/ask`; pregunta cubierta → responde local; no cubierta → aviso "…llama al 911".
 - ⏳ **Worker auto-ingesta `venezuela-te-busca`** (commit `7107929`, **listo, falta deploy del founder**): la fuente creció a **35.189** (vs 24.546) → ~10.6k nuevas. La DB directa es IPv6 (no se alcanza desde local), así que la ingesta corre en el **Worker cron-ingest** (Cloudflare sí alcanza la DB). Núcleo compartido (`venezuela-te-busca-core.mjs`) reusado por script y worker. Migración **0025** (RPC `ingest_persons_batch` idempotente + cursor + fila de fuente). Adapter incremental, throttle 1 req/2s, cron */15 catch-up. **Privacidad verificada** (revisión adversarial: triggers de ofuscación 300m + foto-menores disparan en el RPC). Verificado sin DB: `--dry`, bundle del worker, test del adapter con DB simulada. **Pasos founder abajo.**
 
+## 2026-06-27 (autónoma, tanda 8) — Worker desplegado + PDF sin huecos + elementos de reel
+- ✅ **Worker de auto-ingesta DESPLEGADO por el founder** (migración 0025+0026 corridas, secret `SUPABASE_SERVICE_ROLE_KEY` puesto, `wrangler deploy` hecho). Verificado en vivo: el conteo **sube solo** (24.546 → 24.9k+ y subiendo) sin duplicar. `wrangler.toml`: `workers_dev=false`, `account_id`, `PUBLIC_SUPABASE_URL` como var, cron `*/15` (relajar a 6h cuando se estabilice). Fix de permisos: `grant execute ... to service_role` (0026).
+- ✅ **Guía PDF sin saltos de hojas en blanco** (commit `a2ea0d7`, **76→57 págs**): categorías fluyen (sin `page-break-before`), tarjetas/cajas se parten entre páginas; solo pasos/ítems no se cortan. Verificado renderizando el PDF a imágenes (`pdf-to-png-converter`). El founder lo aprobó ("la dejamos así").
+- ✅ **Elementos para REEL** (carpeta `~/Desktop/faro-ve-reel-elementos/`, NO en el repo; scripts en `scripts/reel-*.mjs` + `scripts/venezuela.geo.json`): PNG transparentes de los botones (ver-mapa, actualizar símbolo/texto, auxilio, descargar-guía, contactos), logo+título (claro/oscuro), "Nueva actualización" (claro/pill), **menú-inicio-completo**, **fuentes-oficiales**, **cierre 1080×1920**, y el **mapa de Venezuela ANIMADO con alfa** (`.mov` ProRes 4444 + `.webm` VP9 + `.png`): silueta + mar + puntos de luz concentrados en la zona afectada. Marca real de la app. Para que el founder edite el reel en CapCut.
+
 ## Lista de funciones (handoff) — estado
 1. IA-moderadora (restaurar auto-ocultos) — ⏸ en pausa (founder: sin IA por ahora).
 2. Triaje IA — ⏸ en pausa (founder: sin IA por ahora).
-2b. Auto-ingesta del conteo (`venezuela-te-busca`) — ⏳ código listo (commit `7107929`); falta: correr migración 0025 + secrets + `wrangler deploy` del worker cron-ingest.
+2b. Auto-ingesta del conteo (`venezuela-te-busca`) — ✅ **DESPLEGADO y funcionando** (worker cron-ingest, 27-jun). El conteo sube solo, sin duplicar. Pendiente menor: relajar cron `*/15`→`6h` cuando se estabilice (~28-29k).
 3. WhatsApp opt-in reportante — ⏳ (migración).
 4. Relay de mensajes — ⏳ requiere `RESEND_API_KEY`.
 5. Offline PWA (función 5) — ✅ LIVE (commit `7c8f4fb`): SW registrado (antes no lo estaba), Faro Auxilio + guía PDF disponibles SIN conexión, página `/offline`, navegación fail-closed (sin caché de PII), actualización controlada por el usuario. Pendiente futuro: BackgroundSync de reportes offline (cola Dexie) — no incluido aún.
 6. Cuerpos NN — ✅ LIVE (`/reportar/cuerpo-nn`).
 7. Resaltar urgencia médica/menores en mapa — ✅ ya hecho (marcadores + FilterChips).
-8. Faro Auxilio — ✅ LIVE completo: núcleo estático (**34 guías** en 3 categorías + contactos) **funcionando SIN conexión** (precache) + **guía PDF descargable/distribuible con fuentes** + **chat IA (paso 2) LIVE** con **respuesta local-first** (la guía verificada responde sin llamar a Anthropic) + geo-switch (paso 3) cableado (default global; migración 0023 lista para gatear a solo-VE).
+8. Faro Auxilio — ✅ LIVE completo: núcleo estático (**34 guías** en 3 categorías + contactos) **funcionando SIN conexión** (precache) + **guía PDF descargable/distribuible con fuentes** (57 págs, sin huecos) + **chat SIN IA** (decisión founder 27-jun: solo guías locales, cero Anthropic; reversible `AI_ENABLED=true`). El endpoint `/api/ai/ask` + geo-switch (0023) siguen listos por si se reactiva.
 - ✅ **Formularios de reporte COMPLETOS** (commit `897cc01`): hub `/reportar` + `avistamiento` + `condicion-medica` + `refugio` (todos LIVE). Ya no quedan rutas de reporte vacías.
 
 ## Bloqueadores / pendientes founder
