@@ -1,3 +1,4 @@
+/// <reference types="vite-plugin-pwa/client" />
 import type { SupabaseClient, Session } from '@supabase/supabase-js';
 import type { Database } from '$lib/schemas/database';
 

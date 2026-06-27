@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
+import { building } from '$app/environment';
 
 /**
  * Faro VE — hooks server-side.
@@ -27,8 +28,13 @@ import { sequence } from '@sveltejs/kit/hooks';
 type Event = Parameters<Handle>[0]['event'];
 
 function env(event: Event, key: string): string {
-  const fromPlatform = (event.platform?.env as Record<string, string> | undefined)?.[key];
-  if (fromPlatform !== undefined) return fromPlatform;
+  // Durante el prerender (build) adapter-cloudflare LANZA si se accede a
+  // platform.env en una ruta prerenderizable. `building` es false en runtime,
+  // así que el comportamiento en prod NO cambia.
+  if (!building) {
+    const fromPlatform = (event.platform?.env as Record<string, string> | undefined)?.[key];
+    if (fromPlatform !== undefined) return fromPlatform;
+  }
   if (typeof process !== 'undefined' && process.env && process.env[key] !== undefined) {
     return process.env[key]!;
   }
@@ -40,7 +46,8 @@ function env(event: Event, key: string): string {
  * platform.env (Workers). En vite dev local, platform es undefined → dev.
  */
 function isProduction(event: Event): boolean {
-  return !!event.platform?.env;
+  // En build (prerender) no hay platform.env (y tocarlo lanza) → no es runtime.
+  return !building && !!event.platform?.env;
 }
 
 async function sha256Hex(input: string): Promise<string> {
@@ -122,7 +129,9 @@ function hasAuthCookie(event: Event): boolean {
 
 const handleContext: Handle = async ({ event, resolve }) => {
   const APP_SALT = env(event, 'APP_SALT');
-  const ip = event.getClientAddress();
+  // Durante el prerender (build) no hay request real → getClientAddress() lanza.
+  // `building` es false en runtime, así que el comportamiento en prod NO cambia.
+  const ip = building ? '127.0.0.1' : event.getClientAddress();
   // IP siempre hasheada. Sin salt usamos un marcador FIJO (no la IP) para no
   // persistir jamás una IP en claro. La ausencia de salt se bloquea aparte
   // (handleConfigGuard) para mutaciones en prod.

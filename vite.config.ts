@@ -9,8 +9,14 @@ export default defineConfig({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'service-worker.ts',
-      registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      // 'prompt' (NO autoUpdate): autoUpdate recarga sola la página en cada
+      // deploy y haría perder un reporte a medio llenar (datos de un familiar
+      // desaparecido). El RefreshButton existente es el ÚNICO disparador de
+      // recarga (reg.update() + SKIP_WAITING + controllerchange → recarga única).
+      registerType: 'prompt',
+      // Registramos a mano en +layout.svelte (import 'virtual:pwa-register').
+      // La auto-inyección no aplica a las páginas generadas por SvelteKit.
+      injectRegister: false,
       manifest: {
         name: 'Faro VE — Mapa de Esperanza Venezuela',
         short_name: 'Faro VE',
@@ -49,7 +55,12 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['client/**/*.{js,css,ico,png,svg,webp,woff2}'],
+        // Precache: assets del cliente + páginas estáticas prerenderizadas
+        // (/auxilio, /offline) para que Faro Auxilio funcione SIN conexión.
+        globPatterns: [
+          'client/**/*.{js,css,ico,png,svg,webp,woff2}',
+          'prerendered/**/*.html'
+        ],
         maximumFileSizeToCacheInBytes: 5_000_000
       },
       devOptions: {

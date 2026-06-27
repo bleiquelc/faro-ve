@@ -552,6 +552,10 @@
       subdomains: 'abcd',
       maxZoom: 20,
       detectRetina: true,
+      // CORS: las teselas se sirven como respuestas transparentes (status 200),
+      // así el service worker las cachea por tamaño real (~KB) y no como opacas
+      // (~7MB de padding c/u) que podrían reventar la cuota y desalojar /auxilio.
+      crossOrigin: 'anonymous',
       attribution:
         '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · © <a href="https://carto.com/attributions">CARTO</a>',
       className: 'faro-tiles'
