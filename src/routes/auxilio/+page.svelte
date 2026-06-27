@@ -1,6 +1,7 @@
 <script lang="ts">
   import FaroAuxilio from "$components/FaroAuxilio.svelte";
   import FaroIcon from "$components/FaroIcon.svelte";
+  import AuxilioIcon from "$components/AuxilioIcon.svelte";
   import {
     CATEGORIES,
     CONTACTS,
@@ -8,8 +9,6 @@
     DISCLAIMER,
     PROCEDURE_COUNT,
     type Procedure,
-    type Contact,
-    type ContactType,
   } from "$lib/data/auxilio";
 
   type View = "guia" | "contactos";
@@ -41,15 +40,6 @@
 
   $: verified = CONTACTS.filter((c) => c.tier === "verified");
   $: others = CONTACTS.filter((c) => c.tier !== "verified");
-
-  const TYPE_META: Record<ContactType, { emoji: string; label: string }> = {
-    "nacional-emergencia": { emoji: "🚨", label: "Emergencia" },
-    bomberos: { emoji: "🚒", label: "Bomberos" },
-    "proteccion-civil": { emoji: "🛟", label: "Protección Civil" },
-    "cruz-roja": { emoji: "➕", label: "Cruz Roja" },
-    sismologia: { emoji: "📡", label: "Sismología" },
-    hospital: { emoji: "🏥", label: "Hospital" },
-  };
 
   function sourcesFor(p: Procedure) {
     return p.sources.map((id) => SOURCES[id]).filter(Boolean);
@@ -122,11 +112,12 @@
         aria-controls="panel-guia"
         aria-selected={view === "guia"}
         on:click={() => (view = "guia")}
-        class="rounded-lg px-3 py-2 transition {view === 'guia'
+        class="flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 transition {view ===
+        'guia'
           ? 'bg-white text-faro-900 shadow-sm'
           : 'text-slate-600 hover:text-slate-900'}"
       >
-        🚑 Primeros auxilios
+        <AuxilioIcon name="primeros-auxilios" size={18} /> Primeros auxilios
       </button>
       <button
         type="button"
@@ -135,11 +126,12 @@
         aria-controls="panel-contactos"
         aria-selected={view === "contactos"}
         on:click={() => (view = "contactos")}
-        class="rounded-lg px-3 py-2 transition {view === 'contactos'
+        class="flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 transition {view ===
+        'contactos'
           ? 'bg-white text-faro-900 shadow-sm'
           : 'text-slate-600 hover:text-slate-900'}"
       >
-        📞 Contactos
+        <FaroIcon name="phone" size={16} /> Contactos
       </button>
     </div>
 
@@ -149,7 +141,9 @@
         <div
           class="mb-4 flex items-center gap-2 rounded-full bg-white px-4 py-2 shadow-sm ring-1 ring-slate-200"
         >
-          <span aria-hidden="true">🔎</span>
+          <span class="shrink-0 text-slate-400" aria-hidden="true"
+            ><FaroIcon name="search" size={18} /></span
+          >
           <input
             bind:value={q}
             type="text"
@@ -188,8 +182,12 @@
                 style="background:{cat.accent}"
                 aria-hidden="true"
               ></span>
-              <h2 class="text-base font-bold text-slate-800">
-                <span aria-hidden="true">{cat.emoji}</span>
+              <h2
+                class="flex items-center gap-2 text-base font-bold text-slate-800"
+              >
+                <span aria-hidden="true" style="color:{cat.accent}"
+                  ><AuxilioIcon name={cat.id} size={22} /></span
+                >
                 {cat.title}
               </h2>
             </div>
@@ -208,8 +206,8 @@
                   <summary
                     class="flex cursor-pointer list-none items-center gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden"
                   >
-                    <span class="text-xl" aria-hidden="true"
-                      >{p.emoji ?? "•"}</span
+                    <span class="shrink-0 text-faro-900" aria-hidden="true"
+                      ><AuxilioIcon name={p.id} size={26} /></span
                     >
                     <span class="min-w-0 flex-1">
                       <span
@@ -327,8 +325,8 @@
                 class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200"
               >
                 <div class="flex items-start gap-2">
-                  <span class="text-xl" aria-hidden="true"
-                    >{TYPE_META[c.type].emoji}</span
+                  <span class="mt-0.5 shrink-0 text-faro-900" aria-hidden="true"
+                    ><AuxilioIcon name={c.type} size={24} /></span
                   >
                   <div class="min-w-0 flex-1">
                     <h3 class="font-semibold leading-tight text-slate-800">
@@ -389,8 +387,8 @@
                 class="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200"
               >
                 <div class="flex items-start gap-2">
-                  <span class="text-xl" aria-hidden="true"
-                    >{TYPE_META[c.type].emoji}</span
+                  <span class="mt-0.5 shrink-0 text-faro-900" aria-hidden="true"
+                    ><AuxilioIcon name={c.type} size={24} /></span
                   >
                   <div class="min-w-0 flex-1">
                     <h3 class="font-semibold leading-tight text-slate-800">
