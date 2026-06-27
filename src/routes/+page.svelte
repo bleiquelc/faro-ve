@@ -1,18 +1,18 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { tweened } from 'svelte/motion';
-  import { cubicOut } from 'svelte/easing';
-  import InstallPrompt from '$components/InstallPrompt.svelte';
-  import FaroLogo from '$components/FaroLogo.svelte';
-  import FaroIcon from '$components/FaroIcon.svelte';
-  import { COLOR } from '$utils/colors';
+  import { onMount } from "svelte";
+  import { tweened } from "svelte/motion";
+  import { cubicOut } from "svelte/easing";
+  import InstallPrompt from "$components/InstallPrompt.svelte";
+  import FaroLogo from "$components/FaroLogo.svelte";
+  import FaroIcon from "$components/FaroIcon.svelte";
+  import { COLOR } from "$utils/colors";
 
   // Acciones secundarias (fila compacta de chips glassy con iconografía propia).
   const ACTIONS = [
-    { href: '/mapa?buscar=1', icon: 'search', label: 'Buscar' },
-    { href: '/reportar/desaparecido', icon: 'report', label: 'Reportar' },
-    { href: '/reportar/a-salvo', icon: 'safe', label: 'A salvo' },
-    { href: '/reportar/punto-ayuda', icon: 'aid', label: 'Registrar' }
+    { href: "/mapa?buscar=1", icon: "search", label: "Buscar" },
+    { href: "/reportar/desaparecido", icon: "report", label: "Reportar" },
+    { href: "/reportar/a-salvo", icon: "safe", label: "A salvo" },
+    { href: "/reportar/punto-ayuda", icon: "aid", label: "Registrar" },
   ] as const;
 
   /**
@@ -32,27 +32,29 @@
   // Burbujas con los colores de los filtros internos. Solo se muestran las que
   // tienen datos reales (>0) — no inventamos categorías vacías.
   const CAT_DEFS = [
-    { token: 'missing', label: 'Desaparecidos', key: 'missing' },
-    { token: 'minor', label: 'Niños', key: 'minors' },
-    { token: 'medical', label: 'Emergencias', key: 'medical' },
-    { token: 'deceased', label: 'Fallecidos', key: 'deceased' },
-    { token: 'safe', label: 'A salvo', key: 'safe' }
+    { token: "missing", label: "Desaparecidos", key: "missing" },
+    { token: "minor", label: "Niños", key: "minors" },
+    { token: "medical", label: "Emergencias", key: "medical" },
+    { token: "deceased", label: "Fallecidos", key: "deceased" },
+    { token: "safe", label: "A salvo", key: "safe" },
   ] as const;
   $: bubbles = stats
-    ? CAT_DEFS.map((d) => ({ ...d, count: stats?.[d.key] ?? 0 })).filter((b) => b.count > 0)
+    ? CAT_DEFS.map((d) => ({ ...d, count: stats?.[d.key] ?? 0 })).filter(
+        (b) => b.count > 0,
+      )
     : [];
 
   onMount(async () => {
-    MapComp = (await import('$components/Map.svelte')).default;
+    MapComp = (await import("$components/Map.svelte")).default;
     try {
-      const res = await fetch('/api/persons/stats');
+      const res = await fetch("/api/persons/stats");
       if (res.ok) {
         const d = (await res.json()) as Record<string, number>;
         stats = d;
         total = d.total ?? 0;
         const reduce =
-          typeof window !== 'undefined' &&
-          window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          typeof window !== "undefined" &&
+          window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         await shown.set(total, { duration: reduce ? 0 : 1800 });
       }
     } catch {
@@ -122,17 +124,22 @@
       <h1 class="text-2xl font-bold [text-shadow:0_2px_12px_rgb(0_0_0_/0.7)]">
         Faro VE — Mapa de Esperanza
       </h1>
-      <p class="max-w-xs text-sm text-white/90 [text-shadow:0_1px_8px_rgb(0_0_0_/0.7)]">
+      <p
+        class="max-w-xs text-sm text-white/90 [text-shadow:0_1px_8px_rgb(0_0_0_/0.7)]"
+      >
         Reporta y busca personas tras el terremoto del 24-jun-2026 en Venezuela.
       </p>
 
       <!-- Número REAL contando hacia arriba — el mapa está vivo. -->
       {#if total > 0}
-        <p class="mt-1 flex flex-col items-center leading-none" aria-label="{total} personas reportadas">
+        <p
+          class="mt-1 flex flex-col items-center leading-none"
+          aria-label="{total} personas reportadas"
+        >
           <span
             class="text-4xl font-extrabold tabular-nums text-white [text-shadow:0_2px_16px_rgb(0_0_0_/0.85)]"
           >
-            {Math.round($shown).toLocaleString('es-VE')}
+            {Math.round($shown).toLocaleString("es-VE")}
           </span>
           <span
             class="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/85 [text-shadow:0_1px_8px_rgb(0_0_0_/0.7)]"
@@ -144,7 +151,9 @@
 
       <!-- Burbujas por categoría (conteos reales, colores de filtro, vivas). -->
       {#if bubbles.length}
-        <div class="flex max-w-xs flex-wrap items-center justify-center gap-1.5">
+        <div
+          class="flex max-w-xs flex-wrap items-center justify-center gap-1.5"
+        >
           {#each bubbles as b (b.token)}
             <span
               class="flex items-center gap-1.5 rounded-full bg-black/35 px-2.5 py-1 shadow-sm backdrop-blur-sm"
@@ -154,9 +163,11 @@
                 style="background:{COLOR[b.token]};color:{COLOR[b.token]}"
               ></span>
               <span class="text-xs font-bold tabular-nums text-white">
-                {b.count.toLocaleString('es-VE')}
+                {b.count.toLocaleString("es-VE")}
               </span>
-              <span class="text-[11px] font-medium text-white/85">{b.label}</span>
+              <span class="text-[11px] font-medium text-white/85"
+                >{b.label}</span
+              >
             </span>
           {/each}
         </div>
@@ -189,6 +200,15 @@
         {/each}
       </div>
 
+      <a
+        href="/reportar"
+        data-sveltekit-preload-data="hover"
+        class="min-h-tap flex w-full items-center justify-center gap-2 rounded-2xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-black/20 ring-1 ring-white/15 backdrop-blur-md transition active:scale-[0.98] hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/60"
+      >
+        <span>Más formas de reportar y ayudar</span>
+        <span aria-hidden="true" class="text-white/75">→</span>
+      </a>
+
       <div class="flex items-center justify-center pt-1">
         <InstallPrompt />
       </div>
@@ -200,9 +220,13 @@
       </p>
 
       <!-- Federación: transparencia + descubrible para orgs que quieran ingerir el feed. -->
-      <p class="text-[11px] leading-snug text-white/55 [text-shadow:0_1px_6px_rgb(0_0_0_/0.7)]">
+      <p
+        class="text-[11px] leading-snug text-white/55 [text-shadow:0_1px_6px_rgb(0_0_0_/0.7)]"
+      >
         Conectado a la red global de búsqueda (Cruz Roja · Person Finder) ·
-        <a href="/api/pfif" class="underline" rel="nofollow">datos abiertos PFIF</a>
+        <a href="/api/pfif" class="underline" rel="nofollow"
+          >datos abiertos PFIF</a
+        >
       </p>
     </div>
   </main>

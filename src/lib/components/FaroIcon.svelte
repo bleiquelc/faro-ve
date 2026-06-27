@@ -18,6 +18,9 @@
     | "phone"
     | "navigate"
     | "candle"
+    | "sighting"
+    | "medical"
+    | "shelter"
     | "info";
   export let size = 22;
 </script>
@@ -135,5 +138,21 @@
       fill="#FFE39C"
       stroke="none"
     />
+  {:else if name === "sighting"}
+    <!-- Avistamiento: un ojo con la pupila como punto de luz cálido (lo vi). -->
+    <path
+      d="M2.5 12 C5 7.5 8.4 5.5 12 5.5 C15.6 5.5 19 7.5 21.5 12 C19 16.5 15.6 18.5 12 18.5 C8.4 18.5 5 16.5 2.5 12 Z"
+    />
+    <circle cx="12" cy="12" r="3.2" />
+    <circle cx="12" cy="12" r="1.5" fill="#FFE39C" stroke="none" />
+  {:else if name === "medical"}
+    <!-- Condición médica urgente: latido (ECG) con un destello de luz en el pico. -->
+    <path d="M2.5 13 H7.5 L9.6 7 L12.6 17 L14.6 13 H21.5" />
+    <circle cx="9.6" cy="7" r="1.3" fill="#FFE39C" stroke="none" />
+  {:else if name === "shelter"}
+    <!-- Refugio: una carpa con su entrada y una luz cálida adentro (cobijo). -->
+    <path d="M12 4.5 L20.5 19 H3.5 Z" />
+    <path d="M12 12.4 L9.2 19 H14.8 Z" />
+    <circle cx="12" cy="9.2" r="1.3" fill="#FFE39C" stroke="none" />
   {/if}
 </svg>
