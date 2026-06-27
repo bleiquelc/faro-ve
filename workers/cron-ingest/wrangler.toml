@@ -4,6 +4,9 @@ compatibility_date = "2026-06-20"
 compatibility_flags = ["nodejs_compat"]
 # Cuenta Cloudflare de Faro VE (evita que wrangler pregunte cuál usar).
 account_id = "64a18868c428ecbfdaf67d69edffb888"
+# Es un worker SOLO de cron (sin página web) → no necesita URL pública ni
+# subdominio workers.dev. Esto evita que wrangler pida registrar un subdominio.
+workers_dev = false
 
 # CATCH-UP: cada 15 min mientras se pone al día con el backlog (~5 h para los
 # ~10k nuevos a 90 págs/corrida). Cuando el conteo se estabilice, RELAJAR a 6h
