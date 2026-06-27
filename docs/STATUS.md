@@ -184,9 +184,14 @@ Detalle: `docs/SESSIONS/2026-06-27-faro-auxilio-nucleo-estatico.md`.
 - ✅ **Guía PDF descargable, distribuible y VISUAL** (commits `934595d` → `3c7ee9b`): botón "Descargar o compartir la guía (PDF)" en `/auxilio`. Generada (`scripts/gen-guide-pdf.ts`) desde los **mismos datos verificados** → idéntica al contenido validado, **cero invención**; cada guía cita su FUENTE oficial + bibliografía (95 fuentes). El SW la cachea (StaleWhileRevalidate) → disponible **sin conexión** para compartir.
   - **Feedback founder aplicado:** (1) el botón abre la **hoja nativa de compartir/guardar** (Web Share API: Guardar en Archivos / WhatsApp) — antes el `<a download>` atrapaba la PWA sin guardar ni volver; ahora la app no se mueve (verificado en vivo). (2) Rediseño **fácil de entender**: letras grandes, **iconos de la app en cada título** (parseados de `AuxilioIcon.svelte`), **pasos como mapa visual** (círculos numerados unidos por una guía), **psicología del color** consistente (azul=pasos · rojo=NO hacer · naranja=911, con símbolos también para daltónicos), identidad por categoría con degradado + **leyenda del código en la portada**. Sin fotos externas (solo nuestros iconos, sin riesgo de derechos). ~1.7 MB. **Prod 200** (`application/pdf`).
 
+## 2026-06-27 (autónoma, tanda 7) — Chat sin IA + Worker auto-ingesta del conteo
+- ✅ **Chat de Faro Auxilio SIN IA** (commit `7d0ec12`, decisión founder): responde solo con las guías locales (offline, cero llamadas a Anthropic). Reversible con `AI_ENABLED=true` en `AuxilioChat.svelte`. Verificado en vivo: 0 llamadas a `/api/ai/ask`; pregunta cubierta → responde local; no cubierta → aviso "…llama al 911".
+- ⏳ **Worker auto-ingesta `venezuela-te-busca`** (commit `7107929`, **listo, falta deploy del founder**): la fuente creció a **35.189** (vs 24.546) → ~10.6k nuevas. La DB directa es IPv6 (no se alcanza desde local), así que la ingesta corre en el **Worker cron-ingest** (Cloudflare sí alcanza la DB). Núcleo compartido (`venezuela-te-busca-core.mjs`) reusado por script y worker. Migración **0025** (RPC `ingest_persons_batch` idempotente + cursor + fila de fuente). Adapter incremental, throttle 1 req/2s, cron */15 catch-up. **Privacidad verificada** (revisión adversarial: triggers de ofuscación 300m + foto-menores disparan en el RPC). Verificado sin DB: `--dry`, bundle del worker, test del adapter con DB simulada. **Pasos founder abajo.**
+
 ## Lista de funciones (handoff) — estado
-1. IA-moderadora (restaurar auto-ocultos) — ⏳ requiere `ANTHROPIC_API_KEY` (worker).
-2. Triaje IA — ⏳ requiere deploy worker `ai-triage`.
+1. IA-moderadora (restaurar auto-ocultos) — ⏸ en pausa (founder: sin IA por ahora).
+2. Triaje IA — ⏸ en pausa (founder: sin IA por ahora).
+2b. Auto-ingesta del conteo (`venezuela-te-busca`) — ⏳ código listo (commit `7107929`); falta: correr migración 0025 + secrets + `wrangler deploy` del worker cron-ingest.
 3. WhatsApp opt-in reportante — ⏳ (migración).
 4. Relay de mensajes — ⏳ requiere `RESEND_API_KEY`.
 5. Offline PWA (función 5) — ✅ LIVE (commit `7c8f4fb`): SW registrado (antes no lo estaba), Faro Auxilio + guía PDF disponibles SIN conexión, página `/offline`, navegación fail-closed (sin caché de PII), actualización controlada por el usuario. Pendiente futuro: BackgroundSync de reportes offline (cola Dexie) — no incluido aún.
