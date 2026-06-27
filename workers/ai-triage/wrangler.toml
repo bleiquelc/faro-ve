@@ -3,20 +3,25 @@ main = "src/index.ts"
 compatibility_date = "2026-06-20"
 compatibility_flags = ["nodejs_compat"]
 
-# Cada 15 minutos
+# Cada 5 minutos: corre IA-moderación (restaurar perfiles auto-ocultados que la
+# IA juzga reales) + triage (priorizar reportes). El budget guard ($5/día) acota
+# el costo; si se topa, aborta hasta el día siguiente.
 [triggers]
-crons = ["*/15 * * * *"]
+crons = ["*/5 * * * *"]
 
 [vars]
 LLM_MODEL_DEFAULT = "claude-haiku-4-5-20251001"
 TRIAGE_BATCH_SIZE = "20"
+PUBLIC_SUPABASE_URL = "https://blmiebnnprwaupyatsyb.supabase.co"
+LLM_DAILY_BUDGET_USD = "5"
 
-# Secrets:
-#   - PUBLIC_SUPABASE_URL
-#   - SUPABASE_SERVICE_ROLE_KEY
-#   - ANTHROPIC_API_KEY
-#   - ANTHROPIC_GATEWAY_URL
-#   - LLM_DAILY_BUDGET_USD (default 5)
+# SECRETS (interactivos, los pone el founder con `wrangler secret put`):
+#   - SUPABASE_SERVICE_ROLE_KEY   (obligatorio)
+#   - ANTHROPIC_API_KEY           (obligatorio)
+#   - ANTHROPIC_GATEWAY_URL       (opcional: si falta, llama a Anthropic directo).
+#     Si se usa, debe ser la URL BASE del gateway SIN barra final ni "/v1/messages"
+#     (el código le agrega "/v1/messages"). Ej:
+#       https://gateway.ai.cloudflare.com/v1/<ACCOUNT_ID>/faro-ve/anthropic
 
 [observability]
 enabled = true
