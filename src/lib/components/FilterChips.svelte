@@ -24,14 +24,18 @@
    * Accesible: enlaces reales, aria-current en activos, aria-disabled en vacíos.
    */
 
-  type StatKey = 'missing' | 'safe' | 'deceased' | 'minors' | 'medical';
+  // statKey apunta a un conteo EXACTO por chip (coincide con ?status=X / is_minor /
+  // medical_urgent del mapa). 'safeSelf' y 'unidentified' son conteos por status
+  // exacto (no las uniones safe/deceased de stats) → el número del chip = lo que
+  // muestra el mapa al tocarlo.
+  type StatKey = 'missing' | 'safeSelf' | 'unidentified' | 'minors' | 'medical';
   type StatusChip = { kind: 'status'; label: string; value: string; dot: string; statKey: StatKey };
   type ToggleChip = { kind: 'toggle'; label: string; param: string; dot: string; statKey: StatKey };
 
   const STATUS: StatusChip[] = [
     { kind: 'status', label: 'Desaparecidos', value: 'missing', dot: COLOR.missing, statKey: 'missing' },
-    { kind: 'status', label: 'A salvo', value: 'safe_self_report', dot: COLOR.safe, statKey: 'safe' },
-    { kind: 'status', label: 'Cuerpos NN', value: 'unidentified_body', dot: COLOR.deceased, statKey: 'deceased' }
+    { kind: 'status', label: 'A salvo', value: 'safe_self_report', dot: COLOR.safe, statKey: 'safeSelf' },
+    { kind: 'status', label: 'Cuerpos NN', value: 'unidentified_body', dot: COLOR.deceased, statKey: 'unidentified' }
   ];
   const TOGGLES: ToggleChip[] = [
     { kind: 'toggle', label: 'Menores', param: 'is_minor', dot: COLOR.minor, statKey: 'minors' },
@@ -41,7 +45,14 @@
   const FILTER_KEYS = ['status', 'is_minor', 'medical_urgent'];
 
   // Conteos por categoría — reusa el endpoint de stats existente (no construye nada).
-  type Stats = { total: number; missing: number; minors: number; medical: number; deceased: number; safe: number };
+  type Stats = {
+    total: number;
+    missing: number;
+    minors: number;
+    medical: number;
+    safeSelf: number;
+    unidentified: number;
+  };
   let stats: Stats | null = null;
   onMount(async () => {
     try {

@@ -16,13 +16,19 @@ export const GET: RequestHandler = async ({ locals, setHeaders }) => {
       .not('lat', 'is', null);
 
   try {
-    const [totalR, missingR, minorsR, medicalR, deceasedR, safeR] = await Promise.all([
+    const [totalR, missingR, minorsR, medicalR, deceasedR, safeR, safeSelfR, nnR] = await Promise.all([
       base(),
       base().eq('status', 'missing'),
       base().eq('is_minor', true),
       base().eq('medical_urgent', true),
       base().in('status', ['unidentified_body', 'found_deceased_morgue']),
-      base().in('status', ['found_alive', 'safe_self_report'])
+      base().in('status', ['found_alive', 'safe_self_report']),
+      // Conteos EXACTOS por status para que coincidan con lo que filtra cada chip
+      // del mapa (FilterChips usa ?status=X single). Sin esto, el chip "A salvo"
+      // mostraría la unión (found_alive+safe_self_report) pero filtraría solo
+      // safe_self_report → conteo ≠ resultado.
+      base().eq('status', 'safe_self_report'),
+      base().eq('status', 'unidentified_body')
     ]);
 
     const n = (r: { count: number | null; error: unknown }) => (r.error ? 0 : (r.count ?? 0));
@@ -35,7 +41,10 @@ export const GET: RequestHandler = async ({ locals, setHeaders }) => {
       minors: n(minorsR),
       medical: n(medicalR),
       deceased: n(deceasedR),
-      safe: n(safeR)
+      safe: n(safeR),
+      // Exactos por chip (coinciden con el filtro ?status=X del mapa):
+      safeSelf: n(safeSelfR),
+      unidentified: n(nnR)
     });
   } catch (e) {
     console.error('[GET /api/persons/stats]', e);
