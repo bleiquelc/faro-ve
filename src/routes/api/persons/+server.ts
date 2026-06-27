@@ -55,9 +55,10 @@ export const GET: RequestHandler = async ({ url, locals, setHeaders }) => {
     .order('created_at', { ascending: false })
     .limit(f.limit);
 
-  // Mapa (sin q): solo personas con coords (pineables). Búsqueda por nombre (q):
-  // incluye las SIN localización → que nadie quede sin posibilidad de ser ubicado.
-  if (!f.q) q = q.not('lat', 'is', null);
+  // Mapa (sin q): solo personas con coords (pineables). Búsqueda por nombre (q) y
+  // GeoJSON (federación): incluyen las SIN localización → que nadie quede sin
+  // posibilidad de ser ubicado (las sin coords van como Feature con geometry null).
+  if (!f.q && url.searchParams.get('format') !== 'geojson') q = q.not('lat', 'is', null);
   if (f.status) q = q.eq('status', f.status);
   if (f.is_minor !== undefined) q = q.eq('is_minor', f.is_minor);
   if (f.medical_urgent !== undefined) q = q.eq('medical_urgent', f.medical_urgent);
@@ -95,10 +96,52 @@ export const GET: RequestHandler = async ({ url, locals, setHeaders }) => {
     throw error(502, { message: 'No se pudo cargar el mapa. Intenta de nuevo.' });
   }
 
+  const rows = data ?? [];
+
+  // ?format=geojson → FeatureCollection RFC 7946. Geometría con coords OFUSCADAS
+  // (~300m, #1) — NUNCA la coord exacta opt-in (esa es solo para "cómo llegar"
+  // in-app, no para federación masiva). Foto ya null para menores (#3, la vista la
+  // enmascara). Los reportes SIN coords entran como Feature con geometry null
+  // (siguen siendo descubribles). Defensa en profundidad: la geometría sale solo
+  // de lat/lng (ofuscados de la vista), jamás de lat_exact_optional.
+  if (url.searchParams.get('format') === 'geojson') {
+    const fc = {
+      type: 'FeatureCollection',
+      features: rows.map((row) => {
+        const r = row as unknown as Record<string, unknown>;
+        const lat = r.lat as number | null;
+        const lng = r.lng as number | null;
+        return {
+          type: 'Feature',
+          geometry:
+            lat != null && lng != null ? { type: 'Point', coordinates: [lng, lat] } : null,
+          properties: {
+            id: r.id,
+            full_name: r.full_name,
+            status: r.status,
+            sex: r.sex,
+            age: r.age,
+            home_city: r.home_city,
+            home_neighborhood: r.home_neighborhood,
+            last_known_location_text: r.last_known_location_text,
+            photo_url: r.photo_url,
+            is_minor: r.is_minor,
+            medical_urgent: r.medical_urgent,
+            source: r.source,
+            source_url: r.source_url,
+            url: `https://faro-ve.com/persona/${r.id}`
+          }
+        };
+      })
+    };
+    setHeaders({ 'cache-control': 'public, max-age=15, s-maxage=30' });
+    return json(fc, { headers: { 'content-type': 'application/geo+json; charset=utf-8' } });
+  }
+
   // Cache corto en el edge: el mapa tolera ~30s de desfase; baja carga DB.
   setHeaders({ 'cache-control': 'public, max-age=15, s-maxage=30' });
 
-  return json({ ok: true, count: data?.length ?? 0, persons: data ?? [] });
+  return json({ ok: true, count: rows.length, persons: rows });
 };
 
 /**

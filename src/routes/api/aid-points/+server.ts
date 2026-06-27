@@ -56,8 +56,47 @@ export const GET: RequestHandler = async ({ url, locals, setHeaders }) => {
     throw error(502, { message: 'No se pudieron cargar los puntos de ayuda. Intenta de nuevo.' });
   }
 
+  const rows = data ?? [];
+
+  // ?format=geojson → FeatureCollection RFC 7946 que Leaflet/Mapbox/QGIS/uMap
+  // consumen directo. Coords EXACTAS (son lugares de servicio, #26). Mismos datos
+  // públicos que el JSON; reusa la query de arriba (Ley de Reuso).
+  if (url.searchParams.get('format') === 'geojson') {
+    const fc = {
+      type: 'FeatureCollection',
+      features: rows.map((a) => {
+        const r = a as unknown as Record<string, unknown>;
+        const lat = r.lat as number | null;
+        const lng = r.lng as number | null;
+        return {
+          type: 'Feature',
+          geometry:
+            lat != null && lng != null ? { type: 'Point', coordinates: [lng, lat] } : null,
+          properties: {
+            id: r.id,
+            name: r.name,
+            type: r.type,
+            organization: r.organization_name,
+            verified: r.verified,
+            supplies: r.supplies_available,
+            schedule: r.schedule,
+            capacity_current: r.capacity_current,
+            capacity_max: r.capacity_max,
+            address: r.address_text,
+            landmark: r.landmark,
+            entrance_notes: r.entrance_notes,
+            last_updated: r.last_updated_at,
+            url: `https://faro-ve.com/punto/${r.id}`
+          }
+        };
+      })
+    };
+    setHeaders({ 'cache-control': 'public, max-age=15, s-maxage=30' });
+    return json(fc, { headers: { 'content-type': 'application/geo+json; charset=utf-8' } });
+  }
+
   setHeaders({ 'cache-control': 'public, max-age=15, s-maxage=30' });
-  return json({ ok: true, count: data?.length ?? 0, aid_points: data ?? [] });
+  return json({ ok: true, count: rows.length, aid_points: rows });
 };
 
 /**
