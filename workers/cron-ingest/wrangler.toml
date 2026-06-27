@@ -2,6 +2,8 @@ name = "faro-ve-cron-ingest"
 main = "src/index.ts"
 compatibility_date = "2026-06-20"
 compatibility_flags = ["nodejs_compat"]
+# Cuenta Cloudflare de Faro VE (evita que wrangler pregunte cuál usar).
+account_id = "64a18868c428ecbfdaf67d69edffb888"
 
 # CATCH-UP: cada 15 min mientras se pone al día con el backlog (~5 h para los
 # ~10k nuevos a 90 págs/corrida). Cuando el conteo se estabilice, RELAJAR a 6h
@@ -11,6 +13,9 @@ crons = ["*/15 * * * *"]
 
 # Variables públicas (no-secrets)
 [vars]
+# URL pública de Supabase (ya está en el bundle del cliente; no es secreto) →
+# así el founder solo necesita setear UN secret: SUPABASE_SERVICE_ROLE_KEY.
+PUBLIC_SUPABASE_URL = "https://blmiebnnprwaupyatsyb.supabase.co"
 INGEST_USER_AGENT = "FaroVE-IngestBot/1.0 (+contacto@faro-ve.com)"
 INGEST_REQUEST_DELAY_MS = "2000"
 INGEST_MIN_PARSE_RATE = "0.5"
