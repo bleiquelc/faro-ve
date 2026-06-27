@@ -18,6 +18,12 @@
  *    cuota → zonas ya vistas siguen disponibles si se cae la conexión.
  *  - Actualización CONTROLADA por el usuario: el SW nuevo NO toma control solo.
  *    Espera a que el RefreshButton mande SKIP_WAITING (un solo punto de recarga).
+ *  - EXCEPCIÓN ACOTADA Y AUDITADA (cola de reportes offline): este SW jamás cachea
+ *    HTML con PII (sigue fail-closed). La ÚNICA copia local de datos personales es
+ *    la cola en IndexedDB (NO la caché HTTP del SW), CIFRADA, con TTL 48h, sin
+ *    renderizar PII, purgada al enviar / al volver la señal / al abrir. Existe por
+ *    necesidad: no perder un reporte en zona sin señal. Ver $lib/client/outbox.ts
+ *    y la sección "Cola de reportes offline" de PRIVACY.md.
  */
 import { precacheAndRoute, cleanupOutdatedCaches, matchPrecache } from 'workbox-precaching';
 import { registerRoute, NavigationRoute } from 'workbox-routing';

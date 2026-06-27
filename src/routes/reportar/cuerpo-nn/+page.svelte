@@ -1,7 +1,10 @@
 <script lang="ts">
   import Turnstile from "$components/Turnstile.svelte";
   import FaroIcon from "$components/FaroIcon.svelte";
+  import QueuedReportCard from "$components/QueuedReportCard.svelte";
   import { uploadPhoto } from "$lib/client/photo";
+  import { submitReport } from "$client/report-submit";
+  import { online } from "$client/online";
 
   /**
    * "Reportar a una persona fallecida sin identificar" (cuerpo NN).
@@ -39,6 +42,7 @@
   let submitting = false;
   let errorMsg = "";
   let done = false;
+  let queued = false;
 
   // Foto: se comprime + limpia EXIF y se sube en cuanto se elige.
   let photoState: "idle" | "uploading" | "ok" | "error" = "idle";
@@ -137,23 +141,19 @@
         body.lng = lng;
       }
 
-      const res = await fetch("/api/persons", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const j = (await res.json().catch(() => ({}))) as { message?: string };
+      const result = await submitReport("/api/persons", "cuerpo-nn", body);
+      if (result.outcome === "sent") {
+        if (photoPreview) URL.revokeObjectURL(photoPreview);
+        done = true;
+      } else if (result.outcome === "queued") {
+        if (photoPreview) URL.revokeObjectURL(photoPreview);
+        queued = true;
+      } else if (result.outcome === "unsupported") {
         errorMsg =
-          j.message ||
-          "No se pudo enviar el reporte. Verifica la conexión e intenta de nuevo.";
-        return;
+          "No se pudo guardar el reporte sin conexión en este dispositivo. Intenta cuando tengas señal.";
+      } else {
+        errorMsg = result.message;
       }
-      if (photoPreview) URL.revokeObjectURL(photoPreview);
-      done = true;
-    } catch {
-      errorMsg =
-        "No se pudo enviar el reporte. Verifica la conexión e intenta de nuevo.";
     } finally {
       submitting = false;
     }
@@ -204,6 +204,8 @@
         Ver el mapa
       </a>
     </div>
+  {:else if queued}
+    <QueuedReportCard />
   {:else}
     <div class="flex items-center gap-2.5">
       <span class="text-faro-900" aria-hidden="true"
@@ -341,6 +343,13 @@
                 class="ml-auto text-sm text-gray-500 underline">Quitar</button
               >
             </div>
+          {:else if !$online}
+            <p
+              class="mt-2 rounded-lg border border-dashed border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+            >
+              📷 Sin conexión no se puede adjuntar la foto. Podrás agregarla al
+              reconectar.
+            </p>
           {:else}
             <label
               class="mt-2 flex min-h-tap cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 px-4 py-3 text-sm text-faro-900 hover:bg-faro-50"

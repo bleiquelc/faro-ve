@@ -2,6 +2,7 @@
   import "../app.css";
   import { onMount } from "svelte";
   import FaroAuxilioButton from "$components/FaroAuxilioButton.svelte";
+  import OutboxBanner from "$components/OutboxBanner.svelte";
 
   // Registrar el service worker (offline). Es OPCIONAL y a prueba de fallos: si
   // algo sale mal, la app sigue funcionando online igual — nunca rompemos la
@@ -21,3 +22,7 @@
 
 <!-- Botón flotante "Faro Auxilio" — siempre visible en toda la app. -->
 <FaroAuxilioButton />
+
+<!-- Banner de la cola de reportes offline — solo aparece si hay reportes
+     guardados sin enviar (reusa /api/persons al volver la señal). -->
+<OutboxBanner />

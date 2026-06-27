@@ -68,6 +68,11 @@ const PUBLIC_POST_PATHS = new Set([
   '/api/notes',
   '/api/message',
   '/api/aid-points',
+  // ⚠️ RESERVADO, sin handler (hoy 404). La cola de reportes offline NO usa este
+  // endpoint: el replay reusa POST /api/persons con un Turnstile FRESCO por
+  // entrada (cadena dura intacta). Si algún día se implementa, NUNCA exentarlo de
+  // Turnstile ni aflojar su rate-limit (un bulk-replay eludiría el 10/h). Ver
+  // $lib/client/replay.ts.
   '/api/offline-sync',
   '/api/ai/ask',
   '/api/upload-url'
@@ -361,7 +366,10 @@ const handleTurnstile: Handle = async ({ event, resolve }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const RATE_LIMITS: Record<string, { windowSec: number; max: number }> = {
-  '/api/persons': { windowSec: 3600, max: 5 },
+  // 10/h (antes 5/h): un refugio con UNA conexión compartida que reporta varios
+  // desaparecidos al reconectar (replay de la cola offline) no choca con 429. La
+  // defensa primaria sigue siendo el backoff respetuoso del cliente + Turnstile.
+  '/api/persons': { windowSec: 3600, max: 10 },
   '/api/notes': { windowSec: 600, max: 10 },
   '/api/message': { windowSec: 600, max: 6 },
   '/api/aid-points': { windowSec: 3600, max: 10 },

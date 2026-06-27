@@ -37,6 +37,7 @@ Faro VE es una iniciativa humanitaria sin ánimo de lucro creada en respuesta al
 4. **EXIF GPS strip obligatorio** en fotos antes de subir.
 5. **Audit log append-only** de toda acción de staff.
 6. **Cloudflare Turnstile** anti-bot. Rate-limit anti-spam.
+7. **Cola de reportes sin conexión (offline)**. Si reportas sin señal, tu reporte se guarda **cifrado (AES-GCM, clave no extraíble)** únicamente en **tu propio dispositivo** (IndexedDB del navegador) — nunca se sube a un servidor hasta que reabras Faro VE con conexión. Mientras espera: en pantalla **no se muestra** tu nombre, teléfono ni email (solo un conteo de reportes pendientes); la copia local se **borra en cuanto se envía**; se **purga automáticamente a las 48 horas**; y puedes borrarla al instante con el botón **"Borrar mis datos de este teléfono"** (pensado para un equipo prestado o de cibercafé). Es el **único** lugar donde datos personales se guardan en tu dispositivo; el resto de la app nunca cachea datos personales localmente.
 
 ## Tus derechos (Habeas Data Venezuela Art. 28)
 
@@ -57,6 +58,7 @@ También puedes escribir a **privacidad@faro-ve.com**.
 - Reportes `withdrawn`: datos personales purgados a los **30 días** post-withdrawal.
 - Audit log: **3 años** (integridad legal).
 - Logs IA (`ai_conversations`): IP hasheada, contenido borrado a los **30 días**.
+- **Cola offline (en tu dispositivo)**: cifrada; se borra al enviarse o se purga a las **48 horas**; el usuario puede borrarla al instante.
 
 ## Fuentes externas e integración
 

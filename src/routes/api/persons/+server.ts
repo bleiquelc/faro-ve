@@ -147,6 +147,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     throw error(502, { message: 'No se pudo registrar el reporte. Intenta de nuevo en unos minutos.' });
   }
 
-  const result = (data ?? {}) as { id?: string; edit_token?: string };
-  return json({ ok: true, id: result.id, edit_token: result.edit_token }, { status: 201 });
+  const result = (data ?? {}) as { id?: string; edit_token?: string; duplicate?: boolean };
+  // duplicate=true (migración 0027): la RPC halló el mismo client_uuid → la fila
+  // YA existía (ACK perdido), no se creó otra. El cliente lo trata como éxito y
+  // borra la entrada de la cola offline con confianza. En ese camino edit_token
+  // es null (el raw solo se entrega una vez; los forms ya ignoran ese campo).
+  return json(
+    { ok: true, id: result.id, edit_token: result.edit_token, duplicate: result.duplicate ?? false },
+    { status: 201 }
+  );
 };

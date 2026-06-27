@@ -193,13 +193,51 @@ Detalle: `docs/SESSIONS/2026-06-27-faro-auxilio-nucleo-estatico.md`.
 - ✅ **Guía PDF sin saltos de hojas en blanco** (commit `a2ea0d7`, **76→57 págs**): categorías fluyen (sin `page-break-before`), tarjetas/cajas se parten entre páginas; solo pasos/ítems no se cortan. Verificado renderizando el PDF a imágenes (`pdf-to-png-converter`). El founder lo aprobó ("la dejamos así").
 - ✅ **Elementos para REEL** (carpeta `~/Desktop/faro-ve-reel-elementos/`, NO en el repo; scripts en `scripts/reel-*.mjs` + `scripts/venezuela.geo.json`): PNG transparentes de los botones (ver-mapa, actualizar símbolo/texto, auxilio, descargar-guía, contactos), logo+título (claro/oscuro), "Nueva actualización" (claro/pill), **menú-inicio-completo**, **fuentes-oficiales**, **cierre 1080×1920**, y el **mapa de Venezuela ANIMADO con alfa** (`.mov` ProRes 4444 + `.webm` VP9 + `.png`): silueta + mar + puntos de luz concentrados en la zona afectada. Marca real de la app. Para que el founder edite el reel en CapCut.
 
+## 2026-06-27 (autónoma, tanda 9) — Cola de reportes OFFLINE (BackgroundSync de página)
+Detalle: `docs/SESSIONS/2026-06-27-cola-reportes-offline.md`.
+- ✅ **Cola de reportes offline (función 3 de prioridades / "BackgroundSync")** — los 4 forms de
+  persona (desaparecido, a-salvo, condición-médica, cuerpo-NN) ahora **guardan el reporte sin señal**
+  y lo **reenvían al volver la conexión REUSANDO `/api/persons`** con un Turnstile FRESCO por entrada
+  (cadena dura intacta: config-guard → Turnstile → rate-limit → kill-switch → RPC que cifra la PII).
+  **Cero camino paralelo débil** (Ley de Reuso): no se usó el `/api/offline-sync` reservado (exigiría
+  exentar Turnstile = debilitar). Replay en contexto de página (no SW: el SW no tiene DOM → no puede
+  correr Turnstile).
+- ✅ **Migración `0027`** (idempotencia ACK-perdido, **falta aplicarla** el founder por SQL Editor en 2
+  pasos por el `CREATE UNIQUE INDEX CONCURRENTLY`): índice único parcial sobre `client_uuid` + guard
+  de idempotencia antepuesto a `create_person_report` (SELECT previo + SELECT de respaldo para la
+  carrera; `ON CONFLICT DO NOTHING` NO retorna fila en Postgres). **INSERT byte-idéntico a 0021**
+  (aditivo, no reescribe el cifrado de PII). Devuelve `{id, edit_token, duplicate}`. Sin esto, un
+  doble-envío por ack-perdido duplicaría una persona publicada en el mapa.
+- ✅ **Privacidad (adversario = dispositivo compartido)**: payload **cifrado at-rest** (AES-GCM, clave
+  no-extraíble en IndexedDB); la UI muestra **solo metadatos** (conteo/hora/estado), NUNCA
+  nombre/teléfono/email; **lista blanca** de campos encolables (no token, no `reporter_ip_hashed`, no
+  coord exacta de a-salvo sin opt-in); purga al enviar / al volver la señal / al abrir / **TTL 48h** /
+  tope FIFO; botón **"Borrar mis datos de este teléfono"** (borra entradas + la clave). Foto: **online
+  only** en v1 (sin señal se deshabilita el botón con aviso; nunca pérdida silenciosa). Decisiones del
+  founder: TTL 48h, tope `/api/persons` 5→**10/h**, foto online-only.
+- ✅ **Robustez**: replay secuencial + `navigator.locks` (sin duplicados entre pestañas) + token fresco
+  por entrada; **auto-reprogramación por backoff** (429 respeta retry_after y detiene el lote; 503/
+  INSERTS_PAUSED → espera larga, nunca descarta; el backoff se consume SOLO sin depender de eventos del
+  navegador); "Enviar ahora" revive entradas atascadas. Copy honesto (#24): "reabre con señal", no "se
+  envía solo". Bundle #21 intacto (**Dexie en chunk lazy**, no en el inicial).
+- **Rigor:** pre-mortem adversarial (5 lentes → 5 bloqueantes corregidos ANTES de codificar, incl. que
+  `ON CONFLICT DO NOTHING` no retorna fila) + revisión adversarial de código (4 lentes → 2 ALTO + varios
+  arreglados). **81 tests** (20 nuevos, lógica pura), svelte-check 0, build limpio. **Verificado en vivo**
+  (navegador real, preview): offline→encola cifrado (0 PII en claro)→online→replay token fresco→1 sola
+  llamada→cola vacía; ack-perdido (`duplicate`)→éxito; **self-rescheduling del backoff sin eventos**
+  (n=1 @53ms→500, n=2 @2s→500, n=3 @5.8s→201, cola vacía, 0 eventos disparados); **offline-fresh**
+  (los 4 forms precacheados, cargan sin señal). Commit local (sin push). PRIVACY.md + SW documentados.
+- ⏳ **Pasos founder**: (1) aplicar `0027` (SQL Editor, 2 pasos); (2) revisar + push/deploy. Fast-follows
+  documentados: foto-en-cola offline, notes/aid-points, SW BackgroundSync (enviar con app cerrada),
+  envío self-service por WhatsApp/SMS (cuando aterrice el relay).
+
 ## Lista de funciones (handoff) — estado
 1. IA-moderadora (restaurar auto-ocultos) — ⏸ en pausa (founder: sin IA por ahora).
 2. Triaje IA — ⏸ en pausa (founder: sin IA por ahora).
 2b. Auto-ingesta del conteo (`venezuela-te-busca`) — ✅ **DESPLEGADO y funcionando** (worker cron-ingest, 27-jun). El conteo sube solo, sin duplicar. Pendiente menor: relajar cron `*/15`→`6h` cuando se estabilice (~28-29k).
 3. WhatsApp opt-in reportante — ⏳ (migración).
 4. Relay de mensajes — ⏳ requiere `RESEND_API_KEY`.
-5. Offline PWA (función 5) — ✅ LIVE (commit `7c8f4fb`): SW registrado (antes no lo estaba), Faro Auxilio + guía PDF disponibles SIN conexión, página `/offline`, navegación fail-closed (sin caché de PII), actualización controlada por el usuario. Pendiente futuro: BackgroundSync de reportes offline (cola Dexie) — no incluido aún.
+5. Offline PWA (función 5) — ✅ LIVE (commit `7c8f4fb`): SW registrado (antes no lo estaba), Faro Auxilio + guía PDF disponibles SIN conexión, página `/offline`, navegación fail-closed (sin caché de PII), actualización controlada por el usuario. ✅ **Cola de reportes offline AÑADIDA (tanda 9)**: los 4 forms de persona guardan el reporte sin señal (cifrado) y lo reenvían al reconectar reusando `/api/persons` + Turnstile fresco; migración `0027` de idempotencia (**falta aplicarla**). Fast-follow: SW BackgroundSync (enviar con la app cerrada).
 6. Cuerpos NN — ✅ LIVE (`/reportar/cuerpo-nn`).
 7. Resaltar urgencia médica/menores en mapa — ✅ ya hecho (marcadores + FilterChips).
 8. Faro Auxilio — ✅ LIVE completo: núcleo estático (**34 guías** en 3 categorías + contactos) **funcionando SIN conexión** (precache) + **guía PDF descargable/distribuible con fuentes** (57 págs, sin huecos) + **chat SIN IA** (decisión founder 27-jun: solo guías locales, cero Anthropic; reversible `AI_ENABLED=true`). El endpoint `/api/ai/ask` + geo-switch (0023) siguen listos por si se reactiva.

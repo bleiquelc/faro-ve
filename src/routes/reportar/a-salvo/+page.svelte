@@ -1,5 +1,7 @@
 <script lang="ts">
   import Turnstile from '$components/Turnstile.svelte';
+  import QueuedReportCard from '$components/QueuedReportCard.svelte';
+  import { submitReport } from '$client/report-submit';
 
   /**
    * "Estoy a salvo" — auto-reporte. El sujeto avisa que está bien y, si quiere,
@@ -30,6 +32,7 @@
   let submitting = false;
   let errorMsg = '';
   let done = false;
+  let queued = false;
 
   function useMyLocation() {
     if (!('geolocation' in navigator)) {
@@ -82,20 +85,17 @@
         body.lng = lng;
       }
 
-      const res = await fetch('/api/persons', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      if (!res.ok) {
-        const j = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
+      const result = await submitReport('/api/persons', 'a-salvo', body);
+      if (result.outcome === 'sent') {
+        done = true;
+      } else if (result.outcome === 'queued') {
+        queued = true;
+      } else if (result.outcome === 'unsupported') {
         errorMsg =
-          j.message || 'No se pudo enviar tu aviso. Verifica la conexión e intenta de nuevo.';
-        return;
+          'No se pudo guardar tu aviso sin conexión en este dispositivo. Intenta cuando tengas señal.';
+      } else {
+        errorMsg = result.message;
       }
-      done = true;
-    } catch {
-      errorMsg = 'No se pudo enviar tu aviso. Verifica la conexión e intenta de nuevo.';
     } finally {
       submitting = false;
     }
@@ -131,6 +131,8 @@
         Ver el mapa
       </a>
     </div>
+  {:else if queued}
+    <QueuedReportCard />
   {:else}
     <h1 class="text-2xl font-bold text-gray-900">Estoy a salvo</h1>
     <p class="mt-1 text-sm text-gray-600">
