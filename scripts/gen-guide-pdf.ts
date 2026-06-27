@@ -170,19 +170,23 @@ const html = `<!doctype html>
 
   /* Encabezado de categoría con degradado de identidad */
   h2 { font-size: 20pt; color: #fff; padding: 11px 16px; border-radius: 12px; margin: 0 0 10px; display: flex; align-items: center; gap: 10px; page-break-after: avoid; box-shadow: 0 1px 0 rgba(0,0,0,.04); }
-  .category { page-break-before: always; }
+  /* Las categorías FLUYEN (sin forzar página nueva) → sin hojas blancas. El
+     encabezado de color separa visualmente; page-break-after:avoid lo mantiene
+     con su contenido. */
+  .category { margin-top: 18px; }
   .cat-intro { color: #44525a; font-size: 11.5pt; margin: 0 0 14px; }
 
-  /* Tarjeta de procedimiento */
-  .proc { page-break-inside: avoid; background: #fff; border: 1.5px solid #e6edf1; border-left: 6px solid #0B4F6C; border-radius: 12px; padding: 14px 16px 12px; margin: 0 0 14px; }
-  .proc-head { display: flex; align-items: center; gap: 12px; margin-bottom: 2px; }
+  /* Tarjeta de procedimiento: SÍ puede partirse entre páginas (evita huecos
+     blancos). Solo los pasos/ítems individuales no se parten (abajo). */
+  .proc { background: #fff; border: 1.5px solid #e6edf1; border-left: 6px solid #0B4F6C; border-radius: 12px; padding: 14px 16px 12px; margin: 0 0 14px; }
+  .proc-head { display: flex; align-items: center; gap: 12px; margin-bottom: 2px; page-break-inside: avoid; page-break-after: avoid; }
   .proc-icon { flex: none; width: 48px; height: 48px; border-radius: 13px; display: flex; align-items: center; justify-content: center; }
   .proc-num { font-size: 17pt; font-weight: 800; }
   .proc h3 { font-size: 15.5pt; margin: 0; line-height: 1.15; }
   .summary { color: #44525a; font-size: 11.5pt; margin: 5px 0 10px; }
 
   /* Etiquetas de sección como píldoras de color */
-  .sec-h { display: inline-block; font-weight: 800; font-size: 11pt; padding: 4px 13px; border-radius: 999px; margin: 12px 0 8px; }
+  .sec-h { display: inline-block; font-weight: 800; font-size: 11pt; padding: 4px 13px; border-radius: 999px; margin: 12px 0 8px; page-break-after: avoid; }
   .sec-h.pasos { background: #e3f1f7; color: #0B6E8C; }
   .sec-h.dont  { background: #fadbd8; color: #a31810; margin-top: 0; }
   .sec-h.call  { background: #fbdcc0; color: #9a3a06; margin-top: 0; }
@@ -196,7 +200,7 @@ const html = `<!doctype html>
   .step-t { font-size: 12.5pt; line-height: 1.45; padding: 7px 0 13px; }
 
   /* Cajas semánticas */
-  .box { border-radius: 12px; padding: 10px 14px 12px; margin: 12px 0 4px; page-break-inside: avoid; }
+  .box { border-radius: 12px; padding: 10px 14px 12px; margin: 12px 0 4px; }
   .box-dont { background: linear-gradient(135deg,#fdeeed,#fbe1df); border: 1.5px solid #f3c2bd; }
   .box-call { background: linear-gradient(135deg,#fff3e8,#ffe7d3); border: 1.5px solid #f3c79a; }
   .mark { display: flex; gap: 10px; align-items: flex-start; font-size: 12pt; padding: 4px 0; page-break-inside: avoid; }
