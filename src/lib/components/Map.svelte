@@ -41,6 +41,7 @@
   let errorMsg = '';
   let count = 0;
   let total = 0; // TOTAL exacto de reportados (con filtros activos) — el "número grande"
+  let totalLoaded = false; // el conteo exacto ya resolvió (distingue "0 global" de "cargando")
   // Lista accesible (sr-only): los clusters de Leaflet no son tabbables y el
   // lector de pantalla no puede llegar a las fichas. Esta lista da una ruta de
   // teclado/lector a cada /persona/[id] sin depender del mapa (hallazgo a11y).
@@ -362,8 +363,19 @@
       total = data.total ?? 0;
     } catch {
       /* total informativo */
+    } finally {
+      totalLoaded = true;
     }
   }
+
+  // Estado VACÍO (solo /mapa interactivo): tras una carga sin error, si el filtro
+  // activo no tiene NADA que mostrar en la vista, avisamos en claro en vez de dejar
+  // el mapa en blanco mudo (causa del "no se actualiza": p.ej. Cuerpos NN = 0).
+  $: showEmpty =
+    interactive &&
+    !loading &&
+    !errorMsg &&
+    (viewMode === 'agg' ? aggCount === 0 : count === 0);
 
   // Persistencia de la VISTA (centro+zoom) para que al volver de ver una persona
   // el usuario siga en LA MISMA ZONA donde estaba buscando (no reinicia a Caracas).
@@ -654,6 +666,32 @@
       role="alert"
     >
       {errorMsg}
+    </div>
+  {/if}
+
+  {#if showEmpty}
+    <div
+      class="pointer-events-none absolute inset-0 z-[450] flex items-center justify-center p-6"
+      role="status"
+      aria-live="polite"
+    >
+      <div
+        class="pointer-events-auto max-w-xs rounded-2xl bg-faro-900/92 px-5 py-4 text-center text-white shadow-xl ring-1 ring-white/15 backdrop-blur-sm"
+      >
+        <p class="text-2xl" aria-hidden="true">🔦</p>
+        {#if totalLoaded && total === 0}
+          <p class="mt-1 text-sm font-semibold">Aún no hay reportes con este filtro.</p>
+          <p class="mt-1 text-xs leading-snug text-white/85">
+            Cuando alguien reporte en esta categoría, aparecerá aquí. Toca <strong>Todos</strong> arriba
+            para ver el mapa completo.
+          </p>
+        {:else}
+          <p class="mt-1 text-sm font-semibold">No hay reportes con este filtro en esta zona.</p>
+          <p class="mt-1 text-xs leading-snug text-white/85">
+            Aleja el mapa para ver dónde están, o toca <strong>Todos</strong> arriba.
+          </p>
+        {/if}
+      </div>
     </div>
   {/if}
 

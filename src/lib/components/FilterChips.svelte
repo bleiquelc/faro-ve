@@ -1,9 +1,10 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { COLOR } from '$utils/colors';
 
   /**
-   * FilterChips — filtros del mapa COMBINABLES, URL-driven.
+   * FilterChips — filtros del mapa COMBINABLES, URL-driven, CON CONTEO por categoría.
    *
    * Lógica (lo que pidió el founder, "los que combinen, con lógica"):
    *  - Estado (Desaparecidos / A salvo / Cuerpos NN): single-select dentro del
@@ -12,26 +13,48 @@
    *    con el estado y entre sí → "desaparecido menor", "emergencia menor", etc.
    *  - "Todos": limpia los tres (conserva la capa de ayuda y la búsqueda).
    *
+   * CONTEO (reusa /api/persons/stats, cacheado en el edge): cada chip muestra
+   * cuántos hay en su categoría. Los chips en 0 (categorías sin datos AÚN, p.ej.
+   * cuerpos NN / a salvo / urgencia) se ATENÚAN y deshabilitan → el usuario ve de
+   * un vistazo qué hay y qué no, en vez de tocar un filtro que deja el mapa en
+   * blanco sin explicación. Si /stats falla, los chips funcionan igual (sin conteo).
+   *
    * El API /api/persons ya hace AND de status + is_minor + medical_urgent, así que
    * cada combinación filtra de verdad. La capa "Ayuda" (aid=1) es ortogonal.
-   * Accesible: enlaces reales, aria-current en activos, tap targets ≥44px.
+   * Accesible: enlaces reales, aria-current en activos, aria-disabled en vacíos.
    */
 
-  type StatusChip = { kind: 'status'; label: string; value: string; dot: string };
-  type ToggleChip = { kind: 'toggle'; label: string; param: string; dot: string };
-  type AllChip = { kind: 'all'; label: string };
+  type StatKey = 'missing' | 'safe' | 'deceased' | 'minors' | 'medical';
+  type StatusChip = { kind: 'status'; label: string; value: string; dot: string; statKey: StatKey };
+  type ToggleChip = { kind: 'toggle'; label: string; param: string; dot: string; statKey: StatKey };
 
   const STATUS: StatusChip[] = [
-    { kind: 'status', label: 'Desaparecidos', value: 'missing', dot: COLOR.missing },
-    { kind: 'status', label: 'A salvo', value: 'safe_self_report', dot: COLOR.safe },
-    { kind: 'status', label: 'Cuerpos NN', value: 'unidentified_body', dot: COLOR.deceased }
+    { kind: 'status', label: 'Desaparecidos', value: 'missing', dot: COLOR.missing, statKey: 'missing' },
+    { kind: 'status', label: 'A salvo', value: 'safe_self_report', dot: COLOR.safe, statKey: 'safe' },
+    { kind: 'status', label: 'Cuerpos NN', value: 'unidentified_body', dot: COLOR.deceased, statKey: 'deceased' }
   ];
   const TOGGLES: ToggleChip[] = [
-    { kind: 'toggle', label: 'Menores', param: 'is_minor', dot: COLOR.minor },
-    { kind: 'toggle', label: 'Urgencia médica', param: 'medical_urgent', dot: COLOR.medical }
+    { kind: 'toggle', label: 'Menores', param: 'is_minor', dot: COLOR.minor, statKey: 'minors' },
+    { kind: 'toggle', label: 'Urgencia médica', param: 'medical_urgent', dot: COLOR.medical, statKey: 'medical' }
   ];
 
   const FILTER_KEYS = ['status', 'is_minor', 'medical_urgent'];
+
+  // Conteos por categoría — reusa el endpoint de stats existente (no construye nada).
+  type Stats = { total: number; missing: number; minors: number; medical: number; deceased: number; safe: number };
+  let stats: Stats | null = null;
+  onMount(async () => {
+    try {
+      const r = await fetch('/api/persons/stats');
+      if (r.ok) {
+        const d = (await r.json()) as Stats & { ok?: boolean };
+        if (d?.ok) stats = d;
+      }
+    } catch {
+      /* sin conteos: los chips siguen funcionando igual */
+    }
+  });
+  const fmtN = (n: number): string => n.toLocaleString('es-VE');
 
   $: cur = $page.url.searchParams;
 
@@ -84,21 +107,30 @@
       : 'border-gray-200 bg-white/90 text-gray-700 hover:border-faro-300'}"
   >
     Todos
+    {#if stats}<span class="tabular-nums text-xs {allActive ? 'text-white/85' : 'text-gray-400'}">{fmtN(stats.total)}</span>{/if}
   </a>
 
   <!-- Estado (single-select) -->
   {#each STATUS as chip}
     {@const active = cur.get('status') === chip.value}
+    {@const n = stats ? stats[chip.statKey] : null}
+    {@const empty = n === 0 && !active}
     <a
       href={statusHref(chip.value)}
       data-sveltekit-preload-data="tap"
       aria-current={active ? 'true' : undefined}
-      class="min-h-tap inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium transition-all duration-200 ease-out active:scale-[0.97] {active
+      aria-disabled={empty ? 'true' : undefined}
+      tabindex={empty ? -1 : undefined}
+      title={empty ? 'Sin reportes en esta categoría todavía' : undefined}
+      class="min-h-tap inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium transition-all duration-200 ease-out active:scale-[0.97] {empty
+        ? 'pointer-events-none opacity-45'
+        : ''} {active
         ? 'border-faro-900 bg-faro-900 text-white shadow-sm'
         : 'border-gray-200 bg-white/90 text-gray-700 hover:border-faro-300'}"
     >
       <span class="h-2.5 w-2.5 rounded-full" style="background:{chip.dot}" aria-hidden="true"></span>
       {chip.label}
+      {#if n !== null}<span class="tabular-nums text-xs {active ? 'text-white/85' : 'text-gray-400'}">{fmtN(n)}</span>{/if}
     </a>
   {/each}
 
@@ -108,18 +140,29 @@
   <!-- Atributos (toggles independientes, combinan con todo) -->
   {#each TOGGLES as chip}
     {@const active = cur.get(chip.param) === 'true'}
+    {@const n = stats ? stats[chip.statKey] : null}
+    {@const empty = n === 0 && !active}
     <a
       href={toggleHref(chip.param)}
       data-sveltekit-preload-data="tap"
       aria-current={active ? 'true' : undefined}
-      aria-label={active ? `Quitar filtro ${chip.label}` : `Añadir filtro ${chip.label} (combinable)`}
-      class="min-h-tap inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium transition-all duration-200 ease-out active:scale-[0.97] {active
+      aria-disabled={empty ? 'true' : undefined}
+      tabindex={empty ? -1 : undefined}
+      aria-label={empty
+        ? `${chip.label}: sin reportes todavía`
+        : active
+          ? `Quitar filtro ${chip.label}`
+          : `Añadir filtro ${chip.label} (combinable)`}
+      class="min-h-tap inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium transition-all duration-200 ease-out active:scale-[0.97] {empty
+        ? 'pointer-events-none opacity-45'
+        : ''} {active
         ? 'border-faro-900 bg-faro-900 text-white shadow-sm'
         : 'border-gray-200 bg-white/90 text-gray-700 hover:border-faro-300'}"
     >
       <span class="text-xs" aria-hidden="true">{active ? '✓' : '+'}</span>
       <span class="h-2.5 w-2.5 rounded-full" style="background:{chip.dot}" aria-hidden="true"></span>
       {chip.label}
+      {#if n !== null}<span class="tabular-nums text-xs {active ? 'text-white/85' : 'text-gray-400'}">{fmtN(n)}</span>{/if}
     </a>
   {/each}
 
