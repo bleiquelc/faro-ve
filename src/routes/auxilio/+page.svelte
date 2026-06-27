@@ -16,6 +16,50 @@
   let view: View = "guia";
   let q = "";
 
+  // Descargar/compartir la guía PDF: abre la hoja nativa (Guardar en Archivos /
+  // enviar por WhatsApp) para NO atrapar la app; descarga directa de respaldo en
+  // escritorio; pestaña nueva como último recurso. Nunca deja al usuario sin salida.
+  let guideBusy = false;
+  async function shareGuide(): Promise<void> {
+    if (guideBusy) return;
+    guideBusy = true;
+    const url = "/guia-primeros-auxilios-faro-ve.pdf";
+    const filename = "Guia-Primeros-Auxilios-Faro-VE.pdf";
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("no se pudo obtener la guía");
+      const blob = await res.blob();
+      const file = new File([blob], filename, { type: "application/pdf" });
+      const nav = navigator as Navigator & {
+        canShare?: (data?: { files?: File[] }) => boolean;
+      };
+      if (nav.canShare?.({ files: [file] })) {
+        try {
+          await nav.share({
+            files: [file],
+            title: "Guía de Primeros Auxilios — Faro VE",
+            text: "Guía de primeros auxilios de fuentes oficiales. faro-ve.com",
+          });
+          return;
+        } catch (err) {
+          if ((err as Error)?.name === "AbortError") return; // el usuario cerró
+        }
+      }
+      const obj = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = obj;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(obj), 5000);
+    } catch {
+      window.open(url, "_blank", "noopener");
+    } finally {
+      guideBusy = false;
+    }
+  }
+
   // Filtro instantáneo (sin red): por título, resumen y texto de los pasos.
   function matches(p: Procedure, needle: string): boolean {
     if (!needle) return true;
@@ -183,10 +227,12 @@
         <!-- Descargar la guía completa en PDF (con su fuente oficial), para
              compartir por WhatsApp o usar sin internet. -->
         {#if !q}
-          <a
-            href="/guia-primeros-auxilios-faro-ve.pdf"
-            download
-            class="mb-4 flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200 transition active:scale-[0.99] hover:ring-faro-300"
+          <button
+            type="button"
+            on:click={shareGuide}
+            disabled={guideBusy}
+            aria-busy={guideBusy}
+            class="mb-4 flex w-full items-center gap-3 rounded-2xl bg-white px-4 py-3 text-left shadow-sm ring-1 ring-slate-200 transition active:scale-[0.99] hover:ring-faro-300 disabled:opacity-70"
           >
             <span
               class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-faro-900 text-white"
@@ -195,14 +241,16 @@
             </span>
             <span class="min-w-0 flex-1">
               <span class="block text-sm font-bold text-slate-800"
-                >Descargar guía completa (PDF)</span
+                >{guideBusy
+                  ? "Preparando la guía…"
+                  : "Descargar o compartir la guía (PDF)"}</span
               >
               <span class="block text-[12px] leading-snug text-slate-500"
-                >Las {PROCEDURE_COUNT} guías con su fuente oficial · compártela o úsala
-                sin internet</span
+                >Las {PROCEDURE_COUNT} guías con su fuente oficial · guárdala en tu teléfono
+                o compártela por WhatsApp</span
               >
             </span>
-          </a>
+          </button>
         {/if}
 
         {#if filtered.length === 0}
