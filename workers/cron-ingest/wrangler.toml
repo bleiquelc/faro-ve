@@ -8,11 +8,14 @@ account_id = "64a18868c428ecbfdaf67d69edffb888"
 # subdominio workers.dev. Esto evita que wrangler pida registrar un subdominio.
 workers_dev = false
 
-# CATCH-UP: cada 15 min mientras se pone al día con el backlog (~5 h para los
-# ~10k nuevos a 90 págs/corrida). Cuando el conteo se estabilice, RELAJAR a 6h
-# para ser gentil con la fuente: cambiar a "0 */6 * * *" y volver a `wrangler deploy`.
+# CATCH-UP ACELERADO: cada 5 min para ponerse al día rápido con el backlog vs la
+# fuente (urgencia humanitaria — que nadie quede sin posibilidad de ser ubicado).
+# Cada corrida ~3 min (90 págs a 90 págs/corrida), así no se solapan; el throttle
+# ÉTICO de 1 req/2s se mantiene DENTRO de cada corrida. A 5 min → ciclo completo
+# (~1.870 págs) en ~1.75 h. Cuando el conteo iguale a la fuente y se estabilice,
+# RELAJAR a "*/15 * * * *" o "0 */6 * * *" y volver a `wrangler deploy`.
 [triggers]
-crons = ["*/15 * * * *"]
+crons = ["*/5 * * * *"]
 
 # Variables públicas (no-secrets)
 [vars]
