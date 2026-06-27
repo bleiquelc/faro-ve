@@ -98,7 +98,9 @@ export const GET: RequestHandler = async ({ url, locals, setHeaders }) => {
         'home_neighborhood, home_city, last_known_location_text, description, photo_url, ' +
         'status, is_minor, created_at'
     )
-    .not('lat', 'is', null)
+    // (Federación: SIN filtro de coords. PFIF lleva la ubicación en TEXTO, no
+    // lat/lon; filtrar por coords dejaría fuera del feed a quien reportó sin GPS
+    // —común con el GPS fallando en el sismo— y debe poder federarse igual.)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -123,11 +125,19 @@ export const GET: RequestHandler = async ({ url, locals, setHeaders }) => {
     // pfif_id ya es un record id PFIF completo (dominio/uuid); si falta, lo armamos.
     const recId = p.pfif_id ?? `${SITE}/${p.id}`;
     const entry = p.created_at ?? '';
+    // expiry_date = entrada + 60d (retención Habeas Data VE, #6). Le dice a CADA
+    // partner que ingiere el feed cuándo DEBE purgar el record (PFIF 1.4) → el
+    // opt-out / borrado se propaga aguas abajo y la data no sobrevive más allá
+    // de lo que la ley permite.
+    const expiry = entry
+      ? new Date(new Date(entry).getTime() + 60 * 24 * 60 * 60 * 1000).toISOString()
+      : '';
     const fullName = p.full_name ?? [p.given_name, p.family_name].filter(Boolean).join(' ').trim();
 
     out.push('  <pfif:person>\n');
     out.push(tag('person_record_id', recId));
     out.push(tag('entry_date', entry));
+    out.push(tag('expiry_date', expiry));
     out.push(tag('author_name', 'Faro VE'));
     out.push(tag('source_name', p.source ?? 'faro-ve'));
     out.push(tag('source_url', p.source_url ?? `https://${SITE}/persona/${p.id}`));

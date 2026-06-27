@@ -446,11 +446,59 @@ const handleKillSwitch: Handle = async ({ event, resolve }) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Export — orden: contexto → supabase → moderador → config-guard → turnstile
-//          → rate-limit → kill switch.
+// Handle: CORS de SOLO-LECTURA para los GET públicos (federación de datos).
+//
+// Que cualquier app/servicio pueda consumir nuestra info PÚBLICA desde el
+// navegador (red de datos conectados). Allowlist EXACTA de endpoints de lectura;
+// solo GET/HEAD/OPTIONS reciben CORS. Las MUTACIONES (POST/PUT) y /api/ai/ask
+// quedan CERRADAS (Turnstile + rate-limit + costo IA). ACAO:* es seguro: los
+// datos ya son la superficie pública enmascarada (coords de personas ofuscadas,
+// PII del reportante nunca expuesta, foto de menor null) y NUNCA hay cookies ni
+// Allow-Credentials. En Cloudflare Pages esto DEBE ir en código (no en _headers,
+// que no cubre las Functions de SvelteKit).
+// ─────────────────────────────────────────────────────────────────────────────
+
+const PUBLIC_GET_CORS = new Set([
+  '/api/pfif',
+  '/api/persons',
+  '/api/persons/clusters',
+  '/api/persons/stats',
+  '/api/aid-points'
+]);
+
+const CORS_HEADERS: Record<string, string> = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-methods': 'GET, HEAD, OPTIONS',
+  'access-control-allow-headers': 'Content-Type',
+  'access-control-max-age': '86400'
+};
+
+const handleCors: Handle = async ({ event, resolve }) => {
+  const method = event.request.method;
+  const corsable =
+    PUBLIC_GET_CORS.has(event.url.pathname) &&
+    (method === 'GET' || method === 'HEAD' || method === 'OPTIONS');
+  if (!corsable) return resolve(event);
+
+  // Preflight: responde 204 sin ejecutar la ruta.
+  if (method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: CORS_HEADERS });
+  }
+
+  // GET/HEAD: ejecuta el resto de la cadena y añade los headers CORS a la copia.
+  const res = await resolve(event);
+  const out = new Response(res.body, res);
+  for (const [k, v] of Object.entries(CORS_HEADERS)) out.headers.set(k, v);
+  return out;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Export — orden: CORS → contexto → supabase → moderador → config-guard →
+//          turnstile → rate-limit → kill switch.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const handle = sequence(
+  handleCors,
   handleContext,
   handleSupabase,
   handleModerator,
