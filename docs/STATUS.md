@@ -161,6 +161,10 @@ Detalle: `docs/SESSIONS/2026-06-27-faro-auxilio-nucleo-estatico.md`.
 - Íconos Faro nuevos: `sighting` (ojo+luz), `medical` (latido ECG+luz), `shelter` (carpa+luz). Home enlaza al hub sin regresar las 4 acciones rápidas.
 - **Rigor:** payloads schema-válidos verificados en navegador; flujo avistamiento (búsqueda→selección→InfoForm) verificado con fetch mock; revisión adversarial de código + regresión de privacidad (clones fieles, 0 merma); prod 200 en las 4 rutas. Commit `897cc01`.
 
+## 2026-06-27 (autónoma, tanda 3) — Íconos propios de Faro Auxilio
+- ✅ **Componente `AuxilioIcon.svelte`** (commit `790f7cb`): 31 íconos de línea estilo Faro (viewBox 24, stroke currentColor, punto de luz #FFE39C) keyed por id — 23 guías + 2 categorías + 6 tipos de contacto. `/auxilio` reemplazó TODOS los emoji por íconos de marca (tarjetas, encabezados, contactos, tabs y buscador). Coherencia total: cero emoji en las tarjetas/contactos/tabs (solo queda el ⚠️ del banner "en revisión", marcador de texto universal).
+- Verificado en navegador (los 31 renderizan; refinados quemaduras/shock/desmayo/refugio para claridad) + revisión de código (cross-check 31 ids ↔ 31 branches exacto, 0 fallbacks; sin imports muertos). Prod 200.
+
 ## Lista de funciones (handoff) — estado
 1. IA-moderadora (restaurar auto-ocultos) — ⏳ requiere `ANTHROPIC_API_KEY` (worker).
 2. Triaje IA — ⏳ requiere deploy worker `ai-triage`.

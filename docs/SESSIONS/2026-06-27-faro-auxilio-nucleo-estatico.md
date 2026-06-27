@@ -71,3 +71,9 @@ El founder pidió "deploya los formularios". Antes de construir, scouting de con
 - **Rigor:** svelte-check 0 errores; revisión adversarial (código + regresión de privacidad: clones fieles, 0 merma); prod 200 en las 4 rutas + hub lista las 7 + home enlaza.
 
 **Cableado auditado este día:** persons_public incluye unidentified_body; create_person_report publica 'approved'; 0 citas de fuente colgadas; todos los href resuelven. Listas actualizadas (STATUS.md + memoria).
+
+---
+
+## Continuación (tanda 4) — íconos propios de Faro Auxilio (commit `790f7cb`)
+
+El founder mostró las tarjetas con emoji y pidió "íconos propios de la app". Nuevo `AuxilioIcon.svelte`: 31 glifos de línea estilo Faro (viewBox 24, stroke currentColor 1.7, punto de luz #FFE39C) keyed por id. Reemplazados TODOS los emoji de `/auxilio`: 23 guías + 2 categorías + 6 contactos + 2 tabs + buscador. Eliminado TYPE_META (dead code). Verificación visual en navegador de los 31 íconos; refinados quemaduras (llama clara), shock/desmayo (figuras distintas), refugio (carpa, no ⚠️). Revisión de código: cross-check 31 ids ↔ 31 branches exacto, 0 fallbacks. Coherencia total: cero emoji de feature en Faro Auxilio. Prod 200.
