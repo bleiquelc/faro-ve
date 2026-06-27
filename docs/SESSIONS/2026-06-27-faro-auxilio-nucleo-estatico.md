@@ -77,3 +77,19 @@ El founder pidió "deploya los formularios". Antes de construir, scouting de con
 ## Continuación (tanda 4) — íconos propios de Faro Auxilio (commit `790f7cb`)
 
 El founder mostró las tarjetas con emoji y pidió "íconos propios de la app". Nuevo `AuxilioIcon.svelte`: 31 glifos de línea estilo Faro (viewBox 24, stroke currentColor 1.7, punto de luz #FFE39C) keyed por id. Reemplazados TODOS los emoji de `/auxilio`: 23 guías + 2 categorías + 6 contactos + 2 tabs + buscador. Eliminado TYPE_META (dead code). Verificación visual en navegador de los 31 íconos; refinados quemaduras (llama clara), shock/desmayo (figuras distintas), refugio (carpa, no ⚠️). Revisión de código: cross-check 31 ids ↔ 31 branches exacto, 0 fallbacks. Coherencia total: cero emoji de feature en Faro Auxilio. Prod 200.
+
+---
+
+## Continuación (tanda 5) — chat IA de Faro Auxilio LIVE (commit `de5564a`)
+
+El founder pidió habilitar el chat IA (API key ya configurada). Faltaba: el endpoint, el helper de servidor y la UI (la infra ya estaba: rate-limit 10/día, budget tables, vars del modelo, KV).
+
+Construido por reuse del patrón del worker ai-triage:
+- `src/routes/api/ai/ask/+server.ts`: Haiku 4.5 vía AI Gateway (o directo a Anthropic), system prompt anclado SOLO en las guías verificadas (`auxilio-knowledge.ts`), budget guard $5/día, geo-switch (app_flag/app_config), fallback robusto.
+- `AuxilioChat.svelte` + tab "Preguntar" en `/auxilio` (avatar FaroAuxilio, texto plano, sugerencias, 429/errores).
+- hooks: `/api/ai/ask` exento de Turnstile (solo lectura; rate-limit + budget protegen).
+- Migración 0023 (app_flag + ai_ve_only) lista para el geo-switch; default global.
+
+Revisión de seguridad (security-reviewer): atrapó un ALTO — `cache_control` de Anthropic sin header beta → 400 → fallback silencioso (el chat parecería "no funcionar"). Fix: system como string, el caché lo da el AI Gateway. + guard anti-forja de history (MEDIUM).
+
+Verificado en PROD (curl + navegador con mock del success-path): responde correcto y fiel a las guías (RCP, sangrado), texto plano, global (sin header de país), reorienta off-topic; UI renderiza la conversación. `ANTHROPIC_API_KEY` confirmada como Pages secret.

@@ -165,6 +165,12 @@ Detalle: `docs/SESSIONS/2026-06-27-faro-auxilio-nucleo-estatico.md`.
 - ✅ **Componente `AuxilioIcon.svelte`** (commit `790f7cb`): 31 íconos de línea estilo Faro (viewBox 24, stroke currentColor, punto de luz #FFE39C) keyed por id — 23 guías + 2 categorías + 6 tipos de contacto. `/auxilio` reemplazó TODOS los emoji por íconos de marca (tarjetas, encabezados, contactos, tabs y buscador). Coherencia total: cero emoji en las tarjetas/contactos/tabs (solo queda el ⚠️ del banner "en revisión", marcador de texto universal).
 - Verificado en navegador (los 31 renderizan; refinados quemaduras/shock/desmayo/refugio para claridad) + revisión de código (cross-check 31 ids ↔ 31 branches exacto, 0 fallbacks; sin imports muertos). Prod 200.
 
+## 2026-06-27 (autónoma, tanda 4) — Chat IA de Faro Auxilio LIVE
+- ✅ **Chat IA funcionando en prod** (commit `de5564a`): endpoint `/api/ai/ask` (Haiku 4.5 vía AI Gateway o directo a Anthropic), system prompt anclado SOLO en las guías verificadas (no improvisa, no recibe PII/DB). Tab "Preguntar" en `/auxilio` con UI de chat (avatar FaroAuxilio, texto plano, sugerencias). Protección: rate-limit 10/IP/día + budget guard $5/día + kill-switch; exento de Turnstile (solo lectura). Fallback robusto → el estático nunca se cae.
+- **Geo-switch** global⇄solo-VE vía `app_config.ai_ve_only` + función `app_flag` (migración **0023**, lista para correr). Default GLOBAL: el chat ya funciona en todo el mundo (probado desde fuera de VE).
+- **Verificado en prod** (curl): responde correcto y fiel a las guías (RCP, sangrado), texto plano sin markdown, global, reorienta off-topic; UI renderiza la conversación. La `ANTHROPIC_API_KEY` está como **Pages secret** (confirmado en vivo).
+- Revisión de seguridad aplicada: quitado `cache_control` (causaba 400 → fallback silencioso; el caché lo da el AI Gateway) + guard anti-forja de history.
+
 ## Lista de funciones (handoff) — estado
 1. IA-moderadora (restaurar auto-ocultos) — ⏳ requiere `ANTHROPIC_API_KEY` (worker).
 2. Triaje IA — ⏳ requiere deploy worker `ai-triage`.
@@ -173,7 +179,7 @@ Detalle: `docs/SESSIONS/2026-06-27-faro-auxilio-nucleo-estatico.md`.
 5. Offline PWA (función 5) — ⏳ (riesgo SW; no autónomo-seguro aún).
 6. Cuerpos NN — ✅ LIVE (`/reportar/cuerpo-nn`).
 7. Resaltar urgencia médica/menores en mapa — ✅ ya hecho (marcadores + FilterChips).
-8. Faro Auxilio (núcleo estático) — ✅ LIVE; falta chat IA (paso 2) + geo-switch (paso 3).
+8. Faro Auxilio — ✅ LIVE completo: núcleo estático (23 guías + contactos) + **chat IA (paso 2) LIVE** + geo-switch (paso 3) cableado (default global; migración 0023 lista para gatear a solo-VE).
 - ✅ **Formularios de reporte COMPLETOS** (commit `897cc01`): hub `/reportar` + `avistamiento` + `condicion-medica` + `refugio` (todos LIVE). Ya no quedan rutas de reporte vacías.
 
 ## Bloqueadores / pendientes founder
@@ -186,7 +192,7 @@ Detalle: `docs/SESSIONS/2026-06-27-faro-auxilio-nucleo-estatico.md`.
 
 ## Próxima sesión arranca con (al 27-jun)
 1. **Founder valida** el contenido médico de `/auxilio` (ideal un profesional) antes de quitar "en revisión"; confirma los 4 contactos "sin verificar" (Protección Civil 0800, FUNVISIS, hospitales).
-2. **Chat IA sobre Faro Auxilio** (función 8 paso 2): construir `/api/ai/ask` (Haiku 4.5 + AI Gateway + budget $5/día) con fallback al estático + geo-switch `app_config.ai_ve_only` (SQL listo en el handoff). Requiere `ANTHROPIC_API_KEY` (worker) del founder.
-3. **Funciones IA bloqueadas** (1, 2, y el chat de Faro Auxilio) en cuanto el founder setee `ANTHROPIC_API_KEY` + AI Gateway.
+2. **(Opcional) Founder corre la migración 0023** para poder gatear el chat a solo-VE (ya funciona global). Y opcional: setear `ANTHROPIC_GATEWAY_URL` como Pages secret/var para activar el caché del AI Gateway (ahora llama a Anthropic directo; funciona, sin caché).
+3. **Triaje IA (función 2) e IA-moderadora (función 1):** el worker `ai-triage` necesita su propio secret + deploy: `cd workers/ai-triage && wrangler secret put ANTHROPIC_API_KEY && wrangler deploy`. (La key de Pages que ya está NO la ve el worker — es otro scope.)
 4. **Relay de mensajes** (función 4) en cuanto el founder setee `RESEND_API_KEY`.
-- (Formularios de reporte: COMPLETOS — ya no quedan vacíos.)
+- Chat IA de Faro Auxilio: ✅ LIVE (global). Formularios de reporte: ✅ completos.

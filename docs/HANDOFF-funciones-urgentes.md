@@ -96,6 +96,9 @@
   4. **Marca:** "Faro Auxilio" / "Faro Vida" — el faro con una **cruz blanca iluminada** en el centro. Botón flotante siempre visible. PWA → web/Android/iOS automático, responsive.
 - **Qué significa para los usuarios:** en la hora dorada tras el sismo, cualquiera —sin entrenamiento médico— recibe instrucciones claras para controlar hemorragias, RCP, atragantamiento, qué hacer si está atrapado, purificar agua, improvisar herramientas, y a quién llamar. Mantiene la calma y **salva vidas directamente**. Costo controlado y enfocado solo en quienes están en la zona.
 
+### ✅ CHAT IA (paso 2) — LIVE (27-jun, commit `de5564a`)
+Endpoint `/api/ai/ask` + tab "Preguntar" en `/auxilio`, Haiku 4.5 vía AI Gateway (o directo a Anthropic), anclado SOLO en las guías verificadas, rate-limit 10/IP/día + budget $5/día + fallback a estático. La `ANTHROPIC_API_KEY` está como **Pages secret** (confirmado: el chat responde en prod). **Geo-switch (paso 3) cableado y default GLOBAL** (funciona en todo el mundo); para gatear a solo-VE el founder corre la migración 0023 y luego `update app_config set value='true' where key='ai_ve_only'`. Opcional: setear `ANTHROPIC_GATEWAY_URL` (Pages) para el caché del gateway. El diseño original (debajo) quedó como referencia histórica.
+
 ### PENDIENTE para el chat IA (pasos 2 y 3) — el núcleo estático ya es el fallback
 - **Robustez ya garantizada:** el núcleo estático funciona SIEMPRE (sin IA, offline). Cualquier chat IA va ENCIMA; si está apagado, bloqueado o sin red → el usuario igual tiene la guía completa. El interruptor por defecto debe ser **IA apagada / solo estático** (default seguro).
 - **Geo-interruptor (global⇄solo-VE sin redeploy)** = una fila en `app_config`. Migración lista-para-pegar en el SQL Editor de Supabase (la DB no se alcanza desde local):
