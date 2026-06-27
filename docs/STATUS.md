@@ -171,6 +171,12 @@ Detalle: `docs/SESSIONS/2026-06-27-faro-auxilio-nucleo-estatico.md`.
 - **Verificado en prod** (curl): responde correcto y fiel a las guías (RCP, sangrado), texto plano sin markdown, global, reorienta off-topic; UI renderiza la conversación. La `ANTHROPIC_API_KEY` está como **Pages secret** (confirmado en vivo).
 - Revisión de seguridad aplicada: quitado `cache_control` (causaba 400 → fallback silencioso; el caché lo da el AI Gateway) + guard anti-forja de history.
 
+## 2026-06-27 (autónoma, tanda 5) — Biblioteca ampliada 23→34 + 5 imágenes IG
+- ✅ **Faro Auxilio: +11 guías verificadas y nueva categoría "Salud y prevención"** (commit `6d1aead`, **34 guías**). Categoría nueva: suero oral (rehidratación), cuidado de heridas/tétanos, higiene en refugios, prevención de mosquitos (dengue). +7 en Primeros auxilios: anafilaxia, intoxicación, mordedura serpiente/alacrán, objeto clavado, golpe en la cabeza, sangrado de nariz, inhalación de humo.
+  - Contenido investigado y **verificado adversarialmente** (workflow OMS/CDC/Cruz Roja/Mayo/OPS) + 2.º par de ojos independiente. **Cero invención.** Se descartó `agua-sodis` (invención: "el vidrio bloquea UV-A"). Fixes: RCP 100-120 en anafilaxia, advertencia de gas en intoxicación, cita Mayo "Poisoning" mal etiquetada quitada de inhalación de humo.
+  - Generado de forma reproducible (`scripts/gen-expansion.mjs` → `expansion.ts`; no se edita a mano). **12 íconos Faro nuevos** (11 guías + categoría). Búsqueda local responde los nuevos temas **sin IA** (offline). Cableado: 0 fuentes colgantes, 0 ids duplicados, typecheck 0 errores. **Prod 200** (faro-ve.com/auxilio = "34 guías").
+- ✅ **5 imágenes Instagram retrato (1080×1350)** entregadas al founder: portada "Servicios gratuitos" · botones que funcionan · Faro Auxilio (×2) · web faro-ve.com + cómo instalar iOS/Android. Renderizadas con Playwright desde HTML de marca (`scripts/render-ig.mjs`, no versionado).
+
 ## Lista de funciones (handoff) — estado
 1. IA-moderadora (restaurar auto-ocultos) — ⏳ requiere `ANTHROPIC_API_KEY` (worker).
 2. Triaje IA — ⏳ requiere deploy worker `ai-triage`.
@@ -179,7 +185,7 @@ Detalle: `docs/SESSIONS/2026-06-27-faro-auxilio-nucleo-estatico.md`.
 5. Offline PWA (función 5) — ⏳ (riesgo SW; no autónomo-seguro aún).
 6. Cuerpos NN — ✅ LIVE (`/reportar/cuerpo-nn`).
 7. Resaltar urgencia médica/menores en mapa — ✅ ya hecho (marcadores + FilterChips).
-8. Faro Auxilio — ✅ LIVE completo: núcleo estático (23 guías + contactos) + **chat IA (paso 2) LIVE** + geo-switch (paso 3) cableado (default global; migración 0023 lista para gatear a solo-VE).
+8. Faro Auxilio — ✅ LIVE completo: núcleo estático (**34 guías** en 3 categorías + contactos) + **chat IA (paso 2) LIVE** con **respuesta local-first** (la guía verificada responde sin llamar a Anthropic) + geo-switch (paso 3) cableado (default global; migración 0023 lista para gatear a solo-VE).
 - ✅ **Formularios de reporte COMPLETOS** (commit `897cc01`): hub `/reportar` + `avistamiento` + `condicion-medica` + `refugio` (todos LIVE). Ya no quedan rutas de reporte vacías.
 
 ## Bloqueadores / pendientes founder
