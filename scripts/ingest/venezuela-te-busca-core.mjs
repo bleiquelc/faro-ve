@@ -84,12 +84,20 @@ export function sexOf(g) {
   return 'unknown';
 }
 
-/** Mapea un registro de la fuente → fila `persons` (o null si no es geocodificable). */
+/**
+ * Mapea un registro de la fuente → fila `persons`. NUNCA descarta: si la
+ * ubicación no es geocodificable, la persona igual entra (lat/lng = null) → es
+ * BUSCABLE por nombre y muestra su ubicación en TEXTO, solo SIN pin en el mapa.
+ * Así nadie queda sin posibilidad de ser ubicado (meta del founder). Devuelve
+ * null SOLO si falta el id (sin id no se puede deduplicar ni referenciar).
+ */
 export function mapRecord(p) {
-  const coords = geocode(p.lastSeen);
-  if (!coords) return null;
-  const [lat, lng] = coords;
+  if (p.id == null || String(p.id).trim() === '') return null;
+  const coords = geocode(p.lastSeen); // [lat,lng] o null
+  const lat = coords ? coords[0] : null;
+  const lng = coords ? coords[1] : null;
   const age = Number.isFinite(p.age) && p.age > 0 && p.age <= 130 ? p.age : null;
+  const lastSeen = p.lastSeen != null ? String(p.lastSeen).trim().slice(0, 300) : '';
   return {
     source: SOURCE,
     source_id: String(p.id),
@@ -99,7 +107,7 @@ export function mapRecord(p) {
     age,
     sex: sexOf(p.gender),
     status: classify(p.status),
-    last_known_location_text: String(p.lastSeen).trim().slice(0, 300),
+    last_known_location_text: lastSeen || null,
     description: p.description ? String(p.description).trim().slice(0, 2000) : null,
     // Foto: solo URLs que existen. Las '/migrated/' de la fuente dan 404 → null.
     photo_url: p.photoUrl && !p.photoUrl.includes('/migrated/') ? `${BASE}${p.photoUrl}` : null,

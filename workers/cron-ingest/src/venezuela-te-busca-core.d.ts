@@ -28,10 +28,12 @@ declare module '*/venezuela-te-busca-core.mjs' {
     age: number | null;
     sex: string;
     status: string;
-    last_known_location_text: string;
+    last_known_location_text: string | null;
     description: string | null;
     photo_url: string | null;
-    lat: number;
-    lng: number;
+    // Pueden ser null: los reportes sin ubicación geocodificable entran igual
+    // (buscables por nombre, sin pin en el mapa).
+    lat: number | null;
+    lng: number | null;
   };
 }

@@ -10,7 +10,7 @@
 
   // Acciones secundarias (fila compacta de chips glassy con iconografía propia).
   const ACTIONS = [
-    { href: "/mapa?buscar=1", icon: "search", label: "Buscar" },
+    { href: "/buscar", icon: "search", label: "Buscar" },
     { href: "/reportar/desaparecido", icon: "report", label: "Reportar" },
     { href: "/reportar/a-salvo", icon: "safe", label: "A salvo" },
     { href: "/reportar/punto-ayuda", icon: "aid", label: "Registrar" },

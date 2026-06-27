@@ -39,7 +39,10 @@ async function insertBatch(client, records) {
           last_known_location_text, description, photo_url, last_known_location_point,
           moderation_status)
        select $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,
-              ST_SetSRID(ST_MakePoint($12,$13),4326)::geography, 'approved'
+              case when $12 is not null and $13 is not null
+                then ST_SetSRID(ST_MakePoint($12,$13),4326)::geography
+                else null end,
+              'approved'
        where not exists (select 1 from persons where source=$1 and source_id=$2)`,
       [
         r.source, r.source_id, r.source_url, r.given_name, r.family_name, r.age, r.sex,

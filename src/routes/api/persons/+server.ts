@@ -21,8 +21,10 @@ export const GET: RequestHandler = async ({ url, locals, setHeaders }) => {
   if (url.searchParams.get('count') === 'exact') {
     let cq = locals.supabase
       .from('persons_public')
-      .select('id', { count: 'exact', head: true })
-      .not('lat', 'is', null);
+      .select('id', { count: 'exact', head: true });
+    // En búsqueda por nombre (q) contamos TAMBIÉN los sin localización (buscables);
+    // en modo mapa (sin q) solo los pineables (con coords).
+    if (!f.q) cq = cq.not('lat', 'is', null);
     if (f.status) cq = cq.eq('status', f.status);
     if (f.is_minor !== undefined) cq = cq.eq('is_minor', f.is_minor);
     if (f.medical_urgent !== undefined) cq = cq.eq('medical_urgent', f.medical_urgent);
@@ -48,12 +50,14 @@ export const GET: RequestHandler = async ({ url, locals, setHeaders }) => {
         'unaccompanied_minor, medical_urgent, medical_category, share_exact_location_with_searchers, ' +
         'lat_exact_optional, lng_exact_optional, created_at, last_seen_at'
     )
-    .not('lat', 'is', null)
     // Orden estable → cuando PostgREST trunca a 1000, el subconjunto es
     // determinista entre requests (acumulación por viewport consistente).
     .order('created_at', { ascending: false })
     .limit(f.limit);
 
+  // Mapa (sin q): solo personas con coords (pineables). Búsqueda por nombre (q):
+  // incluye las SIN localización → que nadie quede sin posibilidad de ser ubicado.
+  if (!f.q) q = q.not('lat', 'is', null);
   if (f.status) q = q.eq('status', f.status);
   if (f.is_minor !== undefined) q = q.eq('is_minor', f.is_minor);
   if (f.medical_urgent !== undefined) q = q.eq('medical_urgent', f.medical_urgent);

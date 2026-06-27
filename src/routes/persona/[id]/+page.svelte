@@ -38,6 +38,8 @@
   $: telHref = phone ? `tel:${phone.replace(/[^\d+]/g, '')}` : null;
 
   $: sector = p.home_neighborhood || p.home_city || p.last_known_location_text || 'Zona desconocida';
+  // Zona en TEXTO sin el fallback "desconocida" (para los reportes sin coords).
+  $: rawZone = p.home_neighborhood || p.home_city || p.last_known_location_text || null;
   $: clothes = [p.clothing_top, p.clothing_bottom].filter(Boolean).join(', ');
   $: age = p.age != null ? `, ${p.age} años` : '';
 
@@ -138,12 +140,23 @@
           address={p.last_known_location_text || sector}
         />
       </div>
-    {:else}
+    {:else if p.lat != null}
       <p class="text-sm text-gray-700">
         <span aria-hidden="true">📍</span>
         Ubicación aproximada <strong>(~300m por privacidad)</strong>.
       </p>
       <p class="mt-1 text-xs text-gray-500">Última zona conocida: {sector}</p>
+    {:else}
+      <!-- Sin localización geocodificable: la persona está registrada y es buscable
+           por nombre, solo que no se pudo ubicar en el mapa (comentario claro). -->
+      <p class="text-sm text-gray-700">
+        <span aria-hidden="true">📍</span>
+        <strong>Sin localización en el mapa.</strong> Esta persona está registrada y se puede buscar
+        por nombre; su última ubicación no pudo ubicarse en el mapa.
+      </p>
+      {#if rawZone}
+        <p class="mt-1 text-xs text-gray-500">Última zona indicada (en texto): {rawZone}</p>
+      {/if}
     {/if}
   </section>
 
