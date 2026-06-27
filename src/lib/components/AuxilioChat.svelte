@@ -23,6 +23,11 @@
     fallback?: boolean;
   };
 
+  // IA del chat: APAGADA por ahora (decisión del founder, 27-jun). El chat usa
+  // solo las guías locales verificadas (offline, sin costo, sin Anthropic).
+  // Reactivar = poner true (el endpoint /api/ai/ask sigue listo).
+  const AI_ENABLED = false;
+
   let messages: Msg[] = [];
   let input = "";
   let loading = false;
@@ -83,8 +88,16 @@
       return;
     }
 
-    // 2) Respaldo IA (Anthropic) para lo que la búsqueda no resuelve.
-    await askWithAI(q);
+    // 2) IA DESACTIVADA por ahora (decisión del founder). Sin llamadas a Anthropic:
+    //    el chat responde SOLO con las guías locales (offline, sin costo). Para
+    //    reactivar el respaldo de IA, poner AI_ENABLED = true.
+    if (AI_ENABLED) {
+      await askWithAI(q);
+    } else {
+      notice =
+        "No encontré una guía exacta para eso. Revisa la lista de guías o, si es una emergencia, llama al 911.";
+      await scrollDown();
+    }
   }
 
   async function askWithAI(q: string) {
