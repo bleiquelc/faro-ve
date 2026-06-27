@@ -2,6 +2,7 @@
   import FaroAuxilio from "$components/FaroAuxilio.svelte";
   import FaroIcon from "$components/FaroIcon.svelte";
   import AuxilioIcon from "$components/AuxilioIcon.svelte";
+  import AuxilioChat from "$components/AuxilioChat.svelte";
   import {
     CATEGORIES,
     CONTACTS,
@@ -11,7 +12,7 @@
     type Procedure,
   } from "$lib/data/auxilio";
 
-  type View = "guia" | "contactos";
+  type View = "guia" | "preguntar" | "contactos";
   let view: View = "guia";
   let q = "";
 
@@ -101,7 +102,7 @@
 
     <!-- Conmutador de vista -->
     <div
-      class="mb-4 grid grid-cols-2 gap-1 rounded-xl bg-slate-200 p-1 text-sm font-semibold"
+      class="mb-4 grid grid-cols-3 gap-1 rounded-xl bg-slate-200 p-1 text-[13px] font-semibold"
       role="tablist"
       aria-label="Secciones de Faro Auxilio"
     >
@@ -117,7 +118,21 @@
           ? 'bg-white text-faro-900 shadow-sm'
           : 'text-slate-600 hover:text-slate-900'}"
       >
-        <AuxilioIcon name="primeros-auxilios" size={18} /> Primeros auxilios
+        <AuxilioIcon name="primeros-auxilios" size={18} /> Guías
+      </button>
+      <button
+        type="button"
+        role="tab"
+        id="tab-preguntar"
+        aria-controls="panel-preguntar"
+        aria-selected={view === "preguntar"}
+        on:click={() => (view = "preguntar")}
+        class="flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 transition {view ===
+        'preguntar'
+          ? 'bg-white text-faro-900 shadow-sm'
+          : 'text-slate-600 hover:text-slate-900'}"
+      >
+        <FaroIcon name="message" size={16} /> Preguntar
       </button>
       <button
         type="button"
@@ -307,6 +322,10 @@
             </div>
           </section>
         {/each}
+      </div>
+    {:else if view === "preguntar"}
+      <div id="panel-preguntar" role="tabpanel" aria-labelledby="tab-preguntar">
+        <AuxilioChat />
       </div>
     {:else}
       <div id="panel-contactos" role="tabpanel" aria-labelledby="tab-contactos">

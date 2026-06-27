@@ -68,7 +68,9 @@ const PUBLIC_POST_PATHS = new Set([
 
 // Mutaciones públicas EXENTAS de Turnstile (pero con rate-limit y config-guard):
 // la URL de subida se pide ANTES de que el usuario resuelva el captcha del envío.
-const TURNSTILE_EXEMPT = new Set(['/api/upload-url']);
+// /api/ai/ask: chat de solo lectura, acotado por rate-limit 10/IP/día + budget
+// guard; un Turnstile por mensaje rompería el chat y no muta datos.
+const TURNSTILE_EXEMPT = new Set(['/api/upload-url', '/api/ai/ask']);
 
 // Interruptor de EMERGENCIA (default OFF = Turnstile estricto, fail-closed #17).
 // Solo poner en true con OK EXPLÍCITO del founder si Turnstile bloquea reportes y
