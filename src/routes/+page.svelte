@@ -5,6 +5,7 @@
   import InstallPrompt from "$components/InstallPrompt.svelte";
   import FaroLogo from "$components/FaroLogo.svelte";
   import FaroIcon from "$components/FaroIcon.svelte";
+  import RefreshButton from "$components/RefreshButton.svelte";
   import { COLOR } from "$utils/colors";
 
   // Acciones secundarias (fila compacta de chips glassy con iconografía propia).
@@ -108,6 +109,14 @@
   <main
     class="absolute inset-0 z-[1000] flex flex-col items-center justify-between px-6 pb-8 pt-[calc(env(safe-area-inset-top)+2.25rem)] text-center text-white"
   >
+    <!-- Actualizar (símbolo): trae los reportes nuevos + la última versión de la
+         app de una vez. Arriba a la derecha, siempre a mano. -->
+    <div
+      class="absolute right-4 top-[calc(env(safe-area-inset-top)+0.6rem)] z-[1001]"
+    >
+      <RefreshButton compact tone="light" />
+    </div>
+
     <!-- Arriba: faro con halo oscuro + título -->
     <div class="flex flex-col items-center gap-3">
       <div class="relative grid place-items-center">
