@@ -21,7 +21,8 @@
     | "sighting"
     | "medical"
     | "shelter"
-    | "info";
+    | "info"
+    | "download";
   export let size = 22;
 </script>
 
@@ -154,5 +155,12 @@
     <path d="M12 4.5 L20.5 19 H3.5 Z" />
     <path d="M12 12.4 L9.2 19 H14.8 Z" />
     <circle cx="12" cy="9.2" r="1.3" fill="#FFE39C" stroke="none" />
+  {:else if name === "download"}
+    <!-- Descargar la guía para tenerla y compartirla. -->
+    <path d="M12 3.5 V14" />
+    <path d="M8 10.2 L12 14.2 L16 10.2" />
+    <path
+      d="M5 16.5 V18.5 A1.5 1.5 0 0 0 6.5 20 H17.5 A1.5 1.5 0 0 0 19 18.5 V16.5"
+    />
   {/if}
 </svg>

@@ -180,6 +180,31 @@
           {/if}
         </div>
 
+        <!-- Descargar la guía completa en PDF (con su fuente oficial), para
+             compartir por WhatsApp o usar sin internet. -->
+        {#if !q}
+          <a
+            href="/guia-primeros-auxilios-faro-ve.pdf"
+            download
+            class="mb-4 flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200 transition active:scale-[0.99] hover:ring-faro-300"
+          >
+            <span
+              class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-faro-900 text-white"
+            >
+              <FaroIcon name="download" size={22} />
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block text-sm font-bold text-slate-800"
+                >Descargar guía completa (PDF)</span
+              >
+              <span class="block text-[12px] leading-snug text-slate-500"
+                >Las {PROCEDURE_COUNT} guías con su fuente oficial · compártela o úsala
+                sin internet</span
+              >
+            </span>
+          </a>
+        {/if}
+
         {#if filtered.length === 0}
           <p
             class="rounded-xl bg-white px-4 py-8 text-center text-sm text-slate-500 ring-1 ring-slate-200"

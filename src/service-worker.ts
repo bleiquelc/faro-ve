@@ -21,7 +21,12 @@
  */
 import { precacheAndRoute, cleanupOutdatedCaches, matchPrecache } from 'workbox-precaching';
 import { registerRoute, NavigationRoute } from 'workbox-routing';
-import { NetworkFirst, NetworkOnly, CacheFirst } from 'workbox-strategies';
+import {
+  NetworkFirst,
+  NetworkOnly,
+  CacheFirst,
+  StaleWhileRevalidate
+} from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 
@@ -77,6 +82,20 @@ registerRoute(
     } catch {
       return offlinePage();
     }
+  })
+);
+
+// Guía PDF descargable: se cachea al descargarla (online) y queda disponible
+// SIN conexión para volver a abrirla o compartirla. StaleWhileRevalidate: sirve
+// la copia local al instante y trae en segundo plano una versión nueva si la hay.
+registerRoute(
+  ({ url }) => url.pathname === '/guia-primeros-auxilios-faro-ve.pdf',
+  new StaleWhileRevalidate({
+    cacheName: 'faro-guia-pdf',
+    plugins: [
+      new CacheableResponsePlugin({ statuses: [0, 200] }),
+      new ExpirationPlugin({ maxEntries: 2, maxAgeSeconds: 60 * 60 * 24 * 60, purgeOnQuotaError: true })
+    ]
   })
 );
 
