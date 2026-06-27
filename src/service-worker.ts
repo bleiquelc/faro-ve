@@ -21,12 +21,7 @@
  */
 import { precacheAndRoute, cleanupOutdatedCaches, matchPrecache } from 'workbox-precaching';
 import { registerRoute, NavigationRoute } from 'workbox-routing';
-import {
-  NetworkFirst,
-  NetworkOnly,
-  CacheFirst,
-  StaleWhileRevalidate
-} from 'workbox-strategies';
+import { NetworkFirst, NetworkOnly, CacheFirst } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 
@@ -85,16 +80,18 @@ registerRoute(
   })
 );
 
-// Guía PDF descargable: se cachea al descargarla (online) y queda disponible
-// SIN conexión para volver a abrirla o compartirla. StaleWhileRevalidate: sirve
-// la copia local al instante y trae en segundo plano una versión nueva si la hay.
+// Guía PDF descargable: NetworkFirst → estando ONLINE SIEMPRE trae la última
+// versión de la red (no la copia vieja); offline cae a la última descargada.
+// Además el botón pide la URL versionada (?v=<version>) que rompe TODA caché
+// (navegador/edge/SW) en cada deploy → nunca se sirve una guía vieja.
 registerRoute(
   ({ url }) => url.pathname === '/guia-primeros-auxilios-faro-ve.pdf',
-  new StaleWhileRevalidate({
+  new NetworkFirst({
     cacheName: 'faro-guia-pdf',
+    networkTimeoutSeconds: 8,
     plugins: [
       new CacheableResponsePlugin({ statuses: [0, 200] }),
-      new ExpirationPlugin({ maxEntries: 2, maxAgeSeconds: 60 * 60 * 24 * 60, purgeOnQuotaError: true })
+      new ExpirationPlugin({ maxEntries: 3, maxAgeSeconds: 60 * 60 * 24 * 60, purgeOnQuotaError: true })
     ]
   })
 );

@@ -3,6 +3,7 @@
   import FaroIcon from "$components/FaroIcon.svelte";
   import AuxilioIcon from "$components/AuxilioIcon.svelte";
   import AuxilioChat from "$components/AuxilioChat.svelte";
+  import { version } from "$app/environment";
   import {
     CATEGORIES,
     CONTACTS,
@@ -23,7 +24,9 @@
   async function shareGuide(): Promise<void> {
     if (guideBusy) return;
     guideBusy = true;
-    const url = "/guia-primeros-auxilios-faro-ve.pdf";
+    // ?v=<version del build> rompe TODA caché (navegador/edge/SW) en cada deploy
+    // → siempre se descarga la guía MÁS RECIENTE, nunca una copia vieja.
+    const url = `/guia-primeros-auxilios-faro-ve.pdf?v=${encodeURIComponent(version)}`;
     const filename = "Guia-Primeros-Auxilios-Faro-VE.pdf";
     try {
       const res = await fetch(url);
