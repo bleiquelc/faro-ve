@@ -2,137 +2,32 @@
 /**
  * Ingesta ÉTICA de venezuelatebusca.com (→ venezuela-te-busca-app.hellogafaro.workers.dev).
  *
- * La fuente es una SPA React Router; los datos salen de /_root.data (turbo-stream,
- * paginado por cursor). Cada persona trae: firstName, lastName, idNumber, age,
- * gender, lastSeen (TEXTO de lugar, no coords), status (missing|found), photoUrl,
- * description, reporter{name,phone,email}.
+ * El PARSEO, geocodificación y mapeo viven en `./venezuela-te-busca-core.mjs`
+ * (compartido con el Worker cron-ingest → una sola fuente de verdad). Este script
+ * añade solo: conexión pg + insert idempotente + bucle principal con CLI.
  *
  * Decisiones del founder:
- *  - Ingerir AMBAS: missing → 'missing'; found ("está bien") → 'found_alive' (verde).
+ *  - Ingerir AMBAS: missing → 'missing'; found ("está bien") → 'found_alive'.
  *  - Auto-aprobadas (moderation_status='approved') con atribución + opt-out.
- *  - Solo las que tengan ubicación geocodificable (la fuente no da coordenadas →
- *    geocodificamos el texto a nivel barrio/ciudad; pin APROXIMADO).
+ *  - Solo las geocodificables (la fuente no da coords → texto a barrio/ciudad).
  *
- * Privacidad (CLAUDE):
- *  - NUNCA republicamos la PII del reportante (name/phone/email de la fuente).
- *  - El trigger de obfuscación aplica 300m sobre el punto al insertar.
- *  - Foto: se guarda la URL de la fuente; el trigger 0012 fuerza admin_only si la
- *    edad es <18 o desconocida (fail-safe regla #3) → la vista la oculta.
- *
- * Ética (CLAUDE #12): UA identificada, throttle 1 req/2s, robots.txt ya revisado
- * (sin Disallow). Atribución source + source_url + opt-out.
+ * Privacidad: NUNCA se republica la PII del reportante; el trigger ofusca 300m y
+ * fuerza foto admin_only si la edad es <18/desconocida. Ética (#12): UA, 1 req/2s.
  *
  * Uso:
  *   node scripts/ingest/venezuela-te-busca.mjs --dry [--pages N]      # no escribe
  *   DATABASE_URL="..." node scripts/ingest/venezuela-te-busca.mjs --apply [--pages N]
+ *
+ * NOTA: el host directo de Supabase es IPv6; en redes IPv4 usa la cadena del
+ * POOLER (Supabase → Connect → Session pooler) en DATABASE_URL.
  */
 import pg from 'pg';
-import { geocode } from './geocode.mjs';
-
-const BASE = 'https://venezuela-te-busca-app.hellogafaro.workers.dev';
-const SOURCE = 'venezuela-te-busca';
-const SOURCE_URL = 'https://venezuelatebusca.com';
-const UA = 'FaroVE-IngestBot/1.0 (+contacto@faro-ve.com)';
-const THROTTLE_MS = 2000;
+import { SOURCE, THROTTLE_MS, sleep, fetchPageValid, mapRecord } from './venezuela-te-busca-core.mjs';
 
 const args = process.argv.slice(2);
 const DRY = args.includes('--dry') || !args.includes('--apply');
 const pagesArg = args.indexOf('--pages');
 const MAX_PAGES = pagesArg >= 0 ? parseInt(args[pagesArg + 1], 10) : Infinity;
-
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-// ── turbo-stream decoder (validado contra la fuente) ────────────────────────
-function decode(arr) {
-  const R = (i, d = 0) => {
-    if (d > 10) return null;
-    const v = arr[i];
-    if (v === null || typeof v !== 'object') return v;
-    if (Array.isArray(v)) return v.map((x) => R(x, d + 1));
-    const o = {};
-    for (const k of Object.keys(v)) {
-      const key = k[0] === '_' ? arr[+k.slice(1)] : k;
-      o[key] = R(v[k], d + 1);
-    }
-    return o;
-  };
-  return R(0);
-}
-
-// La fuente pagina por número de página: pagination = { page, hasMore }. (Antes
-// exponía nextHref; cambió de formato y dejó la ingesta estancada en la página 1.)
-async function fetchPage(page) {
-  const url = `${BASE}/_root.data${page > 1 ? `?page=${page}` : ''}`;
-  const res = await fetch(url, { headers: { 'user-agent': UA, accept: 'text/x-script' } });
-  if (!res.ok) throw new Error(`HTTP ${res.status} en ${url}`);
-  const text = await res.text();
-  const arr = JSON.parse(text.split('\n')[0]);
-  const data = decode(arr)['routes/_index'].data;
-  const persons = data.persons || [];
-  const hasMore = !!data.pagination?.hasMore;
-  // echoPage: la página que la fuente DICE haber servido. Si pedimos la 155 y
-  // responde page=1 con persons=0, es un glitch/reset espurio (no el fin real).
-  return { persons, hasMore, totalCount: data.totalCount, stats: data.stats, echoPage: data.pagination?.page };
-}
-
-// geocoding: texto de lugar → [lat,lng]. Tabla determinista nacional + selección
-// por aguja más larga (más específica). Ver scripts/ingest/geocode.mjs (testeado).
-
-function classify(status) {
-  if (status === 'found') return 'found_alive';
-  return 'missing';
-}
-function sexOf(g) {
-  if (g === 'masculino') return 'male';
-  if (g === 'femenino') return 'female';
-  return 'unknown';
-}
-
-function mapRecord(p) {
-  const coords = geocode(p.lastSeen);
-  if (!coords) return null; // sin ubicación geocodificable → no va al mapa
-  const [lat, lng] = coords;
-  const age = Number.isFinite(p.age) && p.age > 0 && p.age <= 130 ? p.age : null;
-  return {
-    source: SOURCE,
-    source_id: String(p.id),
-    source_url: SOURCE_URL,
-    given_name: (p.firstName || '').trim() || null,
-    family_name: (p.lastName || '').trim() || null,
-    age,
-    sex: sexOf(p.gender),
-    status: classify(p.status),
-    last_known_location_text: String(p.lastSeen).trim().slice(0, 300),
-    description: p.description ? String(p.description).trim().slice(0, 2000) : null,
-    // Foto LIMPIA (founder): solo URLs que existen. Las '/migrated/' de la fuente
-    // dan 404 (no se migraron, confirmado 0/20) → null, para no re-meter íconos
-    // rotos. Las uuid válidas (que sí cargan) se conservan.
-    photo_url: p.photoUrl && !p.photoUrl.includes('/migrated/') ? `${BASE}${p.photoUrl}` : null,
-    lat,
-    lng
-  };
-}
-
-// Reintenta una página con backoff (corridas largas: una falla transitoria no
-// debe tumbar las ~1.400 páginas). Además detecta el "reset" de la fuente: a
-// veces, en una página intermedia, responde vacío con echoPage=1 (glitch). Eso NO
-// es el fin → reintentamos; si persiste, devolvemos el último y el caller la SALTA
-// (no corta la ingesta). Validado: la pág 155 glitcheaba pero 156+ tenían datos.
-async function fetchPageValid(page, tries = 4) {
-  let last = { persons: [], hasMore: true, echoPage: page };
-  for (let i = 0; i < tries; i++) {
-    try {
-      const r = await fetchPage(page);
-      last = r;
-      const glitch = r.persons.length === 0 || (page !== 1 && r.echoPage === 1);
-      if (!glitch) return r;
-    } catch (e) {
-      if (i === tries - 1 && last.persons.length === 0) throw e;
-    }
-    if (i < tries - 1) await sleep(THROTTLE_MS * (i + 2));
-  }
-  return last; // tras reintentos sigue vacía/glitcheada → el caller decide saltar
-}
 
 // Inserta un lote — idempotente por (source, source_id). Query EXACTA de siempre.
 async function insertBatch(client, records) {
@@ -190,13 +85,10 @@ try {
     if (totalCount === null) {
       totalCount = tc;
       stats = st;
-      // El fin se decide por nº de páginas esperadas (no por hasMore, que glitchea).
       maxPages = totalCount ? Math.ceil(totalCount / 20) + 3 : Infinity;
       console.log(`Fuente: totalCount=${totalCount} ${JSON.stringify(stats)} (~${maxPages} págs)`);
     }
     if (persons.length === 0) {
-      // Página vacía: NO cortamos por una aislada (glitch de la fuente). Solo varias
-      // seguidas = fin real. La saltamos y seguimos (la 156+ sí tiene datos).
       emptyStreak++;
       skipped++;
       if (emptyStreak >= 5) break;

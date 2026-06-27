@@ -1,7 +1,8 @@
 /**
  * Faro VE — cron-ingest worker.
  *
- * Schedule: cada 6 horas (0 0,6,12,18 UTC = 20:00, 02:00, 08:00, 14:00 Caracas).
+ * Schedule real en wrangler.toml. Hoy: cada 15 min (catch-up del backlog de
+ * venezuela-te-busca); relajar a 6h cuando el conteo se estabilice.
  *
  * Por cada import_sources.enabled=true:
  *   1. Fetch + parse robots.txt; si disallow → skip + audit_log.
@@ -18,6 +19,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { ingest as ingestVtb } from './adapters/venezuela-te-busca';
 
 export interface Env {
   PUBLIC_SUPABASE_URL: string;
@@ -28,6 +30,7 @@ export interface Env {
   INGEST_USER_AGENT: string;
   INGEST_REQUEST_DELAY_MS: string;
   INGEST_MIN_PARSE_RATE: string;
+  INGEST_MAX_PAGES_PER_RUN?: string;
   INGEST_STATE?: KVNamespace;
 }
 
@@ -37,6 +40,7 @@ interface IngestResult {
   duplicates: number;
   errors: number;
   notes: string;
+  nextCursor?: number;
 }
 
 export default {
@@ -84,7 +88,8 @@ async function runIngest(env: Env): Promise<void> {
           last_run_imported: result.imported,
           last_run_duplicates: result.duplicates,
           last_run_errors: result.errors,
-          total_imported: (source.total_imported ?? 0) + result.imported
+          total_imported: (source.total_imported ?? 0) + result.imported,
+          ...(result.nextCursor != null ? { ingest_cursor: result.nextCursor } : {})
         })
         .eq('id', source.id);
     } catch (err) {
@@ -110,17 +115,31 @@ async function runIngest(env: Env): Promise<void> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function ingestSource(
-  source: { slug: string; base_url: string },
+  source: { slug: string; base_url: string; ingest_cursor?: number },
   env: Env,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  _supabase: any
+  supabase: any
 ): Promise<IngestResult> {
-  // D4: import dinámico del adapter por slug:
-  //   const adapter = await import(`./adapters/${source.slug}.ts`);
-  //   const records = await adapter.extract({ baseUrl, fetcher: makeFetcher(env) });
-  //
-  // robots.txt check con robots-parser, throttle 1 req/2s, dedup, upsert.
+  if (source.slug === 'venezuela-te-busca') {
+    const maxPagesPerRun = Math.max(1, parseInt(env.INGEST_MAX_PAGES_PER_RUN || '90', 10) || 90);
+    const r = await ingestVtb({
+      supabase,
+      startCursor: source.ingest_cursor ?? 1,
+      maxPagesPerRun,
+      ua: env.INGEST_USER_AGENT || 'FaroVE-IngestBot/1.0 (+contacto@faro-ve.com)',
+      log: (m) => console.log(`[vtb] ${m}`)
+    });
+    return {
+      slug: source.slug,
+      imported: r.imported,
+      duplicates: r.duplicates,
+      errors: r.errors,
+      notes: r.notes,
+      nextCursor: r.nextCursor
+    };
+  }
 
-  console.log(`[cron-ingest] ${source.slug} (${source.base_url}) — adapter pendiente D4`);
-  return { slug: source.slug, imported: 0, duplicates: 0, errors: 0, notes: 'D1 stub' };
+  // Otros slugs: adapter aún no implementado.
+  console.log(`[cron-ingest] ${source.slug} (${source.base_url}) — adapter pendiente`);
+  return { slug: source.slug, imported: 0, duplicates: 0, errors: 0, notes: 'sin adapter' };
 }

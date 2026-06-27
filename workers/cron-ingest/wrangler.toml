@@ -3,15 +3,19 @@ main = "src/index.ts"
 compatibility_date = "2026-06-20"
 compatibility_flags = ["nodejs_compat"]
 
-# Scrapers cada 6h — robots.txt check + UA identificada + throttle 1 req/2s
+# CATCH-UP: cada 15 min mientras se pone al día con el backlog (~5 h para los
+# ~10k nuevos a 90 págs/corrida). Cuando el conteo se estabilice, RELAJAR a 6h
+# para ser gentil con la fuente: cambiar a "0 */6 * * *" y volver a `wrangler deploy`.
 [triggers]
-crons = ["0 */6 * * *"]
+crons = ["*/15 * * * *"]
 
 # Variables públicas (no-secrets)
 [vars]
 INGEST_USER_AGENT = "FaroVE-IngestBot/1.0 (+contacto@faro-ve.com)"
 INGEST_REQUEST_DELAY_MS = "2000"
 INGEST_MIN_PARSE_RATE = "0.5"
+# Páginas por corrida (20 registros c/u, throttle 2s). 90 ≈ 3 min de reloj.
+INGEST_MAX_PAGES_PER_RUN = "90"
 
 # Secrets a inyectar via: wrangler secret put SUPABASE_SERVICE_ROLE_KEY
 #   - PUBLIC_SUPABASE_URL
