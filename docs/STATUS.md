@@ -177,15 +177,21 @@ Detalle: `docs/SESSIONS/2026-06-27-faro-auxilio-nucleo-estatico.md`.
   - Generado de forma reproducible (`scripts/gen-expansion.mjs` → `expansion.ts`; no se edita a mano). **12 íconos Faro nuevos** (11 guías + categoría). Búsqueda local responde los nuevos temas **sin IA** (offline). Cableado: 0 fuentes colgantes, 0 ids duplicados, typecheck 0 errores. **Prod 200** (faro-ve.com/auxilio = "34 guías").
 - ✅ **5 imágenes Instagram retrato (1080×1350)** entregadas al founder: portada "Servicios gratuitos" · botones que funcionan · Faro Auxilio (×2) · web faro-ve.com + cómo instalar iOS/Android. Renderizadas con Playwright desde HTML de marca (`scripts/render-ig.mjs`, no versionado).
 
+## 2026-06-27 (autónoma, tanda 6) — Offline REAL + Guía PDF descargable
+- ✅ **Offline de verdad** (commit `7c8f4fb`). Hallazgo clave: el service worker **nunca se registraba** en prod (faltaba el código) → la PWA no tenía offline. Ahora: registro en `+layout.svelte` (a prueba de fallos); `/auxilio` y `/offline` prerenderizadas y **precacheadas** → **Faro Auxilio (34 guías + contactos) funciona SIN conexión**; página `/offline` de respaldo (marca Faro). Teselas del mapa cacheadas (Carto con `crossOrigin`).
+  - **Revisión adversarial multi-agente (4 lentes) ANTES de prod corrigió 2 CRÍTICOS:** (1) `autoUpdate` recargaba sola la página en cada deploy → habría borrado un reporte a medio llenar → cambiado a `registerType:'prompt'` (el RefreshButton es el único disparador de recarga); (2) `NetworkFirst` cacheaba el HTML de `/persona/[id]` con **coords exactas + teléfono** → fuga de PII en dispositivo compartido → **navegación fail-closed (allowlist)**: solo páginas estáticas se cachean; mapa/persona/punto/reportar/moderación/api NUNCA. Teselas con `crossOrigin:'anonymous'` (evita cuota por respuestas opacas).
+  - **Verificado DOBLE** (Playwright; vite preview + faro-ve.com en vivo): offline `/auxilio` completo; offline `/persona` → `/offline` y `faro-paginas` SIN `/persona`/`/punto`/`/`; mapa online 28/28 teselas, 0 CORS; online sin regresión. Test reproducible en `scripts/verify-offline.mjs`.
+- ✅ **Guía PDF descargable y distribuible** (commit `934595d`): botón "Descargar guía completa (PDF)" en `/auxilio`. Generada (`scripts/gen-guide-pdf.ts`) desde los **mismos datos verificados** → idéntica al contenido validado, **cero invención**; cada guía cita su FUENTE oficial + bibliografía completa (95 fuentes). 34 guías, 586 KB. El SW la cachea al descargarla (StaleWhileRevalidate) → disponible **sin conexión** para compartir. Ícono Faro `download`. **Prod 200** (`application/pdf`).
+
 ## Lista de funciones (handoff) — estado
 1. IA-moderadora (restaurar auto-ocultos) — ⏳ requiere `ANTHROPIC_API_KEY` (worker).
 2. Triaje IA — ⏳ requiere deploy worker `ai-triage`.
 3. WhatsApp opt-in reportante — ⏳ (migración).
 4. Relay de mensajes — ⏳ requiere `RESEND_API_KEY`.
-5. Offline PWA (función 5) — ⏳ (riesgo SW; no autónomo-seguro aún).
+5. Offline PWA (función 5) — ✅ LIVE (commit `7c8f4fb`): SW registrado (antes no lo estaba), Faro Auxilio + guía PDF disponibles SIN conexión, página `/offline`, navegación fail-closed (sin caché de PII), actualización controlada por el usuario. Pendiente futuro: BackgroundSync de reportes offline (cola Dexie) — no incluido aún.
 6. Cuerpos NN — ✅ LIVE (`/reportar/cuerpo-nn`).
 7. Resaltar urgencia médica/menores en mapa — ✅ ya hecho (marcadores + FilterChips).
-8. Faro Auxilio — ✅ LIVE completo: núcleo estático (**34 guías** en 3 categorías + contactos) + **chat IA (paso 2) LIVE** con **respuesta local-first** (la guía verificada responde sin llamar a Anthropic) + geo-switch (paso 3) cableado (default global; migración 0023 lista para gatear a solo-VE).
+8. Faro Auxilio — ✅ LIVE completo: núcleo estático (**34 guías** en 3 categorías + contactos) **funcionando SIN conexión** (precache) + **guía PDF descargable/distribuible con fuentes** + **chat IA (paso 2) LIVE** con **respuesta local-first** (la guía verificada responde sin llamar a Anthropic) + geo-switch (paso 3) cableado (default global; migración 0023 lista para gatear a solo-VE).
 - ✅ **Formularios de reporte COMPLETOS** (commit `897cc01`): hub `/reportar` + `avistamiento` + `condicion-medica` + `refugio` (todos LIVE). Ya no quedan rutas de reporte vacías.
 
 ## Bloqueadores / pendientes founder
