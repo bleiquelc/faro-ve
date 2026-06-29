@@ -210,6 +210,15 @@
       </div>
 
       <a
+        href="/reencuentros"
+        data-sveltekit-preload-data="hover"
+        class="min-h-tap flex w-full items-center justify-center gap-2 rounded-2xl bg-green-600/85 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-black/25 ring-1 ring-white/20 backdrop-blur-md transition active:scale-[0.98] hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-white/60"
+      >
+        <span>Posibles reencuentros</span>
+        <span aria-hidden="true" class="text-white/80">→</span>
+      </a>
+
+      <a
         href="/reportar"
         data-sveltekit-preload-data="hover"
         class="min-h-tap flex w-full items-center justify-center gap-2 rounded-2xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-black/20 ring-1 ring-white/15 backdrop-blur-md transition active:scale-[0.98] hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/60"
