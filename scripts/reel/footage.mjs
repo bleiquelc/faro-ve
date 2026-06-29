@@ -28,7 +28,7 @@ const QUERIES = [
 export async function getFootage(workDir, dayIndex) {
   const key = pexelsKey();
   if (!key) return null;
-  const query = QUERIES[dayIndex % QUERIES.length];
+  const query = process.env.FOOTAGE_QUERY || QUERIES[dayIndex % QUERIES.length];
   let data;
   try {
     const r = await fetch(
