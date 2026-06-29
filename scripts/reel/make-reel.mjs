@@ -14,6 +14,7 @@
  *   reel-FECHA-poster.png  (405×720 — miniatura)
  */
 import { chromium } from '@playwright/test';
+import { getFootage } from './footage.mjs';
 import { execFileSync } from 'child_process';
 import fs from 'fs';
 import os from 'os';
@@ -66,16 +67,30 @@ await page.screenshot({ path: ovPng, omitBackground: true });
 await browser.close();
 console.log('frames listos:', bgPng, ovPng);
 
-// 2) Componer con ffmpeg: Ken Burns (zoom lento) + máscara + fade in/out, 15s
-const filter =
-  "[0:v]scale=1296:2304,zoompan=z='min(1+0.0009*on,1.14)':d=375:" +
-  "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:fps=25[bg];" +
-  "[bg][1:v]overlay=0:0[ov];" +
-  "[ov]fade=t=in:st=0:d=0.8,fade=t=out:st=14:d=1,format=yuv420p[v]";
-
+// 2) Fondo: video real de Pexels (si hay key) o la escena propia; luego ffmpeg
+//    compone la máscara + fade in/out, 15s.
+const footage = await getFootage(WORK, doy);
+let inputs, filter;
+if (footage) {
+  inputs = ['-y', '-i', footage.path, '-i', ovPng];
+  filter =
+    "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920," +
+    "trim=0:15,setpts=PTS-STARTPTS[bg];" +
+    "[bg][1:v]overlay=0:0[ov];" +
+    "[ov]fade=t=in:st=0:d=0.8,fade=t=out:st=14:d=1,format=yuv420p[v]";
+  fs.writeFileSync(mp4 + '.credit.txt', footage.credit);
+  console.log('fondo: Pexels →', footage.query, '·', footage.credit);
+} else {
+  inputs = ['-y', '-loop', '1', '-t', '15', '-i', bgPng, '-i', ovPng];
+  filter =
+    "[0:v]scale=1296:2304,zoompan=z='min(1+0.0009*on,1.14)':d=375:" +
+    "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:fps=25[bg];" +
+    "[bg][1:v]overlay=0:0[ov];" +
+    "[ov]fade=t=in:st=0:d=0.8,fade=t=out:st=14:d=1,format=yuv420p[v]";
+  console.log('fondo: escena propia (sin key Pexels)');
+}
 execFileSync(FFMPEG, [
-  '-y', '-loop', '1', '-t', '15', '-i', bgPng, '-i', ovPng,
-  '-filter_complex', filter, '-map', '[v]',
+  ...inputs, '-filter_complex', filter, '-map', '[v]',
   '-r', '25', '-t', '15', '-c:v', 'libx264', '-crf', '22', '-preset', 'medium',
   '-movflags', '+faststart', mp4
 ], { stdio: 'inherit' });
