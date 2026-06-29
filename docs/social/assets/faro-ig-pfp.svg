@@ -1,0 +1,57 @@
+<svg width="1080" height="1080" viewBox="0 0 1080 1080" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Faro VE — Mapa de Esperanza">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0B4F6C"/>
+      <stop offset="1" stop-color="#062231"/>
+    </linearGradient>
+    <radialGradient id="vignette" cx="50%" cy="44%" r="72%">
+      <stop offset="55%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#031722" stop-opacity="0.45"/>
+    </radialGradient>
+    <radialGradient id="bigGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#FFF3CC" stop-opacity="0.55"/>
+      <stop offset="45%" stop-color="#FFE39C" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#FFE39C" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="lampGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#FFF7D6" stop-opacity="0.98"/>
+      <stop offset="50%" stop-color="#FFE39C" stop-opacity="0.42"/>
+      <stop offset="100%" stop-color="#FFE39C" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ray" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFF1C2" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#FFF1C2" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Fondo a sangre -->
+  <rect width="1080" height="1080" fill="url(#bg)"/>
+  <!-- Halo cálido grande detrás de la lámpara (centro mapeado ~540,310) -->
+  <circle cx="540" cy="330" r="430" fill="url(#bigGlow)"/>
+
+  <!-- Faro: trazos originales reusados, recompuestos para recorte circular.
+       Transform mapea el espacio 512 original centrando la masa del faro. -->
+  <g transform="translate(540 560) scale(1.94) translate(-256 -287)">
+    <!-- Glow de la lámpara -->
+    <circle cx="256" cy="158" r="104" fill="url(#lampGlow)"/>
+    <!-- Dos haces simétricos -->
+    <path d="M256 158 L150 92 L182 140 Z" fill="url(#ray)"/>
+    <path d="M256 158 L362 92 L330 140 Z" fill="url(#ray)"/>
+    <!-- Lámpara (núcleo de luz) -->
+    <circle cx="256" cy="158" r="21" fill="#FFE39C"/>
+    <circle cx="256" cy="158" r="10" fill="#FFF7E0"/>
+    <!-- Sala de la lámpara -->
+    <path d="M210 180 H302 L294 206 H218 Z" fill="#ffffff"/>
+    <!-- Torre cónica -->
+    <path d="M218 206 H294 L312 392 H200 Z" fill="#ffffff"/>
+    <!-- Banda de acento -->
+    <path d="M214 300 H298 L303 330 H209 Z" fill="#52A9C9"/>
+    <!-- Base -->
+    <path d="M188 392 H324 L338 424 H174 Z" fill="#ffffff"/>
+    <!-- Suelo -->
+    <rect x="150" y="424" width="212" height="14" rx="7" fill="#ffffff"/>
+  </g>
+
+  <!-- Viñeta sutil para profundidad en el círculo -->
+  <rect width="1080" height="1080" fill="url(#vignette)"/>
+</svg>
