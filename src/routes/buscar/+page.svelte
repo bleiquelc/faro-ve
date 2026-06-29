@@ -75,6 +75,15 @@
     </div>
   </form>
 
+  <a
+    href="/reencuentros"
+    data-sveltekit-preload-data="hover"
+    class="min-h-tap mt-4 flex items-center justify-center gap-2 rounded-xl bg-green-50 px-4 py-2.5 text-sm font-medium text-green-800 ring-1 ring-green-200 transition active:scale-[0.99] hover:bg-green-100"
+  >
+    <span>¿Quizás ya apareció? Mirá los posibles reencuentros</span>
+    <span aria-hidden="true">→</span>
+  </a>
+
   {#if searched}
     <p class="mt-5 text-sm text-gray-500" aria-live="polite">
       {results.length === 0
@@ -93,6 +102,9 @@
         Prueba con otra forma del nombre (solo el nombre, o solo el apellido). Si la persona aún no
         fue reportada, puedes
         <a href="/reportar/desaparecido" class="font-medium text-faro-800 underline">crear el reporte</a>.
+        También revisá los
+        <a href="/reencuentros" class="font-medium text-green-700 underline">posibles reencuentros</a>
+        — gente reportada a salvo en otra plataforma.
       </div>
     {:else}
       <ul class="mt-3 space-y-2.5">
