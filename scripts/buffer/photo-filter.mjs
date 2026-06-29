@@ -9,6 +9,7 @@
  * Usa la key local (no en chat/repo) y Haiku (default barato, dentro del budget IA).
  */
 import fs from 'fs';
+import { getCached, setCached } from './ai-cache.mjs';
 
 const KEY = fs.readFileSync(process.env.HOME + '/.secrets/faro-ve/anthropic-key.txt', 'utf8').trim();
 const MODEL = 'claude-haiku-4-5-20251001';
@@ -38,6 +39,10 @@ function sniffMedia(b) {
 }
 
 export async function classifyPhoto(url) {
+  // Cache permanente por URL: el mismo URL = la misma imagen = el mismo veredicto.
+  // Evita re-pagar visión Haiku (la llamada de IA más cara) por fotos ya clasificadas.
+  const hit = getCached('photo', url);
+  if (hit) return hit;
   let r;
   try {
     r = await fetch(url);
@@ -76,11 +81,13 @@ export async function classifyPhoto(url) {
     const badKind = ['flyer', 'poster', 'id_document', 'screenshot', 'group', 'document'].includes(out.kind);
     // usable real = el modelo dijo usable Y nada de: menor, texto sobreimpreso, contacto/cédula, tipo malo.
     const usable = !!out.usable && !out.has_minor && !out.has_text_overlay && !out.has_contact_or_id && !badKind;
-    return {
+    const result = {
       usable, kind: out.kind || 'other', faces: out.faces ?? 0,
       has_minor: !!out.has_minor, has_text_overlay: !!out.has_text_overlay, has_contact_or_id: !!out.has_contact_or_id,
       reason: out.reason || ''
     };
+    setCached('photo', url, result); // veredicto definitivo → cache permanente
+    return result;
   } catch {
     return { usable: false, kind: 'parse_error', faces: 0, has_minor: false, reason: txt.slice(0, 140) };
   }

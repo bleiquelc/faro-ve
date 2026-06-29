@@ -1,0 +1,150 @@
+/**
+ * Faro VE — MANTENIMIENTO DIARIO automático (1 corrida/día vía launchd com.farove.maintenance).
+ *
+ * Misión-ley: Art. 4 (liberar el tiempo del founder) + Art. 3 (eficiencia económica).
+ * Hace "un solo trabajo" cada día y, sobre todo, ALERTA SOLO SI ALGO ESTÁ MAL
+ * (si todo está sano: silencio; el founder no tiene que revisar nada).
+ *
+ * Qué hace:
+ *  1. Salud del sitio: endpoints públicos responden 200.
+ *  2. Ingesta: total de personas (tendencia vs ayer; alerta si BAJA).
+ *  3. Cron de Instagram: corrió hoy + sin errores (revisa ~/.faro-ig/cron*.log).
+ *  4. Buffer key presente/válida (si no, no se puede publicar).
+ *  5. Reencuentros del día: corre reconcile + siembra (REUSA reconcile.mjs + seed-reencuentros.mjs).
+ *  6. Cache de IA: stats de ahorro.
+ *  7. Reporte del día en ~/.faro-ig/maintenance-FECHA.log + recordatorios de pasos founder.
+ *
+ * Reusa el patrón del cron IG (lee secretos de ~/.secrets/faro-ve/, estado en ~/.faro-ig/,
+ * kill-switch por archivo). NO despliega ni hace push (regla: deploy solo con OK founder).
+ * Kill-switch: ~/.faro-ig/paused (compartido con el cron IG) o env FARO_MAINT_PAUSED=1.
+ */
+import fs from 'fs';
+import path from 'path';
+import { execFileSync } from 'child_process';
+import { cacheStats } from '../buffer/ai-cache.mjs';
+
+const HOME = process.env.HOME;
+const REPO = '/Users/bleiquelcolina/Desktop/faro-ve';
+const STATE_DIR = path.join(HOME, '.faro-ig');
+const today = new Date().toISOString().slice(0, 10);
+const REPORT = path.join(STATE_DIR, `maintenance-${today}.log`);
+const STATE = path.join(STATE_DIR, 'maintenance-state.json');
+
+fs.mkdirSync(STATE_DIR, { recursive: true });
+if (fs.existsSync(path.join(STATE_DIR, 'paused')) || process.env.FARO_MAINT_PAUSED === '1') {
+  console.log('mantenimiento PAUSADO (kill-switch).');
+  process.exit(0);
+}
+
+const lines = [];
+const problems = [];
+const log = (s) => { lines.push(s); console.log(s); };
+const problem = (s) => { problems.push(s); lines.push('⚠️  ' + s); };
+
+let state = {};
+try { state = JSON.parse(fs.readFileSync(STATE, 'utf8')); } catch { /* primera corrida */ }
+
+log(`# Faro VE — mantenimiento ${new Date().toISOString()}`);
+
+// 1) Salud del sitio ───────────────────────────────────────────────────────────
+const endpoints = [
+  'https://faro-ve.com/',
+  'https://faro-ve.com/reencuentros',
+  'https://faro-ve.com/auxilio',
+  'https://faro-ve.com/api/persons?limit=1',
+  'https://faro-ve.com/api/aid-points?limit=1',
+  'https://faro-ve.com/api/pfif?limit=1'
+];
+for (const u of endpoints) {
+  let s = 0;
+  try { s = (await fetch(u)).status; } catch { s = 0; }
+  log(`  sitio ${s}  ${u}`);
+  if (s !== 200) problem(`Endpoint caído (HTTP ${s}): ${u}`);
+}
+
+// 2) Ingesta: total de personas + tendencia ─────────────────────────────────────
+let total = null;
+try {
+  const j = await (await fetch('https://faro-ve.com/api/persons/stats')).json();
+  total = j.total ?? j.data?.total ?? j.persons_total ?? null;
+} catch { /* sin stats */ }
+if (total != null) {
+  log(`  personas (total): ${total}${state.lastTotal != null ? ` (ayer ${state.lastTotal})` : ''}`);
+  if (state.lastTotal != null && total < state.lastTotal) problem(`El total de personas BAJÓ (${state.lastTotal} → ${total}).`);
+  state.lastTotal = total;
+} else {
+  log('  personas (total): no disponible');
+}
+
+// 3) Salud del cron de Instagram ────────────────────────────────────────────────
+const cronLog = path.join(STATE_DIR, 'cron.log');
+const cronErr = path.join(STATE_DIR, 'cron.err.log');
+try {
+  const errSize = fs.existsSync(cronErr) ? fs.statSync(cronErr).size : 0;
+  if (errSize > 0) problem(`El cron de Instagram tiene errores nuevos: revisá ${cronErr}`);
+  const txt = fs.existsSync(cronLog) ? fs.readFileSync(cronLog, 'utf8') : '';
+  const ranToday = txt.split('\n').some((l) => l.startsWith(today) && /(Fin\.|PUBLICADA|Publicadas=)/.test(l));
+  log(`  cron IG corrió hoy: ${ranToday ? 'sí' : 'NO'}`);
+  if (!ranToday) problem('El cron de Instagram no registró corridas hoy (¿el Mac estuvo dormido/apagado?).');
+} catch { /* sin logs aún */ }
+
+// 4) Buffer key ─────────────────────────────────────────────────────────────────
+const bufKey = path.join(HOME, '.secrets/faro-ve/buffer-key.txt');
+try {
+  if (!fs.existsSync(bufKey) || fs.readFileSync(bufKey, 'utf8').trim().length < 20) {
+    problem('Falta o es inválida la Buffer key (~/.secrets/faro-ve/buffer-key.txt) — no se podrá publicar en IG.');
+  }
+} catch { problem('No se pudo leer la Buffer key.'); }
+
+// 5) Reencuentros del día: cruce + siembra (REUSO; el cache de IA lo hace barato) ─
+if (process.env.MAINT_HEALTH_ONLY === '1') {
+  log('  reencuentros: OMITIDO (MAINT_HEALTH_ONLY=1)');
+} else {
+  try {
+    const out = execFileSync('node', ['scripts/buffer/reconcile.mjs'], {
+      cwd: REPO, encoding: 'utf8', timeout: 25 * 60 * 1000,
+      env: { ...process.env, A_SALVO_MAX: process.env.A_SALVO_MAX || '600', ENCONTRADO_MAX: process.env.ENCONTRADO_MAX || '800' }
+    });
+    log('  reconcile: ' + out.trim().split('\n').slice(-3).join(' | '));
+  } catch (e) { problem('reconcile.mjs falló: ' + (e.message || e)); }
+
+  try {
+    const out = execFileSync('node', ['scripts/buffer/seed-reencuentros.mjs'], {
+      cwd: REPO, encoding: 'utf8', timeout: 25 * 60 * 1000, env: process.env
+    });
+    log('  seed: ' + out.trim().split('\n').filter(Boolean).slice(-2).join(' | '));
+  } catch (e) { problem('seed-reencuentros.mjs falló (¿ENRICH_TOKEN / 0030?): ' + (e.message || e)); }
+}
+
+// 6) Cache de IA (ahorro de tokens) ─────────────────────────────────────────────
+log('  cache IA (entradas): ' + JSON.stringify(cacheStats()));
+
+// 7) Recordatorios de pasos founder pendientes (no son alertas push) ────────────
+const reminders = [
+  'Cloudflare Email Routing: verificar opt-out@/contacto@/federacion@ → bleiquelc@gmail.com (SLA opt-out 24h, regla #8).',
+  'Purga PII Habeas Data (reportes withdrawn >30d): falta cron server-side (regla #6) — ver docs/RUNBOOK-mantenimiento.md.',
+  'Cuando el conteo se estabilice (~28-29k), relajar el worker cron-ingest de */5 a */15 (ahorra cuota Cloudflare).'
+];
+
+state.lastRun = new Date().toISOString();
+state.lastProblems = problems.length;
+fs.writeFileSync(STATE, JSON.stringify(state, null, 2));
+fs.writeFileSync(
+  REPORT,
+  lines.join('\n') +
+    '\n\n— Recordatorios (pasos founder, no urgentes):\n' + reminders.map((r) => '  • ' + r).join('\n') +
+    `\n\nResultado: ${problems.length ? problems.length + ' PROBLEMA(S)' : 'todo sano ✅'}\n`
+);
+
+// Alerta SOLO si hay problemas (notificación macOS + salida de error para el log) ─
+if (problems.length) {
+  const body = problems.slice(0, 4).join(' · ');
+  try {
+    execFileSync('osascript', ['-e',
+      `display notification ${JSON.stringify(body)} with title "Faro VE — mantenimiento (${problems.length} alerta(s))"`]);
+  } catch { /* sin GUI */ }
+  console.log(`\n⚠️  ${problems.length} PROBLEMA(S):\n` + problems.map((p) => '  - ' + p).join('\n'));
+  console.log(`Reporte: ${REPORT}`);
+  process.exit(1);
+}
+console.log(`\n✅ Todo sano. Reporte: ${REPORT}`);

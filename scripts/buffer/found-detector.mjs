@@ -12,6 +12,7 @@
  * NO publica nada. Alimenta la lista de reencuentros + el documento del día.
  */
 import fs from 'fs';
+import { getCached, setCached } from './ai-cache.mjs';
 
 const KEY = fs.readFileSync(process.env.HOME + '/.secrets/faro-ve/anthropic-key.txt', 'utf8').trim();
 const MODEL = 'claude-haiku-4-5-20251001';
@@ -63,6 +64,12 @@ export function nameOverlap(a, b) {
 
 /** IA: ¿es la misma persona y está a salvo/ubicada? Devuelve evidencia. */
 export async function confirmReunification(faro, found) {
+  // Cache por PAR normalizado: el veredicto IA del mismo par no cambia → se reusa.
+  // NO reemplaza a la IA en pares nuevos (ahí vive la seguridad anti-homónimo);
+  // solo evita re-evaluar pares ya confirmados/descartados en corridas previas.
+  const cacheKey = `${normName(faro.nombre)}#${faro.edad || ''}|${normName(found.nombre)}#${found.status || ''}#${normName((found.ciudad || '') + ' ' + (found.zona || ''))}`;
+  const cached = getCached('reunion', cacheKey);
+  if (cached) return cached;
   const prompt = `Dos reportes de personas tras el terremoto de Venezuela (jun-2026). Decidí si son LA MISMA persona, y si el REPORTE B indica que está A SALVO / UBICADA / con su familia / en un hospital.
 
 REPORTE A — BUSCADA (desaparecida) en Faro VE:
@@ -87,7 +94,7 @@ same_person=true SOLO si el nombre coincide claramente Y la ubicación/edad son 
   const m = txt.match(/\{[\s\S]*\}/);
   try {
     const o = JSON.parse(m ? m[0] : txt);
-    return {
+    const result = {
       same_person: !!o.same_person,
       confidence: o.confidence || 'low',
       is_found: !!o.is_found,
@@ -95,6 +102,8 @@ same_person=true SOLO si el nombre coincide claramente Y la ubicación/edad son 
       quote: o.quote || '',
       reason: o.reason || ''
     };
+    setCached('reunion', cacheKey, result); // veredicto del par → cache
+    return result;
   } catch {
     return { same_person: false, confidence: 'low', is_found: false, where: '', quote: '', reason: 'parse_error' };
   }

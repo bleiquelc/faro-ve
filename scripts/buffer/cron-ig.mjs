@@ -33,7 +33,7 @@ const ENRICH_TOKEN = (() => {
 })();
 const FARO = 'https://faro-ve.com/api/persons';
 const VR = 'https://venezuelareporta.org/api/v1/personas';
-const TRIES = Number(process.env.TRIES || 25); // más intentos: la mayoría de fotos no pasan el filtro
+const TRIES = Number(process.env.TRIES || 15); // suficiente para hallar 2 fotos limpias; el cache de IA hace gratis los re-intentos ya vistos
 const SKIP_TTL = 3 * 24 * 3600 * 1000;
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 

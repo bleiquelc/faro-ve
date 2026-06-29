@@ -23,7 +23,7 @@ async function vrFound(status, n, start = 0) {
   const out = [];
   for (let offset = start; offset < n; offset += 100) {
     let arr;
-    try { arr = (await (await fetch(`${VR}?status=${status}&limit=100&offset=${offset}`)).json()).personas || []; }
+    try { arr = (await (await fetch(`${VR}?status=${status}&limit=100&offset=${offset}${process.env.SINCE ? '&since=' + encodeURIComponent(process.env.SINCE) : ''}`)).json()).personas || []; }
     catch { break; }
     if (!arr.length) break;
     out.push(...arr.map((p) => ({ ...p, _status: status })));

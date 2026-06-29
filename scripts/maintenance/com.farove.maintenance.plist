@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Faro VE — mantenimiento diario. Instalar (1 vez):
+    cp scripts/maintenance/com.farove.maintenance.plist ~/Library/LaunchAgents/
+    launchctl unload ~/Library/LaunchAgents/com.farove.maintenance.plist 2>/dev/null
+    launchctl load   ~/Library/LaunchAgents/com.farove.maintenance.plist
+  Corre 1/día a las 09:00 (hora local). Si el Mac está dormido a esa hora, launchd
+  ejecuta la corrida perdida al despertar (StartCalendarInterval, a diferencia de StartInterval).
+  Pausar: touch ~/.faro-ig/paused  (kill-switch compartido con el cron IG).
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.farove.maintenance</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/local/bin/node</string>
+    <string>/Users/bleiquelcolina/Desktop/faro-ve/scripts/maintenance/daily.mjs</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/bleiquelcolina/Desktop/faro-ve</string>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>9</integer>
+    <key>Minute</key><integer>0</integer>
+  </dict>
+  <key>RunAtLoad</key><false/>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key><string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+  </dict>
+  <key>StandardOutPath</key><string>/Users/bleiquelcolina/.faro-ig/maintenance.log</string>
+  <key>StandardErrorPath</key><string>/Users/bleiquelcolina/.faro-ig/maintenance.err.log</string>
+</dict>
+</plist>
