@@ -33,7 +33,7 @@ const ENRICH_TOKEN = (() => {
 })();
 const FARO = 'https://faro-ve.com/api/persons';
 const VR = 'https://venezuelareporta.org/api/v1/personas';
-const TRIES = Number(process.env.TRIES || 14);
+const TRIES = Number(process.env.TRIES || 25); // más intentos: la mayoría de fotos no pasan el filtro
 const SKIP_TTL = 3 * 24 * 3600 * 1000;
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 
@@ -86,10 +86,11 @@ const batch = await (await fetch(`${FARO}?status=missing&limit=400`)).json();
 const people = (batch.persons || batch.data || []).filter((p) => !state.posted[p.id] && !recentlySkipped(p.id));
 log(`Candidatos: ${people.length} (lote 400, sin posteadas/skip-recientes).`);
 
-let did = false;
+const MAX_POSTS = Number(process.env.POSTS_PER_RUN || 2); // publicaciones por corrida (escalonadas)
+let posted = 0;
 let tried = 0;
 for (const p of people) {
-  if (did || tried >= TRIES) break;
+  if (posted >= MAX_POSTS || tried >= TRIES) break;
   tried++;
   const name = (p.full_name || `${p.given_name || ''} ${p.family_name || ''}`).trim();
   if (!name) { state.skipped[p.id] = { reason: 'sin-nombre', ts: now }; continue; }
@@ -138,7 +139,7 @@ for (const p of people) {
   log(`enrichDB ${name}: ${er}`);
 
   // (e) render → host → publicar
-  if (process.env.DRY === '1') { log(`DRY: publicaría → ${name} | loc: ${loc} | edad: ${age} | sexo: ${sex || '?'} | foto: ${chosen}`); did = true; continue; }
+  if (process.env.DRY === '1') { log(`DRY: publicaría → ${name} | loc: ${loc} | edad: ${age} | sexo: ${sex || '?'} | foto: ${chosen}`); posted++; continue; }
   const env = { ...process.env, PERSON_ID: p.id, NAME: name, LOC: loc, AGE: String(age || ''), PHOTO_URL: chosen };
   if (sex) env.SEX = sex;
   if (desc) env.EXTRA_DESC = desc;
@@ -148,13 +149,13 @@ for (const p of people) {
   const raw = hostImage(jpg, p.id);
   execFileSync('node', ['scripts/buffer/post.mjs'], {
     cwd: REPO,
-    env: { ...process.env, BUFFER_API_KEY: BUFFER_KEY, CHANNEL_ID, IMG_URL: raw, TEXT_FILE: txt, WHEN_MIN: process.env.WHEN_MIN || '3' },
+    env: { ...process.env, BUFFER_API_KEY: BUFFER_KEY, CHANNEL_ID, IMG_URL: raw, TEXT_FILE: txt, WHEN_MIN: String(5 + posted * 25) },
     stdio: 'inherit'
   });
   state.posted[p.id] = { name, ts: now, raw };
-  did = true;
+  posted++;
   log(`PUBLICADA: ${name}`);
 }
 
 save();
-log(`Fin. Publicada=${did}. Intentos=${tried}. Posteadas total=${Object.keys(state.posted).length}. Reencuentros=${Object.keys(state.reencuentros).length}.`);
+log(`Fin. Publicadas=${posted}. Intentos=${tried}. Posteadas total=${Object.keys(state.posted).length}. Reencuentros=${Object.keys(state.reencuentros).length}.`);

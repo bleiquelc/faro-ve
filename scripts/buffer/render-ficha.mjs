@@ -143,7 +143,7 @@ await page.screenshot({ path: out, type: 'jpeg', quality: 90, clip: { x: 0, y: 0
 await browser.close();
 
 const locShort = loc.length > 90 ? loc.slice(0, 88).trim() + '…' : loc;
-const tags = ['#TerremotoVenezuela', '#Desaparecidos', '#LaGuaira', '#Venezuela', '#SeBusca', '#FaroVE'];
+const tags = ['#Terremoto', '#TerremotoVenezuela', '#Venezuela', '#LaGuaira', '#Caracas', '#SOSVenezuela', '#Sismo', '#Desaparecidos', '#SeBusca', '#FaroVE'];
 const caption =
   `🔦 SE BUSCA · ${name}\n` +
   `📍 ${locShort}\n` +

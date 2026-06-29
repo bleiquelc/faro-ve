@@ -121,7 +121,7 @@ const caption =
   `Cruzamos las plataformas: estas personas siguen BUSCADAS pero figuran reportadas A SALVO en otra. Sus familias quizás no lo saben.\n\n` +
   `Deslizá → si reconocés a alguien, avisale a su familia. Verificá siempre en la fuente.\n\n` +
   `Lista completa: faro-ve.com/reencuentros · Fuente: Venezuela Reporta\n\n` +
-  `#TerremotoVenezuela #Reencuentro #Desaparecidos #LaGuaira #Venezuela #FaroVE`;
+  `#Terremoto #TerremotoVenezuela #Venezuela #LaGuaira #Caracas #SOSVenezuela #Sismo #Reencuentro #Desaparecidos #FaroVE`;
 fs.writeFileSync(`${outDir}/caption.txt`, caption);
 console.log(`Slides: ${files.length} (con foto: ${withPhoto}/${cands.length})`);
 files.forEach((f) => console.log('  ' + f));

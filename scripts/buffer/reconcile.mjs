@@ -19,16 +19,22 @@ const VR = 'https://venezuelareporta.org/api/v1/personas';
 const FARO = 'https://faro-ve.com/api/persons';
 
 async function vrFound(status, n) {
-  try {
-    const j = await (await fetch(`${VR}?status=${status}&limit=${n}`)).json();
-    return (j.personas || []).map((p) => ({ ...p, _status: status }));
-  } catch {
-    return [];
+  // Pagina TODO (VR cap 100/página) con offset hasta `n` o fin. Throttle 600ms.
+  const out = [];
+  for (let offset = 0; offset < n; offset += 100) {
+    let arr;
+    try { arr = (await (await fetch(`${VR}?status=${status}&limit=100&offset=${offset}`)).json()).personas || []; }
+    catch { break; }
+    if (!arr.length) break;
+    out.push(...arr.map((p) => ({ ...p, _status: status })));
+    if (arr.length < 100) break;
+    await new Promise((r) => setTimeout(r, 600));
   }
+  return out;
 }
 
 // 1) Reportes "a salvo/encontrada" de Venezuela Reporta, deduplicados por nombre.
-const raw = [...(await vrFound('a_salvo', LIMIT)), ...(await vrFound('encontrado', LIMIT))];
+const raw = [...(await vrFound('a_salvo', Number(process.env.A_SALVO_MAX || 600))), ...(await vrFound('encontrado', Number(process.env.ENCONTRADO_MAX || LIMIT)))];
 const seen = new Map();
 for (const p of raw) {
   const k = normName(p.nombre);
