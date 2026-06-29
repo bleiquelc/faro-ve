@@ -17,6 +17,7 @@ export interface Reencuentro {
   where_text: string | null;
   confidence: string | null;
   detected_at: string;
+  photo_url: string | null;
 }
 
 export const load: PageServerLoad = async ({ locals }) => {

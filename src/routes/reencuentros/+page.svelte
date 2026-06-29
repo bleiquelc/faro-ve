@@ -38,11 +38,21 @@
     <ul class="mt-8 space-y-4">
       {#each data.items as r (r.id)}
         <li class="rounded-2xl border border-green-200 bg-green-50/60 p-4">
-          <div class="flex items-center justify-between gap-3">
-            <h2 class="text-lg font-bold text-gray-900">{r.full_name}</h2>
-            <span class="shrink-0 rounded-full bg-green-600 px-2.5 py-1 text-xs font-bold uppercase text-white">
-              {r.found_status === 'encontrado' ? 'Encontrada' : 'A salvo'}
-            </span>
+          <div class="flex items-start gap-3">
+            {#if r.photo_url}
+              <img
+                src={r.photo_url}
+                alt="Foto de {r.full_name}"
+                loading="lazy"
+                class="h-16 w-16 shrink-0 rounded-xl object-cover ring-1 ring-green-300"
+              />
+            {/if}
+            <div class="flex flex-1 items-center justify-between gap-3">
+              <h2 class="text-lg font-bold text-gray-900">{r.full_name}</h2>
+              <span class="shrink-0 rounded-full bg-green-600 px-2.5 py-1 text-xs font-bold uppercase text-white">
+                {r.found_status === 'encontrado' ? 'Encontrada' : 'A salvo'}
+              </span>
+            </div>
           </div>
           <dl class="mt-3 space-y-1.5 text-sm leading-relaxed text-gray-700">
             <div class="flex gap-2">
