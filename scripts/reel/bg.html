@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1080px; height: 1920px; overflow: hidden; background: #06161e; }
+  .scene { position: relative; width: 1080px; height: 1920px; }
+
+  /* Cielo: noche arriba → amanecer cálido en el horizonte */
+  .sky {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(120% 70% at 78% 86%, rgba(255,179,107,0.55) 0%, rgba(255,179,107,0) 42%),
+      linear-gradient(180deg, #061a26 0%, #0a2f43 38%, #0b4f6c 62%, #2f6f7e 78%, #f0a45e 92%, #ffe39c 100%);
+  }
+  /* Estrellas tenues */
+  .stars { position: absolute; inset: 0; opacity: .5; }
+  .star { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: #eaf6ff; box-shadow: 0 0 6px #cfeaff; }
+
+  /* Haz del faro (luz cálida que barre desde arriba-derecha) */
+  .beam {
+    position: absolute; top: -240px; right: -160px;
+    width: 1500px; height: 1500px;
+    background: conic-gradient(from 205deg at 100% 0%,
+      rgba(255,227,156,0) 0deg,
+      rgba(255,227,156,0.16) 12deg,
+      rgba(255,227,156,0.05) 22deg,
+      rgba(255,227,156,0) 30deg);
+    filter: blur(2px);
+  }
+  .halo {
+    position: absolute; top: -90px; right: -90px; width: 360px; height: 360px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,227,156,0.7) 0%, rgba(255,227,156,0) 70%);
+    filter: blur(6px);
+  }
+
+  /* Silueta de montaña (El Ávila) */
+  .mountain { position: absolute; left: 0; bottom: 360px; width: 1080px; }
+  /* Mar / costa */
+  .sea {
+    position: absolute; left: 0; bottom: 0; width: 1080px; height: 430px;
+    background: linear-gradient(180deg, #0a3346 0%, #06222f 55%, #04161f 100%);
+  }
+  .shimmer {
+    position: absolute; left: 0; bottom: 300px; width: 1080px; height: 130px;
+    background: radial-gradient(60% 100% at 78% 0%, rgba(255,227,156,0.30) 0%, rgba(255,227,156,0) 70%);
+    filter: blur(3px);
+  }
+  /* Puntos de luz cálidos en la costa = personas / esperanza */
+  .dot { position: absolute; width: 7px; height: 7px; border-radius: 50%; background: #ffe39c; box-shadow: 0 0 12px 3px rgba(255,227,156,.9); }
+
+  .vignette { position: absolute; inset: 0; box-shadow: inset 0 0 360px rgba(0,0,0,.55); pointer-events: none; }
+</style>
+</head>
+<body>
+  <div class="scene">
+    <div class="sky"></div>
+    <div class="stars" id="stars"></div>
+    <div class="beam"></div>
+    <div class="halo"></div>
+    <svg class="mountain" viewBox="0 0 1080 520" preserveAspectRatio="none" height="520">
+      <path d="M0,520 L0,300 L120,250 L230,300 L330,180 L470,290 L560,150 L700,280 L820,210 L930,300 L1080,250 L1080,520 Z" fill="#06181f"/>
+      <path d="M0,520 L0,360 L160,330 L300,370 L430,320 L580,375 L720,330 L880,378 L1080,340 L1080,520 Z" fill="#04121a"/>
+    </svg>
+    <div class="shimmer"></div>
+    <div class="sea"></div>
+    <div class="dots" id="dots"></div>
+    <div class="vignette"></div>
+  </div>
+  <script>
+    const S = document.getElementById('stars');
+    for (let i = 0; i < 60; i++) {
+      const s = document.createElement('div'); s.className = 'star';
+      s.style.left = Math.round((i * 137.5) % 1080) + 'px';
+      s.style.top = Math.round((i * 53) % 760) + 'px';
+      s.style.opacity = (0.3 + ((i * 7) % 10) / 14).toFixed(2);
+      S.appendChild(s);
+    }
+    const D = document.getElementById('dots');
+    const coast = [120, 210, 305, 410, 520, 640, 735, 840, 930];
+    coast.forEach((x, i) => {
+      const d = document.createElement('div'); d.className = 'dot';
+      d.style.left = x + 'px';
+      d.style.bottom = (300 + ((i * 17) % 70)) + 'px';
+      d.style.opacity = (0.6 + ((i * 5) % 10) / 25).toFixed(2);
+      D.appendChild(d);
+    });
+  </script>
+</body>
+</html>

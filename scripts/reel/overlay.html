@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1080px; height: 1920px; background: transparent; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .wrap { position: relative; width: 1080px; height: 1920px; }
+
+  /* Marca arriba */
+  .brand {
+    position: absolute; top: 96px; left: 0; right: 0; text-align: center;
+    color: #fff; letter-spacing: 6px; font-weight: 800; font-size: 34px;
+    text-shadow: 0 2px 18px rgba(0,0,0,.55);
+  }
+  .brand .lamp { color: #ffe39c; }
+
+  /* Panel central con la oración */
+  .panel {
+    position: absolute; left: 70px; right: 70px; top: 720px;
+    background: rgba(6,32,43,0.58);
+    border: 1.5px solid rgba(255,255,255,0.24);
+    border-radius: 36px;
+    padding: 64px 56px 58px;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 24px 80px rgba(0,0,0,.45);
+  }
+  .kicker {
+    color: #ffe39c; font-size: 28px; font-weight: 700; letter-spacing: 3px;
+    text-transform: uppercase; text-align: center; margin-bottom: 26px;
+  }
+  .msg {
+    color: #fff; font-size: 62px; line-height: 1.22; font-weight: 700;
+    text-align: center; text-shadow: 0 2px 16px rgba(0,0,0,.5);
+  }
+  .places {
+    margin-top: 34px; text-align: center; color: #d7eef6; font-size: 30px;
+    font-weight: 600; letter-spacing: 2px;
+  }
+
+  /* CTA abajo */
+  .cta {
+    position: absolute; left: 0; right: 0; bottom: 150px; text-align: center;
+    color: #fff; font-size: 32px; font-weight: 600; text-shadow: 0 2px 14px rgba(0,0,0,.6);
+  }
+  .cta b { color: #ffe39c; }
+  .cta .small { display: block; margin-top: 10px; font-size: 26px; font-weight: 500; color: #cfe6ef; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand"><span class="lamp">🔦</span> FARO VE</div>
+    <div class="panel">
+      <div class="kicker">Una oración por Venezuela</div>
+      <div class="msg" id="msg">—</div>
+      <div class="places">Caracas · La Guaira · Venezuela</div>
+    </div>
+    <div class="cta">
+      Si buscás o viste a alguien: <b>faro-ve.com</b>
+      <span class="small">Mapa de esperanza · personas y refugios</span>
+    </div>
+  </div>
+</body>
+</html>
