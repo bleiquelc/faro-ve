@@ -37,7 +37,14 @@ export const load: PageServerLoad = async ({ locals }) => {
       .order('detected_at', { ascending: false })
       .limit(300);
     if (dbErr) return { items: [] as Reencuentro[], pending: true };
-    return { items: data ?? [], pending: false };
+    // Una persona puede tener VARIAS señales (distintos source_url, del escaneo
+    // grande + varios seeds) → la vista devuelve filas repetidas con el MISMO id.
+    // Dedup por persona (la más reciente; ya vienen ordenadas por detected_at desc):
+    // una tarjeta por persona y, sobre todo, evita claves duplicadas en el
+    // {#each … (r.id)} que rompían la hidratación (each_key_duplicate → lista vacía).
+    const seen = new Set<string>();
+    const items = (data ?? []).filter((r) => (seen.has(r.id) ? false : (seen.add(r.id), true)));
+    return { items, pending: false };
   } catch {
     return { items: [] as Reencuentro[], pending: true };
   }
