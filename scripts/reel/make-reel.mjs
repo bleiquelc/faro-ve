@@ -89,8 +89,11 @@ if (footage) {
     "[ov]fade=t=in:st=0:d=0.8,fade=t=out:st=14:d=1,format=yuv420p[v]";
   console.log('fondo: escena propia (sin key Pexels)');
 }
+// Audio: si el footage trae sonido natural (olas/ambiente), lo conservamos
+// (sereno y libre de derechos con el clip). La escena propia va en silencio.
+const audioArgs = footage ? ['-map', '0:a?', '-c:a', 'aac', '-b:a', '96k'] : [];
 execFileSync(FFMPEG, [
-  ...inputs, '-filter_complex', filter, '-map', '[v]',
+  ...inputs, '-filter_complex', filter, '-map', '[v]', ...audioArgs,
   '-r', '25', '-t', '15', '-c:v', 'libx264', '-crf', '22', '-preset', 'medium',
   '-movflags', '+faststart', mp4
 ], { stdio: 'inherit' });
