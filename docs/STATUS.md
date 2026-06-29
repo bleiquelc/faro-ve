@@ -231,6 +231,34 @@ Detalle: `docs/SESSIONS/2026-06-27-cola-reportes-offline.md`.
   documentados: foto-en-cola offline, notes/aid-points, SW BackgroundSync (enviar con app cerrada),
   envío self-service por WhatsApp/SMS (cuando aterrice el relay).
 
+## 2026-06-28 — Federación: Email Routing, outreach ampliado, push, /atribucion
+Detalle: `docs/SESSIONS/2026-06-28-federacion-email-outreach-atribucion.md`.
+- ✅ **git push — 78 commits** (origin/main estaba muy atrás, no 9): empujado con OK del founder tras
+  escaneo de secretos limpio. `8a699cd → 601bad1`, repo sincronizado. El sitio ya estaba live por
+  wrangler; el push pone GitHub al día.
+- ✅ **Smoke prod VERDE:** páginas + APIs 200; CORS/PFIF/GeoJSON OK; conteo **26.150** (ingesta viva).
+  `clusters` 400 sin params = por diseño.
+- ✅ **`/atribucion` construida** (cerró 404; carpeta vacía). **Commit LOCAL `6ec25b1`, NO pusheado.**
+  Reusa /datos (prerender), lista fuentes reales (Venezuela Te Busca + faro-ve), opt-out 24h, link en
+  footer. svelte-check 0 err, build prerenderiza OK. El 500 en `vite dev` es limitación conocida de
+  toda ruta prerender (igual que /datos); en prod funciona.
+- ✅ **Outreach ampliado:** EN inicial ENVIADO; investigación 4 agentes (emails verificados en sitio
+  oficial); 2 borradores nuevos (ES 13 VE/LATAM + EN 11 globales) creados, NO enviados. Lista
+  MEDIA/form-only documentada. ⚠️ borrar 2 borradores ES viejos. Copy social de refugios en
+  `docs/social/2026-06-28-copy-registro-refugios.md`.
+- 🔴 **Email Routing (PRIORIDAD 1):** el DNS **ya tiene Email Routing habilitado** (MX
+  route1/2/3.mx.cloudflare.net + SPF). Falta solo en el panel: verificar destino bleiquelc@gmail.com +
+  reglas opt-out@/contacto@/federacion@ (+catch-all). Follow-up: cron regla #10 (Gmail MCP).
+
+## 2026-06-29 — Auto-publicador Instagram (@farovenmap) + Reencuentros 🟢 LIVE
+Runbook completo: `docs/RUNBOOK-instagram-reencuentros.md`. Mapa operativo: `docs/PROCESOS.md`.
+- ✅ **Cron horario LIVE** (launchd `com.farove.ig`, 1/hora): publica 1 ficha retrato verificada en @farovenmap. Reusa `persons_public`. Vía Buffer GraphQL (key del founder, IG channelId `6a4190975ab6d2f106819d3d`). Kill-switch `~/.faro-ig/paused`; logs `~/.faro-ig/cron.log`; estado `~/.faro-ig/state.json`. Publicó a Luduin + Miguel (verificados).
+- ✅ **Filtro IA de fotos (Haiku visión)** ENDURECIDO: rechaza flyers/cédulas/teléfonos/screenshots/grupos/menores → **solo publica con foto limpia**. + **anti-homónimo** (IA confirma misma-persona antes de usar foto/datos de otra plataforma). 2 errores graves reales frenados antes de publicar (homónimo + flyer con cédula/teléfono).
+- ✅ **Reencuentros**: detecta buscadas en Faro que figuran A SALVO en Venezuela Reporta → documento del día (`~/Desktop/faro-reencuentros/`) para avisar a familias + **carrusel IG foto-dominante** (publicado) + página pública **`/reencuentros`**. Validado: ~15-18% de los cruzados son reencuentros reales (cientos a escala).
+- ✅ **"Un solo trabajo"**: el cruce enriquece la **DB de Faro** (`/api/enrich` + RPC `enrich_person`, migración **0029**) sin pisar lo bueno ni tocar PII. ⏳ founder: aplicar 0029 + `wrangler pages secret put ENRICH_TOKEN` + push/deploy.
+- ✅ Commits locales (sin pushear): `6ec25b1` (atribución), `a235940` (sistema IG completo). svelte-check 0 / build OK.
+- ⚠️ Hosting de imágenes: git worktree rama `fichas-cdn` → raw.githubusercontent. Si el push desde launchd falla por auth → migrar a Supabase Storage/R2 (roadmap).
+
 ## Lista de funciones (handoff) — estado
 1. IA-moderadora (restaurar auto-ocultos) — ⏸ en pausa (founder: sin IA por ahora).
 2. Triaje IA — ⏸ en pausa (founder: sin IA por ahora).

@@ -24,11 +24,14 @@ Construir y operar una PWA instalable que ayude a localizar personas desaparecid
 
 ## 📚 Documentos críticos a leer al iniciar (en este orden)
 
-1. **`PLAN.md`** — plan completo aprobado, 6 días a producción. Empieza por aquí siempre.
-2. **`PRIVACY.md`** — política Habeas Data Venezuela, retención, delete.
-3. **`ATTRIBUTION.md`** — fuentes de datos + opt-out + atribución obligatoria.
-4. **`README.md`** — visión general pública.
-5. **`docs/SESSIONS/YYYY-MM-DD-*.md`** (si existen) — sesiones previas.
+0. **`docs/PROCESOS.md`** — 🗺️ **MAPA OPERATIVO: todos los subsistemas/procesos de Faro VE** (qué hace cada uno, archivos clave, cómo operarlo, gotchas, reglas que aplican, runbooks). **LEELO SIEMPRE PRIMERO** — agiliza cualquier trabajo y evita re-construir lo ya hecho (Ley de Reuso).
+1. **`docs/STATUS.md`** — estado vivo (qué está LIVE, pendientes del founder, último avance).
+2. **`PLAN.md`** — plan completo aprobado, 6 días a producción.
+3. **`PRIVACY.md`** — política Habeas Data Venezuela, retención, delete.
+4. **`ATTRIBUTION.md`** — fuentes de datos + opt-out + atribución obligatoria.
+5. **`README.md`** — visión general pública.
+6. **`docs/SESSIONS/YYYY-MM-DD-*.md`** (si existen) — sesiones previas.
+7. **`docs/RUNBOOK-*.md`** — operación detallada de cada sistema (p. ej. `docs/RUNBOOK-instagram-reencuentros.md` = auto-publicador IG + reencuentros).
 
 ---
 
