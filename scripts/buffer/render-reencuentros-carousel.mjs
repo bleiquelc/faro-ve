@@ -45,7 +45,7 @@ const CSS = `
   *{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased}
   .frame{position:relative;display:flex;flex-direction:column;width:1080px;height:1350px;overflow:hidden;color:#fff;
     background:#072c3c;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}
-  .media{position:relative;flex:1 1 auto;overflow:hidden;background:#06303f;min-height:760px}
+  .media{position:relative;flex:1 1 auto;overflow:hidden;background:#06303f;min-height:560px}
   .media .bg{position:absolute;inset:0;background-size:cover;background-position:center;filter:blur(36px) brightness(.4);transform:scale(1.2)}
   .media .fg{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:1}
   .media .ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;color:#7fb3c6;background:linear-gradient(160deg,#0B4F6C,#072c3c)}
@@ -55,11 +55,11 @@ const CSS = `
   .num{position:absolute;top:46px;right:44px;z-index:3;font-size:26px;font-weight:800;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.6)}
   .statusband{flex:0 0 auto;background:#16a34a;color:#fff;text-align:center;font-weight:900;font-size:40px;letter-spacing:1px;padding:18px}
   .info{flex:0 0 auto;background:#0B4F6C;padding:24px 56px 6px;text-align:center}
-  .name{font-size:54px;font-weight:800;line-height:1.05}
+  .name{font-weight:800;line-height:1.05;overflow-wrap:break-word;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
   .foot{flex:0 0 auto;background:linear-gradient(180deg,#0B4F6C,#08384c);padding:18px 56px 44px;display:flex;flex-direction:column;gap:14px}
   .row{display:flex;gap:16px;align-items:baseline}
   .row .k{flex:0 0 200px;font-size:24px;font-weight:800;letter-spacing:1px;color:#8ccadf;text-transform:uppercase}
-  .row .v{flex:1;font-size:30px;font-weight:600;color:#fff}
+  .row .v{flex:1;font-size:30px;font-weight:600;color:#fff;overflow-wrap:break-word;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
   .row .v.hi{color:#FFE39C}
   /* cierre */
   .close{display:flex;flex-direction:column;justify-content:center;height:100%;padding:80px 64px;text-align:center;background:linear-gradient(160deg,#0B4F6C,#072c3c)}
@@ -80,7 +80,7 @@ function caseHTML(c, i) {
   return `<div class="frame">
     <div class="media">${media}<span class="ribbon">🟢 POSIBLE REENCUENTRO</span><span class="num">${i + 1}/${total}</span></div>
     <div class="statusband">✅ FIGURA A SALVO</div>
-    <div class="info"><div class="name">${esc(c.nombre)}</div></div>
+    <div class="info"><div class="name" style="font-size:${c.nombre.length > 30 ? 40 : c.nombre.length > 22 ? 46 : 54}px">${esc(c.nombre)}</div></div>
     <div class="foot">
       <div class="row"><span class="k">Reportado</span><span class="v">${esc(fhora(c.vr_created_at))} · Venezuela Reporta</span></div>
       <div class="row"><span class="k">Dónde</span><span class="v hi">${esc(donde)}</span></div>

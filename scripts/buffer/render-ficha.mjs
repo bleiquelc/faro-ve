@@ -58,6 +58,8 @@ const extraDesc = (process.env.EXTRA_DESC || p.description || '').trim();
 const FARO_SVG = fs.readFileSync(new URL('../../static/faro-icon.svg', import.meta.url), 'utf8');
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const descShort = extraDesc.length > 150 ? extraDesc.slice(0, 148).trim() + '…' : extraDesc;
+// Tamaño del nombre adaptativo al largo → nombres largos no se salen ni se cortan.
+const nameSize = name.length > 34 ? 42 : name.length > 26 ? 48 : name.length > 18 ? 54 : 62;
 
 const photoBlock = photo
   ? `<div class="bg" style="background-image:url('${esc(photo)}')"></div>
@@ -91,16 +93,16 @@ const html = `<!doctype html><html><head><meta charset="utf-8"><style>
   .media .empty .ebig svg{width:100%;height:100%;display:block}
   .media .empty .et{font-size:40px;font-weight:800;letter-spacing:1px}
   .media .empty .es{font-size:26px;color:#9ec8d8;font-weight:600;max-width:680px;line-height:1.3}
-  /* DATOS LIMPIOS: panel inferior compacto */
-  .data{flex:0 0 auto;background:linear-gradient(180deg,#0B4F6C,#08384c);padding:34px 60px 46px;text-align:center;
+  /* DATOS LIMPIOS: panel inferior ADAPTATIVO al largo (nada se sale ni se corta). */
+  .data{flex:0 0 auto;background:linear-gradient(180deg,#0B4F6C,#08384c);padding:32px 60px 44px;text-align:center;
     box-shadow:0 -18px 40px rgba(0,0,0,.35)}
-  .name{font-weight:800;font-size:62px;line-height:1.04}
-  .facts{margin-top:14px;font-size:32px;color:#bce1ed;font-weight:600;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px 22px}
-  .facts .f{display:inline-flex;align-items:center;gap:9px;white-space:nowrap}
-  .facts .loc{color:#FFE39C}
-  .desc{margin:16px auto 0;max-width:920px;font-size:27px;line-height:1.32;color:#dbeef4;font-weight:500}
-  .cta{margin-top:22px;font-size:33px;font-weight:800}
-  .urls{margin-top:10px;font-size:29px;font-weight:700;color:#8ccadf}
+  .clamp2{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:break-word}
+  .name{font-weight:800;line-height:1.05;overflow-wrap:break-word}
+  .loc{margin:14px auto 0;max-width:950px;font-size:30px;line-height:1.3;color:#FFE39C;font-weight:600}
+  .meta{margin-top:8px;font-size:29px;color:#bce1ed;font-weight:600}
+  .desc{margin:14px auto 0;max-width:940px;font-size:26px;line-height:1.32;color:#dbeef4;font-weight:500}
+  .cta{margin-top:20px;font-size:32px;font-weight:800}
+  .urls{margin-top:9px;font-size:28px;font-weight:700;color:#8ccadf}
   .urls b{color:#fff}
 </style></head><body>
   <div class="frame">
@@ -118,13 +120,10 @@ const html = `<!doctype html><html><head><meta charset="utf-8"><style>
       </div>
     </div>
     <div class="data">
-      <div class="name">${esc(name)}</div>
-      <div class="facts">
-        <span class="f loc">📍 ${esc(loc)}</span>
-        ${ageBit ? `<span class="f">🎂 ${esc(ageBit)}</span>` : ''}
-        ${sexLabel ? `<span class="f">👤 ${esc(sexLabel)}</span>` : ''}
-      </div>
-      ${descShort ? `<div class="desc">${esc(descShort)}</div>` : ''}
+      <div class="name clamp2" style="font-size:${nameSize}px">${esc(name)}</div>
+      <div class="loc clamp2">📍 ${esc(loc)}</div>
+      ${ageBit || sexLabel ? `<div class="meta">${[ageBit ? `🎂 ${esc(ageBit)}` : '', sexLabel ? `👤 ${esc(sexLabel)}` : ''].filter(Boolean).join(' · ')}</div>` : ''}
+      ${descShort ? `<div class="desc clamp2">${esc(descShort)}</div>` : ''}
       <div class="cta">${esc(ctaText)}</div>
       <div class="urls"><b>faro-ve.com</b> · @farovenmap</div>
     </div>
