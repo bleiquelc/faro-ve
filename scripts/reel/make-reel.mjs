@@ -33,7 +33,7 @@ const FFMPEG = fs.existsSync(path.join(os.homedir(), 'bin', 'ffmpeg'))
 const messages = JSON.parse(fs.readFileSync(path.join(HERE, 'messages.json'), 'utf8'));
 const doy = Math.floor((Date.now() - Date.UTC(new Date().getUTCFullYear(), 0, 0)) / 864e5);
 const idx = process.env.MSG_INDEX != null ? Number(process.env.MSG_INDEX) : doy % messages.length;
-const message = process.env.MSG || messages[idx];
+const message = process.env.MSG ? { text: process.env.MSG, ref: process.env.MSG_REF || '' } : messages[idx];
 
 const stamp = new Date().toISOString().slice(0, 10);
 const bgPng = path.join(WORK, 'bg.png');
@@ -42,7 +42,7 @@ const mp4 = path.join(OUT, `reel-${stamp}.mp4`);
 const preview = path.join(OUT, `reel-${stamp}-preview.mp4`);
 const poster = path.join(OUT, `reel-${stamp}-poster.png`);
 
-console.log(`Mensaje [${idx}]: ${message}`);
+console.log(`Versículo [${idx}]: ${message.text} — ${message.ref}`);
 
 // 1) Render fondo + máscara (Playwright)
 const browser = await chromium.launch();
@@ -54,7 +54,11 @@ await page.screenshot({ path: bgPng, clip: { x: 0, y: 0, width: 1080, height: 19
 
 await page.goto('file://' + path.join(HERE, 'overlay.html'), { waitUntil: 'networkidle' });
 await page.evaluate(async (m) => {
-  document.getElementById('msg').textContent = m;
+  const v = document.getElementById('verse');
+  v.textContent = '“' + m.text + '”';
+  document.getElementById('ref').textContent = m.ref ? '— ' + m.ref : '';
+  const len = m.text.length; // tamaño adaptativo para que el versículo no se corte
+  v.style.fontSize = (len > 100 ? 46 : len > 78 ? 54 : len > 52 ? 60 : 68) + 'px';
   if (document.fonts && document.fonts.ready) await document.fonts.ready;
 }, message);
 await page.waitForTimeout(300);

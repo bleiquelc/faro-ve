@@ -7,58 +7,74 @@
   html, body { width: 1080px; height: 1920px; background: transparent; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
   .wrap { position: relative; width: 1080px; height: 1920px; }
 
-  /* Marca arriba */
-  .brand {
-    position: absolute; top: 96px; left: 0; right: 0; text-align: center;
-    color: #fff; letter-spacing: 6px; font-weight: 800; font-size: 34px;
-    text-shadow: 0 2px 18px rgba(0,0,0,.55);
-  }
-  .brand .lamp { color: #ffe39c; }
+  /* Marca arriba: logo real del faro + wordmark */
+  .brand { position: absolute; top: 110px; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .brand svg { filter: drop-shadow(0 4px 18px rgba(0,0,0,.55)); }
+  .brand .word { color: #fff; letter-spacing: 8px; font-weight: 800; font-size: 30px; text-shadow: 0 2px 16px rgba(0,0,0,.6); }
 
-  /* Panel central con la oración */
+  /* Versículo: protagonista */
   .panel {
-    position: absolute; left: 70px; right: 70px; top: 720px;
-    background: rgba(6,32,43,0.58);
-    border: 1.5px solid rgba(255,255,255,0.24);
-    border-radius: 36px;
-    padding: 64px 56px 58px;
-    backdrop-filter: blur(8px);
-    box-shadow: 0 24px 80px rgba(0,0,0,.45);
+    position: absolute; left: 80px; right: 80px; top: 760px;
+    background: rgba(6,32,43,0.46);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 34px;
+    padding: 70px 58px;
+    backdrop-filter: blur(7px);
+    box-shadow: 0 20px 70px rgba(0,0,0,.4);
   }
-  .kicker {
-    color: #ffe39c; font-size: 28px; font-weight: 700; letter-spacing: 3px;
-    text-transform: uppercase; text-align: center; margin-bottom: 26px;
+  .verse {
+    color: #fff; font-size: 64px; line-height: 1.26; font-weight: 700;
+    text-align: center; text-shadow: 0 2px 16px rgba(0,0,0,.55);
   }
-  .msg {
-    color: #fff; font-size: 62px; line-height: 1.22; font-weight: 700;
-    text-align: center; text-shadow: 0 2px 16px rgba(0,0,0,.5);
-  }
-  .places {
-    margin-top: 34px; text-align: center; color: #d7eef6; font-size: 30px;
-    font-weight: 600; letter-spacing: 2px;
+  .ref {
+    margin-top: 34px; text-align: center; color: #ffe39c; font-size: 34px;
+    font-weight: 700; letter-spacing: 2px;
   }
 
-  /* CTA abajo */
-  .cta {
-    position: absolute; left: 0; right: 0; bottom: 150px; text-align: center;
-    color: #fff; font-size: 32px; font-weight: 600; text-shadow: 0 2px 14px rgba(0,0,0,.6);
+  /* Pie discreto */
+  .foot {
+    position: absolute; left: 0; right: 0; bottom: 110px; text-align: center;
+    color: rgba(255,255,255,0.82); font-size: 28px; font-weight: 600; letter-spacing: 3px;
+    text-shadow: 0 2px 12px rgba(0,0,0,.6);
   }
-  .cta b { color: #ffe39c; }
-  .cta .small { display: block; margin-top: 10px; font-size: 26px; font-weight: 500; color: #cfe6ef; }
 </style>
 </head>
 <body>
   <div class="wrap">
-    <div class="brand"><span class="lamp">🔦</span> FARO VE</div>
+    <div class="brand">
+      <svg width="96" height="96" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="faroLampGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#FFF7D6" stop-opacity="0.95" />
+            <stop offset="45%" stop-color="#FFE9A8" stop-opacity="0.5" />
+            <stop offset="100%" stop-color="#FFE9A8" stop-opacity="0" />
+          </radialGradient>
+          <linearGradient id="faroBeam" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#FFF7D6" stop-opacity="0.55" />
+            <stop offset="100%" stop-color="#FFF7D6" stop-opacity="0" />
+          </linearGradient>
+        </defs>
+        <circle cx="32" cy="16" r="15" fill="url(#faroLampGlow)" />
+        <g style="transform-origin:32px 16px">
+          <path d="M32 16 L9 5 L11 12 Z" fill="url(#faroBeam)" />
+          <path d="M32 16 L55 5 L53 12 Z" fill="url(#faroBeam)" />
+        </g>
+        <circle cx="32" cy="16" r="4" fill="#FFE9A8" stroke="#FFF7D6" stroke-width="1" />
+        <path d="M26.5 20.5 h11 l-1 3.5 h-9 z" fill="#ffffff" stroke="#ffffff" stroke-width="0.5" stroke-linejoin="round" />
+        <path d="M27.2 24 h9.6 l2.6 23 h-14.8 z" fill="#ffffff" stroke-linejoin="round" />
+        <path d="M25.9 33 h12.2 l0.5 5 h-13.2 z" fill="rgba(255,255,255,0.55)" />
+        <path d="M22.5 47 h19 l2.2 5.5 h-23.4 z" fill="#ffffff" stroke-linejoin="round" />
+        <line x1="16" y1="52.5" x2="48" y2="52.5" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" />
+      </svg>
+      <div class="word">FARO VE</div>
+    </div>
+
     <div class="panel">
-      <div class="kicker">Una oración por Venezuela</div>
-      <div class="msg" id="msg">—</div>
-      <div class="places">Caracas · La Guaira · Venezuela</div>
+      <div class="verse" id="verse">—</div>
+      <div class="ref" id="ref"></div>
     </div>
-    <div class="cta">
-      Si buscás o viste a alguien: <b>faro-ve.com</b>
-      <span class="small">Mapa de esperanza · personas y refugios</span>
-    </div>
+
+    <div class="foot">faro-ve.com</div>
   </div>
 </body>
 </html>
