@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Faro VE — Reel diario de esperanza. Instalar (1 vez):
+    cp scripts/reel/com.farove.reel.plist ~/Library/LaunchAgents/
+    launchctl unload ~/Library/LaunchAgents/com.farove.reel.plist 2>/dev/null
+    launchctl load   ~/Library/LaunchAgents/com.farove.reel.plist
+  Corre 09:00 local → genera el reel del día y lo PROGRAMA en Buffer para 16:00 Madrid
+  (Mac en Europe/Zurich = mismo huso que Madrid). Pausar: touch ~/.faro-ig/paused
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.farove.reel</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/local/bin/node</string>
+    <string>/Users/bleiquelcolina/Desktop/faro-ve/scripts/reel/daily-reel.mjs</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/bleiquelcolina/Desktop/faro-ve</string>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>9</integer>
+    <key>Minute</key><integer>0</integer>
+  </dict>
+  <key>RunAtLoad</key><false/>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key><string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+  </dict>
+  <key>StandardOutPath</key><string>/Users/bleiquelcolina/.faro-ig/reel.log</string>
+  <key>StandardErrorPath</key><string>/Users/bleiquelcolina/.faro-ig/reel.err.log</string>
+</dict>
+</plist>

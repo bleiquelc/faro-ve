@@ -102,6 +102,14 @@ execFileSync(FFMPEG, [
 execFileSync(FFMPEG, ['-y', '-i', mp4, '-vf', 'scale=540:960', '-c:v', 'libx264', '-crf', '26', '-preset', 'fast', '-an', preview], { stdio: 'inherit' });
 execFileSync(FFMPEG, ['-y', '-ss', '3', '-i', mp4, '-frames:v', '1', '-update', '1', '-vf', 'scale=405:720', poster], { stdio: 'inherit' });
 
+// Caption para publicar (versículo + oración + crédito Pexels + hashtags)
+const credit = footage ? `\n\n🎬 ${footage.credit}` : '';
+const caption =
+  `${message.text} — ${message.ref}\n\n` +
+  `Una oración por Venezuela. 🤍${credit}\n\n` +
+  `#Terremoto #TerremotoVenezuela #Venezuela #LaGuaira #Caracas #SOSVenezuela #Sismo #Esperanza #FaroVE\n`;
+fs.writeFileSync(mp4 + '.caption.txt', caption);
+
 console.log('\n✅ Reel listo:');
 console.log('  full   :', mp4);
 console.log('  preview:', preview);
