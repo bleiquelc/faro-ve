@@ -19,7 +19,7 @@ function pexelsKey() {
 }
 
 // Venezuela primero; luego respaldos serenos (mar/costa/montaña/amanecer).
-const QUERIES = [
+export const QUERIES = [
   'Caracas Venezuela', 'La Guaira Venezuela', 'Venezuela landscape', 'Avila mountain Caracas',
   'Caribbean sea calm', 'ocean sunrise calm', 'sea waves slow motion', 'tropical coast aerial',
   'mountains sunrise clouds', 'calm ocean horizon', 'coast dawn', 'serene sea sky'
