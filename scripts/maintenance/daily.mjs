@@ -101,9 +101,12 @@ if (process.env.MAINT_HEALTH_ONLY === '1') {
   log('  reencuentros: OMITIDO (MAINT_HEALTH_ONLY=1)');
 } else {
   try {
+    // INCREMENTAL: solo reportes VR de los últimos 3 días (el catch-up completo ya
+    // está sembrado). Rápido y barato; evita el timeout del escaneo completo.
+    const since = new Date(Date.now() - 3 * 864e5).toISOString();
     const out = execFileSync('node', ['scripts/buffer/reconcile.mjs'], {
-      cwd: REPO, encoding: 'utf8', timeout: 25 * 60 * 1000,
-      env: { ...process.env, A_SALVO_MAX: process.env.A_SALVO_MAX || '600', ENCONTRADO_MAX: process.env.ENCONTRADO_MAX || '800' }
+      cwd: REPO, encoding: 'utf8', timeout: 45 * 60 * 1000,
+      env: { ...process.env, SINCE: process.env.SINCE || since, A_SALVO_MAX: process.env.A_SALVO_MAX || '600', ENCONTRADO_MAX: process.env.ENCONTRADO_MAX || '800' }
     });
     log('  reconcile: ' + out.trim().split('\n').slice(-3).join(' | '));
   } catch (e) { problem('reconcile.mjs falló: ' + (e.message || e)); }
