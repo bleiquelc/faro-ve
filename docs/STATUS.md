@@ -3,6 +3,22 @@
 > Documento vivo. Cierre del día actualiza este archivo + crea
 > `docs/SESSIONS/YYYY-MM-DD-day{N}.md` con detalle.
 
+## ⚡ ÚLTIMO AVANCE — 30-jun-2026 (noche) · TODO CORRIENDO SOLO
+
+> Detalle completo en memoria: `[[faro-ve-reel-esperanza]]`, `[[faro-ve-mantenimiento]]`, `[[faro-ve-instagram-buffer]]`, `[[mision-3-proyectos]]`. Lee `docs/RUNBOOK-mantenimiento.md`.
+
+**3 launchd activos en el Mac del founder** (`launchctl list | grep farove`):
+- **`com.farove.ig`** (cada 1 h) — auto-publicador IG @farovenmap (2 fichas/corrida, SOLO foto limpia verificada por IA, anti-homónimo).
+- **`com.farove.maintenance`** (09:00) — salud del sitio + ingesta + **reconcile incremental** (SINCE 3 días) + seed + alerta SOLO si algo falla (notificación macOS). `docs/RUNBOOK-mantenimiento.md`.
+- **`com.farove.reel`** (09:00 → programa 16:00 Madrid) — **Reel diario de esperanza** (versículo RV + footage sereno de Venezuela vía Pexels, rotando). `scripts/reel/`. Buffer-video PROBADO (`reel-post.mjs`). Preview: `node scripts/reel/preview-next.mjs`.
+- Worker Cloudflare **cron-ingest** (*/5) ingiere el conteo 24/7 (la DB es IPv6).
+
+**LIVE:** `/reencuentros` con **288 familias** (de 413 detectadas; 100 media en `~/Desktop/faro-reencuentros/` para revisión). Reels: amanecer + mar turquesa publicados; Caracas programado 1-jul 18:00; diario automático desde 1-jul 16:00. **Optimización de tokens:** cache IA compartido (`scripts/buffer/ai-cache.mjs`).
+
+**Pendientes del founder (chips de tarea creados):** purga PII Habeas Data (regla #6, `pg_cron`), cron opt-out + verificar Cloudflare Email Routing (reglas #8/#10), relajar worker cron-ingest `*/5`→`*/15` cuando el conteo se estabilice (~28-29k).
+
+**Secretos en `~/.secrets/faro-ve/`:** `buffer-key.txt`, `anthropic-key.txt`, `enrich-token.txt`, `pexels-key.txt` (todos válidos). Kill-switch global IG+reel+mantenimiento: `touch ~/.faro-ig/paused`.
+
 ## Sprint 25-jun-2026 → 1-jul-2026 (6 días)
 
 | Día | Fecha | Foco | Gate | Estado |
