@@ -19,6 +19,25 @@ declare module '*/venezuela-te-busca-core.mjs' {
     stats?: unknown;
     echoPage?: number;
   }>;
+  // Búsqueda paginada por cursor (la fuente ya no pagina por ?page=N).
+  export function fetchSearch(
+    query: string,
+    cursor?: string | null,
+    fetchImpl?: typeof fetch
+  ): Promise<{
+    persons: Array<Record<string, unknown>>;
+    nextCursor: string | null;
+    hasMore: boolean;
+  }>;
+  export function fetchSearchValid(
+    query: string,
+    cursor?: string | null,
+    opts?: { fetchImpl?: typeof fetch; tries?: number }
+  ): Promise<{
+    persons: Array<Record<string, unknown>>;
+    nextCursor: string | null;
+    hasMore: boolean;
+  }>;
   export function mapRecord(p: Record<string, unknown>): null | {
     source: string;
     source_id: string;
@@ -36,4 +55,9 @@ declare module '*/venezuela-te-busca-core.mjs' {
     lat: number | null;
     lng: number | null;
   };
+}
+
+/** Lista de términos de búsqueda para enumerar la fuente (search-terms.mjs). */
+declare module '*/search-terms.mjs' {
+  export const TERMS: string[];
 }

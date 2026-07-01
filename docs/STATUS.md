@@ -3,6 +3,22 @@
 > Documento vivo. Cierre del día actualiza este archivo + crea
 > `docs/SESSIONS/YYYY-MM-DD-day{N}.md` con detalle.
 
+## ⚡ ÚLTIMO AVANCE — 1-jul-2026 · CONTEO DESCONGELADO (fuente pasó a solo-búsqueda)
+
+> Detalle en memoria: `[[faro-ve-fuente-search-only]]`. Reparación de la ingesta.
+
+**Diagnóstico:** el conteo estaba **congelado en ~26,961** aunque Venezuela Te Busca ya tenía **63,764+** registros (creció rápido). Causa raíz: **la fuente cambió su API** de paginación por `?page=N` a un modelo **SOLO-búsqueda con cursor**. El worker `*/5` (y el script) pedían `?page=N`, la fuente lo ignoraba y devolvía siempre los 24 recientes → todo caía en dedup → **el número no subía**. (Anula el pendiente viejo "relajar `*/5`→`*/15` al estabilizar ~28-29k": el problema no era estabilización, era la API rota. Y la línea "el worker ingiere 24/7" quedó **falsa** hasta el redeploy.)
+
+**Reparado (Ley de Reuso — reusa el core, no reconstruye):**
+- Core `scripts/ingest/venezuela-te-busca-core.mjs`: `fetchSearch`/`fetchSearchValid` (cursor).
+- `scripts/ingest/search-terms.mjs` (NUEVO): 465 términos (nombres+apellidos+lugares+trigramas).
+- `scripts/ingest/venezuela-te-busca.mjs`: enumeración por términos+cursor+dedup+corte temprano; `insertBatch` ahora por la RPC `ingest_persons_batch` (el INSERT inline estaba roto: "data type of parameter $12").
+- `workers/cron-ingest/src/adapters/venezuela-te-busca.ts`: mismo modelo (`ingest_cursor`=índice de término, rota). **PENDIENTE FOUNDER: `npm run deploy:workers`** para reactivar la ingesta automática.
+
+**Recuperación manual COMPLETADA** (idempotente, throttle 1 req/2s, auto-aprobado, atribución+opt-out intactos): `node scripts/ingest/venezuela-te-busca.mjs --apply --dup-pages 3`. **Conteo 26,961 → 46,393 (+19,432, +72%)** en una pasada (465/465 términos, 3,464 req, 17,102 nuevos, 45,604 personas únicas vistas ≈ 73% de los 63,764 de la fuente). El resto (cola dispersa + no-geocodificables) se completa por **federación** (borrador `docs/outreach/venezuela-te-busca-feed-request.md`), no por más scraping (regla #12 + eficiencia). Re-correr el comando es seguro (idempotente) para capturar nuevos.
+
+**Pendientes founder de esto:** (1) `npm run deploy:workers`; (2) revisar/enviar el outreach de feed a Venezuela Te Busca.
+
 ## ⚡ ÚLTIMO AVANCE — 30-jun-2026 (noche) · TODO CORRIENDO SOLO
 
 > Detalle completo en memoria: `[[faro-ve-reel-esperanza]]`, `[[faro-ve-mantenimiento]]`, `[[faro-ve-instagram-buffer]]`, `[[mision-3-proyectos]]`. Lee `docs/RUNBOOK-mantenimiento.md`.

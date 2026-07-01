@@ -1,21 +1,29 @@
 /**
  * Adapter de ingesta venezuela-te-busca para el Worker cron-ingest.
  *
- * Reusa el núcleo compartido (parseo + geocodificación + mapeo) y escribe vía la
- * RPC idempotente `ingest_persons_batch` (no duplica: salta los source_id que ya
- * existen). Incremental: procesa hasta `maxPagesPerRun` páginas por corrida desde
- * el cursor guardado; al llegar al final reinicia el cursor para re-escanear y
- * captar nuevos. Throttle ético (1 req/2s) heredado del núcleo.
+ * PAGINACIÓN (jul-2026): la fuente pasó a un modelo SOLO-búsqueda. La vista sin
+ * filtro devuelve solo 24 recientes con hasMore:false y `?page=N` se ignora; SÓLO
+ * `query` (≥3 chars, substring de nombre Y ubicación) pagina, vía cursor opaco. Por
+ * eso aquí se ENUMERA por búsqueda: se barre una lista de términos frecuentes
+ * (nombres + apellidos + lugares + trigramas, `search-terms.mjs`), paginando cada
+ * uno por cursor y cortando al agotar registros NUEVOS (van primero por created_at
+ * desc). El estado incremental `ingest_cursor` guarda el ÍNDICE del término por el
+ * que seguir la próxima corrida (rota sobre la lista → re-barre y capta nuevos).
+ *
+ * Reusa el núcleo compartido (fetchSearchValid + mapRecord) y escribe vía la RPC
+ * idempotente `ingest_persons_batch` (no duplica: saltea source_id ya existentes).
+ * Throttle ético (1 req/2s) heredado del núcleo.
  */
 import {
-  PAGE_SIZE,
   THROTTLE_MS,
   sleep,
-  fetchPageValid,
+  fetchSearchValid,
   mapRecord
 } from '../../../../scripts/ingest/venezuela-te-busca-core.mjs';
+import { TERMS } from '../../../../scripts/ingest/search-terms.mjs';
 
 const ROBOTS_URL = 'https://venezuela-te-busca-app.hellogafaro.workers.dev/robots.txt';
+const DUP_PAGES = 3; // cortar un término tras K páginas seguidas sin NUEVOS a DB
 
 interface SupabaseLike {
   rpc: (
@@ -26,8 +34,8 @@ interface SupabaseLike {
 
 export interface AdapterDeps {
   supabase: SupabaseLike;
-  startCursor: number;
-  maxPagesPerRun: number;
+  startCursor: number; // índice del término inicial (rota sobre TERMS)
+  maxPagesPerRun: number; // presupuesto de REQUESTS por corrida
   ua: string;
   log: (m: string) => void;
 }
@@ -37,7 +45,7 @@ export interface AdapterResult {
   duplicates: number;
   errors: number;
   notes: string;
-  nextCursor: number;
+  nextCursor: number; // índice del término para la próxima corrida
   scanned: number;
   geocodable: number;
 }
@@ -71,84 +79,81 @@ export async function ingest(deps: AdapterDeps): Promise<AdapterResult> {
     };
   }
 
-  let page = deps.startCursor >= 1 ? deps.startCursor : 1;
-  let pagesThisRun = 0;
+  const total = TERMS.length;
+  let idx =
+    Number.isFinite(deps.startCursor) && deps.startCursor >= 0
+      ? Math.floor(deps.startCursor) % total
+      : 0;
+
+  let requests = 0;
   let scanned = 0;
   let geocodable = 0;
   let imported = 0;
   let duplicates = 0;
   let errors = 0;
-  let emptyStreak = 0;
-  let totalCount: number | null = null;
-  let maxPages = Infinity;
+  let termsProcessed = 0;
+  const seen = new Set<string>();
 
-  while (pagesThisRun < maxPagesPerRun) {
-    let data;
-    try {
-      data = await fetchPageValid(page);
-    } catch (e) {
-      errors++;
-      log(`pág ${page} error: ${(e as Error).message}`);
-      break;
-    }
+  while (requests < maxPagesPerRun && termsProcessed < total) {
+    const term = TERMS[idx];
+    let cursor: string | null = null;
+    let dupPages = 0;
 
-    if (totalCount === null && typeof data.totalCount === 'number') {
-      totalCount = data.totalCount;
-      maxPages = Math.ceil(totalCount / PAGE_SIZE) + 3;
-    }
-
-    if (!data.persons.length) {
-      emptyStreak++;
-      pagesThisRun++;
-      if (emptyStreak >= 5 || page >= maxPages) {
-        // Fin del recorrido. Reinicia el cursor a 1 SOLO si conocemos el total
-        // (fin real → re-escanear nuevos el próximo ciclo). Si la fuente glitchea
-        // sin dar total, conserva la página para reintentar (evita re-escanear
-        // todo desde 1 en bucle).
-        page = totalCount !== null ? 1 : page;
+    while (requests < maxPagesPerRun) {
+      let res;
+      try {
+        res = await fetchSearchValid(term, cursor);
+      } catch (e) {
+        errors++;
+        log(`term="${term}" error: ${(e as Error).message}`);
         break;
       }
-      page++;
-      await sleep(THROTTLE_MS);
-      continue;
-    }
-    emptyStreak = 0;
+      requests++;
 
-    const recs: Array<Record<string, unknown>> = [];
-    for (const p of data.persons) {
-      scanned++;
-      const r = mapRecord(p);
-      if (r) recs.push(r as unknown as Record<string, unknown>);
-    }
-    geocodable += recs.length;
-
-    if (recs.length) {
-      const { data: cnt, error } = await supabase.rpc('ingest_persons_batch', { p_records: recs });
-      if (error) {
-        errors++;
-        log(`rpc error pág ${page}: ${error.message}`);
-      } else {
-        const ins = typeof cnt === 'number' ? cnt : 0;
-        imported += ins;
-        duplicates += recs.length - ins;
+      const recs: Array<Record<string, unknown>> = [];
+      for (const p of res.persons) {
+        const sid = p.id != null ? String(p.id).trim() : '';
+        if (!sid || seen.has(sid)) continue;
+        seen.add(sid);
+        const r = mapRecord(p);
+        if (r) {
+          recs.push(r as unknown as Record<string, unknown>);
+          scanned++;
+        }
       }
+      geocodable += recs.length;
+
+      let newHere = 0;
+      if (recs.length) {
+        const { data: cnt, error } = await supabase.rpc('ingest_persons_batch', { p_records: recs });
+        if (error) {
+          errors++;
+          log(`rpc error term="${term}": ${error.message}`);
+        } else {
+          newHere = typeof cnt === 'number' ? cnt : 0;
+          imported += newHere;
+          duplicates += recs.length - newHere;
+        }
+      }
+
+      // Corte temprano: página sin NUEVOS → ya entramos en registros ingestados.
+      dupPages = newHere === 0 ? dupPages + 1 : 0;
+      if (!res.hasMore || !res.nextCursor || dupPages >= DUP_PAGES) break;
+      cursor = res.nextCursor;
+      await sleep(THROTTLE_MS);
     }
 
-    page++;
-    pagesThisRun++;
-    if (page > maxPages) {
-      page = 1;
-      break;
-    }
-    await sleep(THROTTLE_MS);
+    termsProcessed++;
+    idx = (idx + 1) % total;
+    if (requests < maxPagesPerRun) await sleep(THROTTLE_MS);
   }
 
   return {
     imported,
     duplicates,
     errors,
-    notes: `escaneados ${scanned}, geocodables ${geocodable}, nuevos ${imported}, dup ${duplicates}`,
-    nextCursor: page,
+    notes: `${termsProcessed} términos desde idx ${deps.startCursor}, req ${requests}, nuevos ${imported}, dup ${duplicates}`,
+    nextCursor: idx,
     scanned,
     geocodable
   };

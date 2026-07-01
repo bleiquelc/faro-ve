@@ -75,6 +75,41 @@ export async function fetchPageValid(page, { fetchImpl = fetch, tries = 4 } = {}
   return last;
 }
 
+// Busqueda paginada por CURSOR. La fuente dejo de paginar por ?page=N (esa vista
+// devuelve solo 24 recientes con hasMore:false); ahora SOLO query (>=3 chars,
+// substring de nombre Y ubicacion) pagina, con un token cursor opaco (base64) que
+// la respuesta da en pagination.nextCursor. Orden created_at desc (los nuevos
+// primero). Primera pagina: sin cursor; siguientes: se reenvia el nextCursor.
+export async function fetchSearch(query, cursor = null, fetchImpl = fetch) {
+  const cq = cursor ? `&cursor=${encodeURIComponent(cursor)}` : '';
+  const url = `${BASE}/_root.data?query=${encodeURIComponent(query)}${cq}`;
+  const res = await fetchImpl(url, { headers: { 'user-agent': UA, accept: 'text/x-script' } });
+  if (!res.ok) throw new Error(`HTTP ${res.status} en ${url}`);
+  const arr = JSON.parse((await res.text()).split('\n')[0]);
+  const data = decode(arr)['routes/_index'].data;
+  return {
+    persons: data.persons || [],
+    nextCursor: data.pagination?.nextCursor ?? null,
+    hasMore: !!data.pagination?.hasMore
+  };
+}
+
+// fetchSearch con reintentos (la fuente a veces responde vacio espurio).
+export async function fetchSearchValid(query, cursor = null, { fetchImpl = fetch, tries = 4 } = {}) {
+  let last = { persons: [], nextCursor: null, hasMore: false };
+  for (let i = 0; i < tries; i++) {
+    try {
+      const r = await fetchSearch(query, cursor, fetchImpl);
+      last = r;
+      if (r.persons.length > 0 || !r.hasMore) return r;
+    } catch (e) {
+      if (i === tries - 1) throw e;
+    }
+    await sleep(THROTTLE_MS * (i + 2));
+  }
+  return last;
+}
+
 export function classify(status) {
   return status === 'found' ? 'found_alive' : 'missing';
 }
@@ -82,6 +117,20 @@ export function sexOf(g) {
   if (g === 'masculino') return 'male';
   if (g === 'femenino') return 'female';
   return 'unknown';
+}
+
+// Limpia texto para jsonb: quita NUL y otros controles C0 (deja tab/nl/cr). La
+// fuente a veces filtra binario/EXIF en campos de texto y el NUL rompe ::jsonb.
+export function cleanText(s) {
+  if (s == null) return null;
+  let out = '';
+  const str = String(s);
+  for (let i = 0; i < str.length; i++) {
+    const c = str.charCodeAt(i);
+    if (c === 9 || c === 10 || c === 13 || c >= 32) out += str[i];
+  }
+  out = out.trim();
+  return out.length ? out : null;
 }
 
 /**
@@ -102,13 +151,13 @@ export function mapRecord(p) {
     source: SOURCE,
     source_id: String(p.id),
     source_url: SOURCE_URL,
-    given_name: (p.firstName || '').trim() || null,
-    family_name: (p.lastName || '').trim() || null,
+    given_name: cleanText(p.firstName),
+    family_name: cleanText(p.lastName),
     age,
     sex: sexOf(p.gender),
     status: classify(p.status),
-    last_known_location_text: lastSeen || null,
-    description: p.description ? String(p.description).trim().slice(0, 2000) : null,
+    last_known_location_text: cleanText(lastSeen),
+    description: cleanText(p.description != null ? String(p.description).slice(0, 2000) : null),
     // Foto: solo URLs que existen. Las '/migrated/' de la fuente dan 404 → null.
     photo_url: p.photoUrl && !p.photoUrl.includes('/migrated/') ? `${BASE}${p.photoUrl}` : null,
     lat,
