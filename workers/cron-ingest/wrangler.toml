@@ -31,6 +31,9 @@ INGEST_MAX_PAGES_PER_RUN = "90"
 # Secrets a inyectar via: wrangler secret put SUPABASE_SERVICE_ROLE_KEY
 #   - PUBLIC_SUPABASE_URL
 #   - SUPABASE_SERVICE_ROLE_KEY
+#   - SUPABASE_DB_URL  (Session Pooler; ~/.secrets/faro-ve/db-url.txt — SOLO
+#     para la re-geocodificación masiva de regeocode.ts, que necesita SQL directo
+#     para suprimir el audit-por-fila; sin él la ingesta funciona igual)
 #   - APP_SALT
 #   - ADMIN_NOTIFY_EMAIL_RESEND_API_KEY
 #   - RESEND_API_KEY

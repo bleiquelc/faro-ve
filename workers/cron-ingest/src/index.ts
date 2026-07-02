@@ -20,10 +20,13 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { ingest as ingestVtb } from './adapters/venezuela-te-busca';
+import { regeocodeIfNeeded } from './regeocode';
 
 export interface Env {
   PUBLIC_SUPABASE_URL: string;
   SUPABASE_SERVICE_ROLE_KEY: string;
+  /** Session Pooler de Supabase — SOLO para la re-geocodificación masiva (regeocode.ts). */
+  SUPABASE_DB_URL?: string;
   APP_SALT: string;
   RESEND_API_KEY: string;
   RESEND_INBOUND_OPTOUT: string;
@@ -45,7 +48,9 @@ interface IngestResult {
 
 export default {
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(runIngest(env));
+    // 1º re-geocodificación (no-op salvo que GEOCODE_VERSION haya subido; nunca
+    // lanza — fail-safe interno), 2º la ingesta normal del tick.
+    ctx.waitUntil(regeocodeIfNeeded(env).then(() => runIngest(env)));
   }
 };
 
