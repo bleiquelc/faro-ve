@@ -6,6 +6,11 @@
 
 - **OpenStreetMap** — © OpenStreetMap contributors. Datos disponibles bajo [Open Database License](https://opendatacommons.org/licenses/odbl/). Contribuye a OSM en [openstreetmap.org](https://www.openstreetmap.org/).
 
+## Datos geográficos (geocodificación)
+
+- **GeoNames** — This work includes data from [GeoNames](https://www.geonames.org/) (lugares poblados de Venezuela, dump `VE.txt`), licencia [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Usado para anclar en el mapa la ubicación APROXIMADA (luego ofuscada 200–500 m) de los reportes ingestados; ver `scripts/ingest/geocode-places.mjs`.
+- **geoBoundaries** — máscara de tierra de Venezuela (ADM0) para que la ofuscación no deje pines en el mar; ver `scripts/data/ve-land.geojson`.
+
 ## Fuentes de datos integradas (al lanzamiento)
 
 | Fuente | URL original | Tipo | Estado |
