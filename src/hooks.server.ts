@@ -111,6 +111,14 @@ const PUBLIC_POST_PATTERNS: { re: RegExp; key: string; rl: { windowSec: number; 
     re: /^\/api\/persons\/[0-9a-f-]{36}\/vote$/i,
     key: '/api/persons/:id/vote',
     rl: { windowSec: 600, max: 30 }
+  },
+  {
+    // Retiro self-service (0031): persona sale del mapa / familia retira a un
+    // fallecido. Turnstile + 5/h por IP (key ESTABLE, no por id → un abusador no
+    // esquiva el límite retirando muchos registros distintos).
+    re: /^\/api\/persons\/[0-9a-f-]{36}\/remove$/i,
+    key: '/api/persons/:id/remove',
+    rl: { windowSec: 3600, max: 5 }
   }
 ];
 

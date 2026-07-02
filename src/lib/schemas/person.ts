@@ -153,6 +153,18 @@ export const reportPersonSchema = z.object({
 
 export type ReportPersonInput = z.infer<typeof reportPersonSchema>;
 
+/**
+ * POST /api/persons/[id]/remove — retiro self-service (0031). El `id` va en la
+ * URL; aquí solo el motivo/relación + nota + token. `self` = "soy yo, quiero
+ * salir"; `family_deceased` = "es mi familiar y falleció"; `other` = otro caso.
+ */
+export const removalReasonSchema = z.object({
+  relationship: z.enum(['self', 'family_deceased', 'other']).default('other'),
+  note: z.string().trim().max(500).optional(),
+  'cf-turnstile-response': z.string().optional()
+});
+export type RemovalReasonInput = z.infer<typeof removalReasonSchema>;
+
 /** GET /api/persons — filtros del mapa (todos opcionales). */
 export const personFiltersSchema = z.object({
   status: z.enum(PERSON_STATUS).optional(),

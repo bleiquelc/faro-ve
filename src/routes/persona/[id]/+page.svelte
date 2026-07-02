@@ -221,4 +221,16 @@
       {/if}
     </p>
   {/if}
+
+  <!-- Retiro self-service (0031): con respeto para quien es el sujeto o su
+       familia. Discreto, al pie. Lleva el id + nombre preseleccionados. -->
+  <p class="mt-6 text-center text-xs text-gray-400">
+    ¿Eres tú y quieres salir del mapa, o esta persona falleció?
+    <a
+      href="/privacidad/eliminar?id={p.id}&name={encodeURIComponent(p.full_name || '')}"
+      class="underline hover:text-gray-600"
+    >
+      Solicitar retiro
+    </a>
+  </p>
 </main>
