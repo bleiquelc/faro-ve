@@ -73,7 +73,19 @@ entra con lat/lng null (buscable por nombre, sin pin). Núcleo compartido por sc
 
 **Archivos clave.** `scripts/ingest/venezuela-te-busca-core.mjs` (núcleo) ·
 `scripts/ingest/venezuela-te-busca.mjs` (script local) · `workers/cron-ingest/src/index.ts`
-(prod) · `workers/cron-ingest/wrangler.toml` · `supabase/migrations/0025,0026,0028_*.sql`.
+(prod) · `workers/cron-ingest/src/regeocode.ts` (re-geocodificación al subir `GEOCODE_VERSION`) ·
+`workers/cron-ingest/wrangler.toml` · `supabase/migrations/0025,0026,0028_*.sql`.
+
+**Geocodificación (2-jul, v2).** El texto de lugar → coord la resuelve
+`scripts/ingest/geocode.mjs` (`geocode()`, offline, determinista): SPECIFIC (sectores
+curados) → PLACES (2477 anclas de GeoNames, `geocode-places.mjs`, GENERADO por
+`gen-geocode-places.mjs`; regenerar con `node scripts/ingest/gen-geocode-places.mjs VE.txt`) →
+CITY/STATE, con desambiguación por contexto de estado. **TODA ancla verificada EN TIERRA**
+(`land-mask.mjs` + `tests/ingest/geocode.test.ts`): un ancla en el mar hace que la ofuscación
+apile pines sobre el agua. **Al cambiar tablas/lógica: subir `GEOCODE_VERSION`** → el worker
+`regeocode.ts` recalcula los ~46k puntos ya guardados UNA vez (paginado resumable, advisory
+lock, audit resumen, fail-safe). Requiere el secret `SUPABASE_DB_URL` (Session Pooler) en el
+worker; sin él, la re-geocodificación es no-op y la ingesta sigue.
 
 **Cómo operar.**
 ```bash

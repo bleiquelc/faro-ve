@@ -3,6 +3,20 @@
 > Documento vivo. Cierre del día actualiza este archivo + crea
 > `docs/SESSIONS/YYYY-MM-DD-day{N}.md` con detalle.
 
+## ⚡ ÚLTIMO AVANCE — 2-jul-2026 · PRECISIÓN DEL MAPA (pines fuera del agua) + 🔴 FUGA DE CLAVE
+
+> Sesión autónoma (Fable 5). Detalle: `docs/SESSIONS/2026-07-02-geocode-precision-y-fuga-clave.md`.
+
+**🔴 BLOQUEADOR DE SEGURIDAD (founder, urgente):** la web pública **faro-ve.com inyecta en el HTML** una clave **`sb_secret_…`** como `PUBLIC_SUPABASE_ANON_KEY`. Esa es la clave SECRETA de Supabase (bypassa RLS): cualquiera podría leerla del código fuente y consultar la tabla base `persons` (coord EXACTA + PII), saltando `persons_public`. Viola #1/#2. **NO se usó la clave.** Fix (solo founder, chip creado): (1) ROTAR la secret en Supabase; (2) `PUBLIC_SUPABASE_ANON_KEY` = clave **publishable** (`sb_publishable_…`); (3) `SUPABASE_SERVICE_ROLE_KEY` = la nueva secret; (4) `$env/dynamic/public` es runtime → sin redeploy, pero conviene. Verificar: `curl -s https://faro-ve.com/ | grep -o 'sb_[a-z]*'` debe decir `sb_publishable`. Guarda defensiva ya en código (`src/lib/utils/key-guard.ts` + `browserSupabase()`): el navegador jamás usa una clave privilegiada, pero NO evita la inyección en HTML — el fix real es rotar.
+
+**Pines sobre el agua — CAUSA RAÍZ Y FIX (geocoder v2, LIVE):** 10 anclas del geocoder caían EN EL MAR (Tanaguarena ~5 km mar adentro, Todasana ~6 km, Los Corales, La Sabana, Naiguatá, Porlamar, Tucacas, Higuerote…). La ofuscación obligatoria 200–500 m (#1) agotaba sus 16 intentos alrededor del ancla marina y el snap-a-costa apilaba miles de pines SOBRE el agua. **Geocoder v2** (`GEOCODE_VERSION=2`): anclas corregidas a coords en tierra + **2477 lugares de GeoNames** (CC BY 4.0, sedes de municipio/parroquia/pueblo/sector, TODAS verificadas en tierra) + desambiguación por CONTEXTO de estado + matcher por n-gramas (46k textos en ~380 ms). Ahora el pin cae en el **lugar real de la dirección pública**, no en la capital del estado. `scripts/ingest/{geocode,geocode-places,gen-geocode-places,land-mask}.mjs`. Tests +10 (toda ancla en tierra). **Deploy LIVE** (Pages + worker).
+
+**Re-geocodificación de lo ya guardado (worker, listo; falta 1 secret founder):** `workers/cron-ingest/src/regeocode.ts` recalcula los ~46k puntos ingestados al lugar correcto — paginado keyset resumable, 1 transacción/página con advisory lock + `skip_persons_audit`, gate por `GEOCODE_VERSION`, fail-safe. **PENDIENTE FOUNDER: `cd workers/cron-ingest && wrangler secret put SUPABASE_DB_URL` (pegar `~/.secrets/faro-ve/db-url.txt`) → el próximo tick del cron re-geocodifica una sola vez.** Sin ese secret, los NUEVOS reportes ya entran con coords v2; los viejos se corrigen al setearlo.
+
+**3 bugs de revisión adversarial arreglados (LIVE):** (1) `Map.svelte` race real con zoom rápido (pines stale sobre burbujas → `dataEpoch`); (2) `Map.svelte` a11y: el modo agregado (inicial de `/mapa`) sin ruta sr-only → nav accesible de zonas; (3) `persona/[id]` no seleccionaba `contact_phone_optional` → el botón "Llamar" nunca aparecía aunque el sujeto "a salvo" publicara su teléfono. + `api/enrich`: comparación de token en tiempo constante.
+
+**Estado:** 95 tests verde · svelte-check 0 · build limpio · **deploy Pages + worker HECHO**; smoke prod 200 (home/mapa/ficha/persons=46.430/clusters). **4 commits locales en `main`** (push a GitHub bloqueado por el classifier — lo hace el founder). **Pendientes founder: (A) rotar la clave Supabase [URGENTE]; (B) `wrangler secret put SUPABASE_DB_URL` + deploy worker para re-geocodificar lo viejo.**
+
 ## ⚡ ÚLTIMO AVANCE — 1-jul-2026 · CONTEO DESCONGELADO (fuente pasó a solo-búsqueda)
 
 > Detalle en memoria: `[[faro-ve-fuente-search-only]]`. Reparación de la ingesta.
