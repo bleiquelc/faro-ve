@@ -3,6 +3,18 @@
 > Documento vivo. Cierre del día actualiza este archivo + crea
 > `docs/SESSIONS/YYYY-MM-DD-day{N}.md` con detalle.
 
+## ⚡ ÚLTIMO AVANCE — 2-jul-2026 (tarde) · BORRADO SELF-SERVICE + PRIVACIDAD + FEDERACIÓN
+
+> Detalle en la misma sesión: `docs/SESSIONS/2026-07-02-geocode-precision-y-fuga-clave.md`.
+
+**Decisión founder sobre la clave:** la `sb_secret_` se había puesto pública creyendo que así "otras apps se conectan". Aclarado: la federación NO necesita la secret — otras apps se conectan por la **API pública** (`/api/pfif`, `/api/persons`, `/datos`) **sin clave**, o con la **publishable** (respeta RLS, solo ve la vista pública ofuscada). Founder eligió **cambiar a publishable + rotar** (pendiente de ejecutar en el panel). La guarda de código sigue puesta.
+
+**Borrado self-service (LIVE, falta migración founder):** ahora una persona puede **salir del mapa** o una familia puede **retirar a su familiar fallecido**. Modelo elegido por el founder: **inmediato y reversible**. `/privacidad/eliminar` (buscar por nombre o llegar desde la ficha con "Solicitar retiro") → motivo (soy yo / mi familiar falleció / otro) + Turnstile → oculta del mapa al instante, reversible 30 días, purga PII a 30d, alerta al founder, audita. Migración **0031** (`request_person_removal` + `restore_withdrawn_person`, solo service_role) + endpoint `POST /api/persons/[id]/remove` (Turnstile + rate-limit 5/h) + enlace discreto en cada ficha. **PENDIENTE FOUNDER: aplicar 0031 en el SQL Editor** (hasta entonces el endpoint da 502; la UI degrada con aviso).
+
+**Privacidad honesta (LIVE):** nueva página `/privacidad` (antes carpeta vacía / enlace roto) + `PRIVACY.md` actualizado: los datos del mapa **ya son públicos** (fuentes con atribución + opt-out), re-publicados con **ubicación ofuscada**; se mantiene protegido lo que NO es público (contacto de reportantes cifrado, fotos de menores). Dice explícito que la API de datos abiertos **no necesita clave**. Enlace "Privacidad" en el footer del home.
+
+**Estado:** 100 tests verde · svelte-check 0 · build limpio · **deploy Pages HECHO** (smoke prod: `/privacidad` 200, `/privacidad/eliminar` 200, endpoint remove 403 sin Turnstile = gate OK). Commits locales en `main`. **Pendientes founder: (A) rotar clave Supabase → publishable [URGENTE]; (B) aplicar migración 0031 [borrado]; (C) `wrangler secret put SUPABASE_DB_URL` + deploy worker [re-geocodificar lo viejo].**
+
 ## ⚡ ÚLTIMO AVANCE — 2-jul-2026 · PRECISIÓN DEL MAPA (pines fuera del agua) + 🔴 FUGA DE CLAVE
 
 > Sesión autónoma (Fable 5). Detalle: `docs/SESSIONS/2026-07-02-geocode-precision-y-fuga-clave.md`.
