@@ -68,6 +68,12 @@
   // Época: invalida una carga de agregados en vuelo si el modo/zona cambió antes
   // de que resolviera (evita pintar burbujas stale sobre el modo de pines).
   let aggEpoch = 0;
+  // Época simétrica para las cargas de PINES: sin esto, un loadData en vuelo
+  // disparado en modo points podía resolver DESPUÉS de volver a modo agregado y
+  // pintar pines sueltos encima de las burbujas (race real con zoom rápido).
+  let dataEpoch = 0;
+  // Celdas agregadas visibles (para la ruta accesible sr-only del modo burbuja).
+  let aggCells: { lat: number; lng: number; n: number }[] = [];
 
   // Capa de ayuda: se crea/destruye según showAid (import diferido). mounted evita
   // que la reactividad corra antes de que el mapa exista.
@@ -238,6 +244,7 @@
   }
 
   async function loadData(useBbox: boolean): Promise<void> {
+    const epoch = ++dataEpoch; // esta carga invalida cualquier otra en vuelo
     try {
       const bbox = useBbox ? bboxParam() : null;
       const sep = endpoint.includes('?') ? '&' : '?';
@@ -247,6 +254,9 @@
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as { persons: PersonPublic[] };
+      // Respuesta obsoleta (llegó otra carga o se volvió al modo agregado
+      // mientras esta viajaba) → descartar, no pintar pines stale.
+      if (epoch !== dataEpoch || (interactive && viewMode !== 'points')) return;
       // PostgREST topa en 1000: si llegó al tope, hay MÁS personas en esta zona.
       truncated = useBbox && data.persons.length >= 1000;
       addPersons(data.persons);
@@ -295,6 +305,10 @@
     }
     for (const m of markers) aggLayer.addLayer(m);
     aggCount = sum;
+    // Copia para la ruta accesible (ordenada por tamaño: primero lo más relevante).
+    aggCells = clusters
+      .filter((c) => c.lat != null && c.lng != null && c.n > 0)
+      .sort((a, b) => b.n - a.n);
   }
 
   async function loadAgg(): Promise<void> {
@@ -332,9 +346,11 @@
         viewMode = 'points';
         if (aggLayer) aggLayer.clearLayers();
         aggCount = 0;
+        aggCells = [];
       }
       loadData(true);
     } else {
+      dataEpoch++; // invalida cualquier loadData en vuelo (no pintar pines stale)
       if (viewMode !== 'agg') {
         viewMode = 'agg';
         cluster.clearLayers();
@@ -717,6 +733,28 @@
         </span>
       {/if}
     </div>
+  {/if}
+
+  <!-- Ruta accesible del modo AGREGADO (estado inicial de /mapa): sin esto, un
+       usuario de teclado/lector no tenía forma de saber que hay datos ni de
+       acercarse a una zona (las burbujas de Leaflet no son controles tabbables). -->
+  {#if aggCells.length && interactive && viewMode === 'agg'}
+    <nav class="sr-only" aria-label="Zonas con personas reportadas en el mapa">
+      <h2>Zonas con personas reportadas: {aggCells.length}</h2>
+      <ul>
+        {#each aggCells.slice(0, 100) as c (`${c.lat},${c.lng}`)}
+          <li>
+            <button
+              type="button"
+              on:click={() =>
+                map?.flyTo([c.lat, c.lng], Math.min(map.getZoom() + 3, ZOOM_POINTS + 1))}
+            >
+              Acercar a la zona con {c.n.toLocaleString('es-VE')} personas reportadas
+            </button>
+          </li>
+        {/each}
+      </ul>
+    </nav>
   {/if}
 
   <!-- Ruta accesible no-mapa: teclado y lector de pantalla llegan a cada ficha

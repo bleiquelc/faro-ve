@@ -12,14 +12,15 @@ import type { NotePublic } from '$schemas/note';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Columnas públicas. contact_phone_optional se añade cuando la migración 0010
-// exista en persons_public; hasta entonces no se selecciona (evita 42703).
+// Columnas públicas. contact_phone_optional viene de la migración 0010 (aplicada;
+// la vista solo lo expone con opt-in del sujeto en safe_self_report) — sin esta
+// columna el botón "Llamar" jamás aparecía aunque la persona publicara su teléfono.
 const COLUMNS =
   'id, pfif_id, source, source_url, given_name, family_name, full_name, sex, age, ' +
   'home_neighborhood, home_city, last_known_location_text, lat, lng, description, ' +
   'clothing_top, clothing_bottom, distinguishing_marks, photo_url, status, is_minor, ' +
   'unaccompanied_minor, medical_urgent, medical_category, share_exact_location_with_searchers, ' +
-  'lat_exact_optional, lng_exact_optional, created_at, last_seen_at';
+  'lat_exact_optional, lng_exact_optional, contact_phone_optional, created_at, last_seen_at';
 
 export const load: PageServerLoad = async ({ params, locals, setHeaders, url }) => {
   if (!UUID_RE.test(params.id)) {
