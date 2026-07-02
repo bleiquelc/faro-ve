@@ -1,6 +1,6 @@
 # Política de Privacidad — Faro VE
 
-> **Última actualización**: 2026-06-25 (skeleton inicial — refinar antes de lanzar producción).
+> **Última actualización**: 2026-07-02.
 
 ## Quiénes somos
 
@@ -9,6 +9,11 @@ Faro VE es una iniciativa humanitaria sin ánimo de lucro creada en respuesta al
 - **Contacto general**: contacto@faro-ve.com
 - **Opt-out fuentes externas**: opt-out@faro-ve.com (SLA 24h)
 - **Solicitudes Habeas Data**: privacidad@faro-ve.com
+- **Retiro self-service** (salir del mapa / retirar a un familiar fallecido): **/privacidad/eliminar**
+
+## De dónde viene la información (origen público)
+
+La **mayoría de los registros del mapa ya son públicos**: provienen de registros abiertos de personas desaparecidas (como Venezuela Te Busca) y de reportes creados directamente en faro-ve.com por familiares, testigos y voluntarios. **No inventamos datos ni compramos bases privadas.** Cada registro conserva su **fuente y enlace original** (ver `ATTRIBUTION.md` y `/atribucion`). Re-publicamos ese dato público con dos salvaguardas que el dato disperso no trae: **ubicación ofuscada** (no exacta) y **opt-out** para cualquier fuente. Lo que **no** es público —el contacto de quien reporta a través de Faro y las fotos de menores— se mantiene protegido (ver «Cómo protegemos los datos»).
 
 ## Qué datos recogemos y por qué
 
@@ -45,12 +50,17 @@ Puedes pedir en cualquier momento:
 
 - **Acceso**: ver qué datos tenemos sobre ti o sobre el reporte que hiciste.
 - **Rectificación**: corregir errores en un reporte.
-- **Cancelación/borrado**: eliminar un reporte.
+- **Cancelación/borrado**: retirar un registro (el tuyo, o el de un familiar fallecido).
 
-### Cómo solicitarlo
-Formulario en `/privacidad/eliminar` con tu email y el ID del reporte. Verificamos hash email → marcamos como `withdrawn` en 24h → desaparece del mapa público inmediatamente. Datos personales se purgan completamente a los 30 días manteniendo solo `id + withdrawn_at` para integridad del audit.
+### Cómo solicitar el retiro (self-service, inmediato y reversible)
+Formulario en **`/privacidad/eliminar`**: buscas el registro por nombre (o llegas desde la ficha con un enlace «Solicitar retiro»), eliges el motivo (**«soy yo»**, **«es mi familiar y falleció»** u otro) y confirmas.
 
-También puedes escribir a **privacidad@faro-ve.com**.
+- **Inmediato**: el registro sale del mapa público al instante (se marca `withdrawn_at` → deja de aparecer en `persons_public`).
+- **Reversible 30 días**: por si fuera un retiro por error o malicioso (alguien intentando borrar reportes reales para sabotear una búsqueda), un moderador puede revertirlo dentro de ese plazo (`restore_withdrawn_person`).
+- **Purga de PII a 30 días**: pasados los 30 días, los datos personales se eliminan por completo, manteniendo solo `id + withdrawn_at` para integridad del audit.
+- **Sin fricción indebida**: no exigimos prueba de identidad (los registros de fuentes públicas no tienen un email del reportante que verificar, y la familia de un fallecido tampoco reportó por Faro). La protección contra abuso es anti-bot (Turnstile) + límite de 5/hora por conexión + reversibilidad + aviso al equipo, **no** un candado que dejaría fuera a quien tiene derecho a salir.
+
+También puedes escribir a **privacidad@faro-ve.com** o **contacto@faro-ve.com**.
 
 ## Retención de datos
 
