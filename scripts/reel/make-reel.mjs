@@ -6,6 +6,8 @@
  *
  *   MSG_INDEX=4 node scripts/reel/make-reel.mjs       # elige el mensaje N
  *   MSG="texto propio" node scripts/reel/make-reel.mjs # mensaje a medida
+ *   REEL_DATE=2026-07-08 node scripts/reel/make-reel.mjs # genera el reel DE ESA FECHA
+ *                                                        # (versículo+footage rotan por ese día)
  *   (sin args) → rota por día del año
  *
  * Salidas en ~/Desktop/faro-reels/:
@@ -30,13 +32,19 @@ fs.mkdirSync(WORK, { recursive: true });
 const FFMPEG = fs.existsSync(path.join(os.homedir(), 'bin', 'ffmpeg'))
   ? path.join(os.homedir(), 'bin', 'ffmpeg') : 'ffmpeg';
 
+// Fecha objetivo: REEL_DATE permite pre-generar el reel de un día futuro
+// (mediodía UTC evita el corrimiento de día por zona horaria).
+const target = process.env.REEL_DATE
+  ? new Date(process.env.REEL_DATE + 'T12:00:00Z')
+  : new Date();
+
 // Mensaje (rotación diaria por defecto)
 const messages = JSON.parse(fs.readFileSync(path.join(HERE, 'messages.json'), 'utf8'));
-const doy = Math.floor((Date.now() - Date.UTC(new Date().getUTCFullYear(), 0, 0)) / 864e5);
+const doy = Math.floor((target.getTime() - Date.UTC(target.getUTCFullYear(), 0, 0)) / 864e5);
 const idx = process.env.MSG_INDEX != null ? Number(process.env.MSG_INDEX) : doy % messages.length;
 const message = process.env.MSG ? { text: process.env.MSG, ref: process.env.MSG_REF || '' } : messages[idx];
 
-const stamp = new Date().toISOString().slice(0, 10);
+const stamp = target.toISOString().slice(0, 10);
 const bgPng = path.join(WORK, 'bg.png');
 const ovPng = path.join(WORK, 'overlay.png');
 const mp4 = path.join(OUT, `reel-${stamp}.mp4`);

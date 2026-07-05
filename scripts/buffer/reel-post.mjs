@@ -43,8 +43,11 @@ execFileSync('git', ['add', '-f', `reels/${name}`], { cwd: CDN_WT, stdio: 'pipe'
 try { execFileSync('git', ['commit', '-q', '-m', `reel ${name}`], { cwd: CDN_WT, stdio: 'pipe' }); } catch { /* sin cambios */ }
 try { execFileSync('git', ['push', '-q', 'origin', 'fichas-cdn'], { cwd: CDN_WT, stdio: 'pipe' }); } catch { /* ya pusheado */ }
 const url = `https://raw.githubusercontent.com/bleiquelc/faro-ve/fichas-cdn/reels/${name}`;
+const madrid = new Date(dueAt).toLocaleString('es-ES', {
+  timeZone: 'Europe/Madrid', hour: '2-digit', minute: '2-digit'
+});
 console.log('hospedado:', url);
-console.log('dueAt   :', dueAt, '(18:00 Madrid)');
+console.log('dueAt   :', dueAt, `(${madrid} Madrid)`);
 
 // Buffer createPost como Reel (video por URL)
 const input = `{
@@ -59,9 +62,34 @@ const query = `mutation { createPost(input: ${input}) {
   ... on MutationError { message }
 } }`;
 
-const r = await fetch('https://api.buffer.com', {
-  method: 'POST',
-  headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' },
-  body: JSON.stringify({ query })
-});
-console.log(JSON.stringify(await r.json(), null, 2));
+// Con REINTENTOS: launchd corre al despertar el Mac y la red puede tardar en
+// levantar — sin retry se pierde el reel del día (pasó 3–5 jul). Y con fallo
+// DURO: si Buffer no confirma el post, salir con 1 para que el caller lo vea.
+const TRIES = Number(process.env.POST_TRIES || 6);
+let json = null;
+for (let i = 1; i <= TRIES; i++) {
+  try {
+    const r = await fetch('https://api.buffer.com', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query })
+    });
+    json = await r.json();
+    break;
+  } catch (e) {
+    console.error(`Buffer intento ${i}/${TRIES} falló (${e.cause?.code || e.message})`);
+    if (i < TRIES) await new Promise((res) => setTimeout(res, 45_000));
+  }
+}
+if (!json) { console.error('Buffer inalcanzable tras todos los reintentos.'); process.exit(1); }
+console.log(JSON.stringify(json, null, 2));
+
+const postId = json?.data?.createPost?.post?.id;
+if (!postId) { console.error('createPost NO devolvió post.id (¿MutationError?).'); process.exit(1); }
+
+// Registrar la fecha programada (daily-reel la lee para no duplicar el día).
+const stateFile = path.join(os.homedir(), '.faro-ig', 'reel-scheduled.json');
+let sched = {};
+try { sched = JSON.parse(fs.readFileSync(stateFile, 'utf8')); } catch { /* primera vez */ }
+sched[dueAt.slice(0, 10)] = { id: postId, dueAt, video: name };
+fs.writeFileSync(stateFile, JSON.stringify(sched, null, 2));

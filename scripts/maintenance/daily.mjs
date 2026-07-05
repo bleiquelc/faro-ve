@@ -46,6 +46,19 @@ try { state = JSON.parse(fs.readFileSync(STATE, 'utf8')); } catch { /* primera c
 
 log(`# Faro VE — mantenimiento ${new Date().toISOString()}`);
 
+// 0) Esperar la red local (hasta 5 min): launchd corre al despertar el Mac y la
+//    red tarda en levantar — sin esto, el 5-jul reportó 8 falsos "endpoint caído"
+//    (HTTP 0 = sin red local, no el sitio). Se sondea un TERCERO (Cloudflare):
+//    si el tercero responde y faro-ve.com no, la caída del sitio es REAL.
+let networkUp = false;
+for (let i = 1; i <= 10; i++) {
+  try { await fetch('https://www.cloudflare.com/cdn-cgi/trace'); networkUp = true; break; }
+  catch { log(`  sin red local (intento ${i}/10); espero 30s…`); await new Promise((r) => setTimeout(r, 30_000)); }
+}
+if (!networkUp) {
+  problem('SIN RED LOCAL tras 5 min — no se pudo verificar el sitio (no significa que faro-ve.com esté caído).');
+}
+
 // 1) Salud del sitio ───────────────────────────────────────────────────────────
 const endpoints = [
   'https://faro-ve.com/',
@@ -55,16 +68,18 @@ const endpoints = [
   'https://faro-ve.com/api/aid-points?limit=1',
   'https://faro-ve.com/api/pfif?limit=1'
 ];
-for (const u of endpoints) {
+for (const u of networkUp ? endpoints : []) {
   let s = 0;
   try { s = (await fetch(u)).status; } catch { s = 0; }
   log(`  sitio ${s}  ${u}`);
   if (s !== 200) problem(`Endpoint caído (HTTP ${s}): ${u}`);
 }
+if (!networkUp) log('  sitio: chequeos OMITIDOS (sin red local).');
 
 // 2) Ingesta: total de personas + tendencia ─────────────────────────────────────
 let total = null;
 try {
+  if (!networkUp) throw new Error('sin red');
   const j = await (await fetch('https://faro-ve.com/api/persons/stats')).json();
   total = j.total ?? j.data?.total ?? j.persons_total ?? null;
 } catch { /* sin stats */ }
@@ -97,8 +112,8 @@ try {
 } catch { problem('No se pudo leer la Buffer key.'); }
 
 // 5) Reencuentros del día: cruce + siembra (REUSO; el cache de IA lo hace barato) ─
-if (process.env.MAINT_HEALTH_ONLY === '1') {
-  log('  reencuentros: OMITIDO (MAINT_HEALTH_ONLY=1)');
+if (process.env.MAINT_HEALTH_ONLY === '1' || !networkUp) {
+  log(`  reencuentros: OMITIDO (${networkUp ? 'MAINT_HEALTH_ONLY=1' : 'sin red local'})`);
 } else {
   try {
     // INCREMENTAL: solo reportes VR de los últimos 3 días (el catch-up completo ya
