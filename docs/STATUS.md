@@ -3,6 +3,24 @@
 > Documento vivo. Cierre del día actualiza este archivo + crea
 > `docs/SESSIONS/YYYY-MM-DD-day{N}.md` con detalle.
 
+## ⚡ ÚLTIMO AVANCE — 5-jul-2026 · REVISIÓN DE SISTEMA + SEMANA IG PRE-PROGRAMADA + FIX "RED AL DESPERTAR"
+
+> Detalle: `docs/SESSIONS/2026-07-05-revision-sistema-semana-ig.md`.
+
+**Diagnóstico (revisión completa):** los reels del **3, 4 y 5-jul nunca llegaron a Buffer** — el Mac despierta a las 09:00 con launchd corriendo ANTES de que la red levante; el `fetch` a Buffer/Pexels moría con `ConnectTimeout` y el script salía sin reintento (último reel publicado por el pipeline: 2-jul; el de hoy salió 15:00 Madrid re-programado a mano). La misma carrera hizo que el mantenimiento de las 09:00 reportara **8 falsos "endpoint caído"** (HTTP 0 = sin red local, no el sitio).
+
+**Fix (Ley de Reuso — se extendieron los scripts existentes, 4 archivos):**
+- `scripts/reel/daily-reel.mjs`: **espera la red** (10×30s) + **idempotencia por fecha** (lee `~/.faro-ig/reel-scheduled.json`; si el día ya está programado, no duplica) + genera con `REEL_DATE` del día del dueAt.
+- `scripts/buffer/reel-post.mjs`: **reintentos 6×45s** contra Buffer + **fallo DURO** (exit 1 si no hay `post.id`) + registra la fecha programada en el estado.
+- `scripts/reel/make-reel.mjs`: acepta **`REEL_DATE=YYYY-MM-DD`** (pre-generar reels de días futuros; versículo+footage rotan por ese día).
+- `scripts/maintenance/daily.mjs`: sonda a un **tercero** (Cloudflare) antes de chequear; sin red → 1 alerta honesta "SIN RED LOCAL" y omite los chequeos del sitio (no más falsos "caído").
+
+**Semana protegida — 7 reels PRE-PROGRAMADOS en Buffer (6→12 jul, 16:00 Madrid, `dueAt` absoluto):** publican **server-side aunque el Mac duerma**. Versículos [11]–[17] (Juan 1:5, Salmos 147:3, Josué 1:9, Salmos 91:1, Juan 14:1, Isaías 40:31, Salmos 121:7), footage Pexels distinto por día (incl. Caracas y La Guaira). Verificado en Buffer: `posts(status:[scheduled])` = 7. Test real de idempotencia: corrida de `daily-reel` → "ya programado, nada que hacer" (0 duplicados). Desde el 13-jul el launchd diario retoma la generación normal (ya blindada).
+
+**Salud verificada en vivo (5-jul 19:20):** 6 endpoints **200** · total **46.485** personas (+55 desde 2-jul; el worker ingiere) · cron IG de fichas ACTIVO (64 posteadas; últimas corridas publican 0 porque el filtro IA rechaza fotos del tramo actual — por diseño, reintenta en 3d) · monitoreo nube activo (Peña + Yordy cada hora, reporte 07:37, `faro-soporte-correos` 3×/día) · err-logs archivados (`~/.faro-ig/*.err.log.2026-07-05.bak`) → mantenimiento **"todo sano ✅"**.
+
+**🔴 SIGUE LA FUGA DE CLAVE:** faro-ve.com aún inyecta `sb_secret_` en el HTML (verificado hoy). **Pendientes founder sin cambio:** (A) **rotar clave Supabase → publishable [URGENTE]**; (B) migraciones **0027** (idempotencia offline) y **0031** (borrado self-service); (C) `cd workers/cron-ingest && wrangler secret put SUPABASE_DB_URL` (re-geocodificar lo viejo); (D) verificar Email Routing (opt-out@, regla #8/#10).
+
 ## ⚡ ÚLTIMO AVANCE — 2-jul-2026 (tarde) · BORRADO SELF-SERVICE + PRIVACIDAD + FEDERACIÓN
 
 > Detalle en la misma sesión: `docs/SESSIONS/2026-07-02-geocode-precision-y-fuga-clave.md`.
