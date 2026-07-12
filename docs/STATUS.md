@@ -3,6 +3,18 @@
 > Documento vivo. Cierre del día actualiza este archivo + crea
 > `docs/SESSIONS/YYYY-MM-DD-day{N}.md` con detalle.
 
+## ⚡ ÚLTIMO AVANCE — 8-jul-2026 · MANTENIMIENTO + CATCH-UP DE INGESTA + INGESTA AUTOMÁTICA MOVIDA AL MANTENIMIENTO
+
+**Mantenimiento:** salud verde (6/6 endpoints 200), cron IG sano (66 posteadas, 6 reencuentros; 0 publicadas esta corrida = filtro IA rechazando flyers/homónimos, por diseño), 0 err logs, nada pausado. Reencuentros del día sembrados (5). Tabla base `persons` = 46.543 (la API pública muestra 46.517; la diferencia son withdrawn/pending que la vista pública oculta).
+
+**🔴 Hallazgo — la ingesta automática llevaba 6 días CAÍDA:** el Worker `cron-ingest` de Cloudflare tiene el schedule `*/5` **REGISTRADO** (verificado vía API CF `.../schedules`) pero la **cuenta free NO lo ejecuta**: `import_sources.last_run_at=null`, `total_imported=0`, 0 corridas desde el 2-jul, `wrangler tail` sin eventos. Por eso el conteo llevaba días congelado en 46.517. Re-desplegué el worker (versión `9da95903`) — el deploy es limpio pero NO arregla el disparo (problema de plataforma/plan, no de código: el código de cursor ya estaba en prod desde el 2-jul).
+
+**Catch-up manual (agregando personas):** el Mac **YA alcanza la DB directa** (la vieja restricción IPv6 no aplica en esta red) → corrí `venezuela-te-busca.mjs --apply` (pipeline perfeccionado, throttle ético 1 req/2s, idempotente). En curso en background (+57 nuevas y subiendo al momento de escribir; número final al cierre).
+
+**Ingesta ahora AUTOMÁTICA vía el mantenimiento (decisión founder):** en vez de depender del cron CF roto, se integró la ingesta a `scripts/maintenance/daily.mjs` (**paso 2b**) — bloque ROTANTE de 155 términos/día (cubre los 465 en ~3 días), incremental, idempotente, cursor en `maintenance-state.json`. El script ganó el flag `--start-term N` (+ imprime `CURSOR_NEXT=`); default 0 preserva el barrido manual. **Verificado end-to-end** (escritura real + avance de cursor + parseo por regex). NO requiere recargar el launchd (el plist no cambió). Corre 09:00 (o al despertar el Mac). Sintaxis 0 errores en ambos archivos.
+
+**Pendientes founder:** (A) 🔴 **ROTAR clave Supabase → publishable** — la fuga `sb_secret_` **sigue viva** en el HTML (verificado hoy: `curl -s https://faro-ve.com/ | grep -o 'sb_[a-z]*'` = `sb_secret`); es el pendiente de seguridad más urgente. (B) Ingesta 24/7 opcional: revisar plan Workers en el panel CF, o disparar el worker por HTTP. (C) Migraciones 0027 (idempotencia offline) y 0031 (borrado self-service) sin aplicar.
+
 ## ⚡ ÚLTIMO AVANCE — 5-jul-2026 · REVISIÓN DE SISTEMA + SEMANA IG PRE-PROGRAMADA + FIX "RED AL DESPERTAR"
 
 > Detalle: `docs/SESSIONS/2026-07-05-revision-sistema-semana-ig.md`.
