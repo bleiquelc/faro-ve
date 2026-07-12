@@ -22,16 +22,28 @@ const COLUMNS =
   'unaccompanied_minor, medical_urgent, medical_category, share_exact_location_with_searchers, ' +
   'lat_exact_optional, lng_exact_optional, contact_phone_optional, created_at, last_seen_at';
 
+// relay_available existe desde la migración 0032; si la vista aún no la tiene,
+// la ficha degrada (sin botón de mensaje) en vez de romperse.
+const COLUMNS_WITH_RELAY = COLUMNS + ', relay_available';
+
 export const load: PageServerLoad = async ({ params, locals, setHeaders, url }) => {
   if (!UUID_RE.test(params.id)) {
     throw error(404, { message: 'Persona no encontrada.' });
   }
 
-  const { data, error: dbError } = await locals.supabase
+  let { data, error: dbError } = await locals.supabase
     .from('persons_public')
-    .select(COLUMNS)
+    .select(COLUMNS_WITH_RELAY)
     .eq('id', params.id)
     .maybeSingle();
+
+  if (dbError && /relay_available/i.test(dbError.message)) {
+    ({ data, error: dbError } = await locals.supabase
+      .from('persons_public')
+      .select(COLUMNS)
+      .eq('id', params.id)
+      .maybeSingle());
+  }
 
   if (dbError) {
     console.error('[persona/[id]]', dbError.message);

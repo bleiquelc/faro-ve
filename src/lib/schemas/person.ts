@@ -244,6 +244,9 @@ export interface PersonPublic {
   // explícitamente). Lo expone persons_public a partir de la migración 0010;
   // opcional aquí para forward-compat antes de aplicarla.
   contact_phone_optional?: string | null;
+  // La ficha tiene canal de relay (email del reportante + consentimiento).
+  // Lo expone persons_public desde la 0032; opcional para forward-compat.
+  relay_available?: boolean;
   created_at: string;
   last_seen_at: string | null;
 }

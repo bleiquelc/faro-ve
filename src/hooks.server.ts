@@ -119,6 +119,19 @@ const PUBLIC_POST_PATTERNS: { re: RegExp; key: string; rl: { windowSec: number; 
     re: /^\/api\/persons\/[0-9a-f-]{36}\/remove$/i,
     key: '/api/persons/:id/remove',
     rl: { windowSec: 3600, max: 5 }
+  },
+  {
+    // Relay de mensajes anti-estafa (0032, función 4): mensaje al reportante.
+    // Turnstile + 5/h por IP (key estable) + tope in-DB (3/día remitente·ficha).
+    re: /^\/api\/persons\/[0-9a-f-]{36}\/message$/i,
+    key: '/api/persons/:id/message',
+    rl: { windowSec: 3600, max: 5 }
+  },
+  {
+    // Respuesta del reportante vía reply_token single-use (0032).
+    re: /^\/api\/relay\/reply$/i,
+    key: '/api/relay/reply',
+    rl: { windowSec: 3600, max: 5 }
   }
 ];
 

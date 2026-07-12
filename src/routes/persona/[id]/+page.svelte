@@ -2,6 +2,7 @@
   import NavigateButton from '$components/NavigateButton.svelte';
   import ShareButton from '$components/ShareButton.svelte';
   import InfoForm from '$components/InfoForm.svelte';
+  import RelayMessageForm from '$components/RelayMessageForm.svelte';
   import FaroIcon from '$components/FaroIcon.svelte';
   import ReportPersonButton from '$components/ReportPersonButton.svelte';
   import { COLOR, COLOR_ON, LABEL_ES, categoryForPerson } from '$utils/colors';
@@ -172,6 +173,12 @@
     {/if}
 
   </section>
+
+  <!-- Mensaje privado al reportante vía relay anti-estafa (0032): solo si la
+       ficha tiene canal real (email del reportante + consentimiento). -->
+  {#if p.relay_available}
+    <RelayMessageForm personId={p.id} personName={p.full_name || 'esta persona'} />
+  {/if}
 
   <!-- Aportar información / avistamiento (va a moderación antes de publicarse). -->
   {#if p.status !== 'safe_self_report'}
