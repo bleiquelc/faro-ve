@@ -91,6 +91,40 @@ if (total != null) {
   log('  personas (total): no disponible');
 }
 
+// 2b) Ingesta incremental de la fuente (venezuela-te-busca) ──────────────────────
+//     El cron del Worker de Cloudflare NO se ejecuta (schedule registrado pero la
+//     cuenta free no lo dispara — verificado 8-jul: 0 corridas en 6 días). Para que
+//     la ingesta siga siendo AUTOMÁTICA corre acá: un bloque ROTANTE de términos por
+//     día (cubre los 465 en ~3 días), incremental e idempotente por (source,source_id).
+//     Reusa el script probado; el throttle ético 1 req/2s lo hereda del núcleo (#12).
+const dbUrlPath = path.join(HOME, '.secrets/faro-ve/db-url.txt');
+if (process.env.MAINT_HEALTH_ONLY === '1' || !networkUp) {
+  log(`  ingesta: OMITIDA (${networkUp ? 'MAINT_HEALTH_ONLY=1' : 'sin red local'})`);
+} else if (!fs.existsSync(dbUrlPath)) {
+  problem('Ingesta omitida: falta ~/.secrets/faro-ve/db-url.txt (cadena de conexión a la DB).');
+} else {
+  const BLOCK = parseInt(process.env.INGEST_TERMS_PER_DAY || '155', 10); // términos/día (465 ≈ 3 días)
+  const CAP = parseInt(process.env.INGEST_MAX_REQ || '300', 10);         // tope de requests (ética + tiempo)
+  const start = Number.isInteger(state.ingestCursor) ? state.ingestCursor : 0;
+  try {
+    const out = execFileSync('node', [
+      'scripts/ingest/venezuela-te-busca.mjs', '--apply',
+      '--start-term', String(start), '--terms', String(BLOCK),
+      '--max-req', String(CAP), '--dup-pages', '3'
+    ], {
+      cwd: REPO, encoding: 'utf8', timeout: 15 * 60 * 1000,
+      env: { ...process.env, DATABASE_URL: fs.readFileSync(dbUrlPath, 'utf8').trim() }
+    });
+    const mNew = out.match(/NUEVOS insertados:\s*(\d+)/);
+    const mCur = out.match(/CURSOR_NEXT=(\d+)/);
+    if (mCur) state.ingestCursor = parseInt(mCur[1], 10);
+    log(`  ingesta: +${mNew ? mNew[1] : '?'} nuevas (bloque desde término ${start}; próximo ${state.ingestCursor ?? '?'})`);
+  } catch (e) {
+    const tail = (e.stdout ? e.stdout.toString() : '').trim().split('\n').slice(-2).join(' | ');
+    problem('Ingesta falló: ' + (e.message || e) + (tail ? ' — ' + tail : ''));
+  }
+}
+
 // 3) Salud del cron de Instagram ────────────────────────────────────────────────
 const cronLog = path.join(STATE_DIR, 'cron.log');
 const cronErr = path.join(STATE_DIR, 'cron.err.log');
@@ -141,7 +175,7 @@ log('  cache IA (entradas): ' + JSON.stringify(cacheStats()));
 const reminders = [
   'Cloudflare Email Routing: verificar opt-out@/contacto@/federacion@ → bleiquelc@gmail.com (SLA opt-out 24h, regla #8).',
   'Purga PII Habeas Data (reportes withdrawn >30d): falta cron server-side (regla #6) — ver docs/RUNBOOK-mantenimiento.md.',
-  'Cuando el conteo se estabilice (~28-29k), relajar el worker cron-ingest de */5 a */15 (ahorra cuota Cloudflare).'
+  'Ingesta automática: ahora corre en ESTE mantenimiento (bloque rotante diario). El cron del Worker cron-ingest en Cloudflare NO dispara (cuenta free: schedule registrado, 0 corridas en 6 días). Para 24/7 opcional: revisar plan Workers en el panel CF o disparar el worker por HTTP.'
 ];
 
 state.lastRun = new Date().toISOString();

@@ -43,6 +43,10 @@ const numArg = (flag, def) => {
 const MAX_TERMS = numArg('--terms', Infinity);   // límite de nº de términos (canary)
 const MAX_REQ = numArg('--max-req', Infinity);   // tope duro de requests (seguridad/ética)
 const DUP_PAGES = numArg('--dup-pages', 2);      // cortar término tras K páginas sin NUEVOS
+// Offset rotante de inicio (lo usa el mantenimiento diario para cubrir la lista por
+// bloques). Normalizado a [0, TERMS.length). Default 0 → barrido desde el inicio
+// (comportamiento intacto para la recuperación manual).
+const START = ((numArg('--start-term', 0) % TERMS.length) + TERMS.length) % TERMS.length;
 
 // Inserta un lote vía la RPC idempotente `ingest_persons_batch` (0028) — la MISMA
 // ruta endurecida que usa el Worker cron-ingest: castea las coords server-side,
@@ -77,9 +81,9 @@ async function insertBatch(client, records) {
 
 // ── main: enumeración por búsqueda (cursor) con dedup + corte temprano ────────
 const t0 = Date.now();
-const terms = TERMS.slice(0, MAX_TERMS);
+const terms = TERMS.slice(START, MAX_TERMS === Infinity ? undefined : START + MAX_TERMS);
 console.log(`[ingest] ${SOURCE} — ${DRY ? 'DRY RUN (no escribe)' : 'APPLY (escribe a DB)'}` +
-  ` · ${terms.length} términos · dup-pages ${DUP_PAGES}` +
+  ` · ${terms.length} términos desde idx ${START} · dup-pages ${DUP_PAGES}` +
   (MAX_REQ !== Infinity ? ` · max ${MAX_REQ} req` : ''));
 
 let client = null;
@@ -150,3 +154,6 @@ if (!DRY) console.log(`✓ NUEVOS insertados: ${inserted} (idempotente por sourc
 else console.log(`(dry) registros no-vistos-en-run: ${inserted}`);
 if (stopped) console.log(`⚠ Cortado: ${stopped}. Re-correr es seguro (idempotente).`);
 console.log(`(${((Date.now() - t0) / 1000 / 60).toFixed(1)} min)`);
+// Cursor para la próxima corrida incremental (rota sobre TERMS): índice del término
+// siguiente al último procesado. Lo parsea el mantenimiento diario para avanzar el bloque.
+console.log('CURSOR_NEXT=' + (TERMS.length ? (START + termsDone) % TERMS.length : 0));
