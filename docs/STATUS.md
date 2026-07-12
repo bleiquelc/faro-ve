@@ -13,7 +13,9 @@
 
 **Git al día:** el trabajo del 8-jul corría en prod **sin versionar** → commiteado (`08e7c59` ingesta-en-mantenimiento + `0bf6364` docs/handoffs). Sin versionar a propósito: `scripts/render-*.mjs` + PNGs de sesión.
 
-**Pendientes founder (sin cambios):** (A) 🔴 **ROTAR clave Supabase → publishable** — la fuga `sb_secret_` **sigue viva** en el HTML (verificado hoy 12-jul). (B) Migraciones **0027** (idempotencia offline) y **0031** (borrado self-service). (C) `cd workers/cron-ingest && wrangler secret put SUPABASE_DB_URL` (re-geocodificar lo viejo). (D) Verificar Email Routing (opt-out@, reglas #8/#10). (E) Opcional: ingesta 24/7 revisando el plan Workers en CF.
+**🟢 FUGA DE CLAVE RESUELTA (misma tarde, founder + agente en vivo):** cuenta Supabase identificada vía Gmail (`bleiquelc@gmail.com`) → `PUBLIC_SUPABASE_ANON_KEY` = **publishable** → secret nuevo `faro-server` en `SUPABASE_SERVICE_ROLE_KEY` → clave filtrada (`faro`, `sb_secret_dz…`) **REVOCADA** (hoy da `401 Unregistered API key`). **Gotcha:** una TERCERA var `SUPABASE_ANON_KEY` (del incidente 26-jun) también tenía la clave filtrada y `hooks.server.ts:172-175` la prefiere → al revocar, `persons/aid-points/pfif` cayeron 502 unos minutos hasta setearla = publishable + redeploy. **Al rotar: actualizar las TRES vars + redeploy.** Verificado final: 12 rutas/APIs 200 · HTML solo `sb_publishable` · gate escritura 403 · RPC servidor OK · conteo intacto 46.765. La `default` del worker no se tocó (no filtrada).
+
+**Pendientes founder:** (A) ~~rotar clave~~ ✅ RESUELTO 12-jul. (B) Migraciones **0027** (idempotencia offline) y **0031** (borrado self-service). (C) `cd workers/cron-ingest && wrangler secret put SUPABASE_DB_URL` (re-geocodificar lo viejo). (D) Verificar Email Routing (opt-out@, reglas #8/#10). (E) Opcional: ingesta 24/7 revisando el plan Workers en CF. (F) Opcional: revisar logs de Supabase por accesos anómalos en la ventana de exposición (2→12 jul).
 
 ## ⚡ ÚLTIMO AVANCE — 8-jul-2026 · MANTENIMIENTO + CATCH-UP DE INGESTA + INGESTA AUTOMÁTICA MOVIDA AL MANTENIMIENTO
 
