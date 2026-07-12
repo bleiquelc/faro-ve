@@ -53,3 +53,30 @@ Sin versionar a propósito: `scripts/render-{conexion,ig,story}.mjs` + PNGs de s
 3. `cd workers/cron-ingest && wrangler secret put SUPABASE_DB_URL` → re-geocodifica los ~46k viejos.
 4. Verificar Cloudflare Email Routing (opt-out@/contacto@/federacion@ → bleiquelc@gmail.com).
 5. Opcional 24/7: plan Workers en CF (el cron `*/5` del worker sigue sin disparar en cuenta free).
+
+## Continuación (misma tarde) — Fuga resuelta + migraciones al día + Email Routing completo
+
+**Fuga de clave RESUELTA** (ver STATUS): publishable en el HTML, secret nuevo `faro-server`,
+clave filtrada revocada (401). Gotcha: la 3.ª var `SUPABASE_ANON_KEY` también la tenía →
+502 en lecturas por unos minutos hasta setearla. **Rotar = las TRES vars + redeploy.**
+
+**Migraciones (OK founder, aplicadas desde el Mac — la DB directa sí se alcanza):**
+- Hallazgo: `_faro_migrations` vacío desde 0021 (aplicaciones por SQL Editor sin registrar);
+  verificación real contra catálogos: **0027 YA estaba** (pendiente viejo) y **0028 NO**
+  (bug real: ingesta descartaba a los sin-geocode aunque el doc decía lo contrario).
+- Aplicadas: **0023** (app_flag) · **0024** (restore_person) · **0028** (ingesta acepta
+  sin-ubicación) · **0031** (borrado self-service). Ledger sincronizado 0021→0031.
+- NO se usó `apply-migrations.mjs` a ciegas: habría re-corrido 0021 y pisado la guarda de
+  idempotencia de 0027. Scripts de verificación/aplicación en el scratchpad de la sesión.
+- Verificado: grants solo service_role · `/privacidad/eliminar` 200 · gate remove 403.
+
+**Email Routing (API CF, token wrangler):** enabled+ready+synced · destino verificado ·
+opt-out@ ✅ contacto@ ✅ · **federacion@ CREADA hoy (antes rebotaba)** → bleiquelc@gmail.com.
+Falta: cron lector del inbox (regla #10) + e2e opcional (mandar un correo de prueba a
+opt-out@ y confirmar llegada). Resend MCP: key inválida (pendiente reconectar).
+
+**Barrido de seguridad ventana 2→12 jul (solo lectura): LIMPIO.** audit_log normal (248
+inserts públicos, 123/108 service_role = ingesta/enrich, 1 withdraw = Guerrero), 21
+retiros = caso Guerrero, 1 solo moderador (founder), regla #3 intacta (0 fotos de menores
+con visibilidad no-admin y foto real; persons_public expone 0 fotos de 4.680 menores).
+Logs de lectura API: free tier ~1 día, no auditables retroactivamente; clave muerta.
