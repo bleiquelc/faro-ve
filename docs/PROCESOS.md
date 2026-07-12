@@ -30,6 +30,7 @@ service_role → RPC `SECURITY DEFINER`, nunca el service_role por chat.
 | 6 | PWA offline + cola de reportes | 🟡 código LIVE, 0027 pendiente | `src/service-worker.ts` + `src/lib/client/{outbox,replay}.ts` | mem `faro-ve-cola-offline` |
 | 7 | Reportes públicos + puntos de ayuda | 🟢 LIVE | `src/routes/reportar/` + `src/routes/api/{persons,aid-points}/` | este doc |
 | 8 | Auto-publicador IG + Reencuentros | 🟢 LIVE (3 pasos founder) | `scripts/buffer/` + `/reencuentros` | `docs/RUNBOOK-instagram-reencuentros.md` |
+| 9 | Relay de mensajes anti-estafa (función 4) | 🟢 LIVE (12-jul, E2E probado) | `src/routes/api/persons/[id]/message/` + `/api/relay/reply` + `/mensaje/[token]` + `RelayMessageForm.svelte` + migración 0032 | `docs/STATUS.md` 12-jul noche |
 
 ---
 

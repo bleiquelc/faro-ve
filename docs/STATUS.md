@@ -3,6 +3,18 @@
 > Documento vivo. Cierre del día actualiza este archivo + crea
 > `docs/SESSIONS/YYYY-MM-DD-day{N}.md` con detalle.
 
+## ⚡ ÚLTIMO AVANCE — 12-jul-2026 (noche) · RELAY DE MENSAJES ANTI-ESTAFA 🟢 LIVE Y PROBADO END-TO-END
+
+**La función 4 del plan original está VIVA en producción** (código `0de886c`, migración 0032 aplicada, deploy hecho). Cualquiera puede escribirle al reportante de una ficha sin que ninguna parte vea el email de la otra; la respuesta vuelve por `reply_token` single-use (14d). Decisión de diseño (estudio de "chat" del 12-jul): el relay ES el chat privado de Faro — sin contacto directo entre desconocidos (#2).
+
+**Infra montada en vivo con el founder:** cuenta Resend NUEVA solo-Faro (`resend-key.txt`, key solo-envío como Pages secret `RESEND_API_KEY`) · dominio `faro-ve.com` VERIFICADO en Resend (DKIM+MX+SPF de `send.` creados por el agente vía Chrome en el panel CF — el token wrangler no tiene permiso DNS) · convive limpio con Email Routing (recepción CF / envío SES, subdominio `send.`).
+
+**E2E REAL verificado (22:38-22:40Z):** ficha de prueba `auto_hidden` (verificado: invisible en `persons_public`) → RPC `create_relay_message` → email real → **llegó a Gmail del founder, bandeja PRINCIPAL (no spam)** con marca + aviso anti-estafa + botón → página `/mensaje/[token]` en prod renderiza válida → `relay_reply` consume el token → **segundo email (↩️ Respuesta) también llegó a INBOX** → token queda inválido (single-use verificado: página pasa a "enlace ya no activo") → datos de prueba borrados (1 msg + 1 persona). Smoke post-deploy: 5 rutas 200, total 46.791.
+
+**Cobertura del test:** RPCs + módulos de email reales + página en prod. El POST HTTP con Turnstile queda gateado por diseño (403 verificado); el flujo con captcha lo puede probar el founder en cualquier ficha con `relay_available` cuando quiera.
+
+**Nota UI:** el botón "Escribir a quien reportó" solo aparece en fichas con canal real (email del reportante + consentimiento) — las ~46k ingestadas NO lo tienen (la fuente no trae email del reportante); aparecerá en reportes nuevos hechos en Faro con email.
+
 ## ⚡ ÚLTIMO AVANCE — 12-jul-2026 · REVISIÓN DE SISTEMA + FIX ALERTA DE ERRORES VIEJOS
 
 > Detalle: `docs/SESSIONS/2026-07-12-revision-sistema-fix-alertas.md`.
