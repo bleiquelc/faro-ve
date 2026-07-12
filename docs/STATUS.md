@@ -3,6 +3,18 @@
 > Documento vivo. Cierre del día actualiza este archivo + crea
 > `docs/SESSIONS/YYYY-MM-DD-day{N}.md` con detalle.
 
+## ⚡ ÚLTIMO AVANCE — 12-jul-2026 · REVISIÓN DE SISTEMA + FIX ALERTA DE ERRORES VIEJOS
+
+> Detalle: `docs/SESSIONS/2026-07-12-revision-sistema-fix-alertas.md`.
+
+**Revisión completa (todo verificado en vivo):** 9 rutas/APIs **200** (home, mapa, auxilio, datos, atribución, privacidad, reencuentros, persons, aid-points, pfif) · total **46.765** personas (la ingesta del mantenimiento suma sola: +27 hoy, +59 ayer; cursor en término 432 de 465) · cron IG sano (publicó a Elidivith hoy 08:22; 90 posteadas, 8 reencuentros; los "0 publicadas" de otras corridas son el filtro IA rechazando fotos sucias/homónimos, por diseño) · reel de hoy programado en Buffer — **último de la semana blindada 6→12 jul; desde mañana 13-jul el launchd retoma la generación diaria** (pipeline blindado el 5-jul, corridas recientes limpias) · mantenimiento de las 09:00 corrió OK.
+
+**Fix aplicado (`b388f72`):** la alerta "cron IG tiene errores" llevaba 3 días disparándose por errores **viejos ya resueltos** (9-jul: 4× DNS-al-despertar + 1 socket Anthropic, todos transitorios) porque `daily.mjs` nunca archivaba el err.log. Ahora: **alerta UNA vez y archiva solo** a `<err.log>.<fecha>.bak` (truncate, no rename — launchd re-abre el path) · vigila también `reel.err.log` · verifica que el **reel de AYER** quedó programado en Buffer (el de hoy corre a la misma hora → carrera). Verificado en vivo: 1.ª corrida alerta+archiva (2105 bytes → `.bak`), 2.ª corrida "todo sano ✅" exit 0.
+
+**Git al día:** el trabajo del 8-jul corría en prod **sin versionar** → commiteado (`08e7c59` ingesta-en-mantenimiento + `0bf6364` docs/handoffs). Sin versionar a propósito: `scripts/render-*.mjs` + PNGs de sesión.
+
+**Pendientes founder (sin cambios):** (A) 🔴 **ROTAR clave Supabase → publishable** — la fuga `sb_secret_` **sigue viva** en el HTML (verificado hoy 12-jul). (B) Migraciones **0027** (idempotencia offline) y **0031** (borrado self-service). (C) `cd workers/cron-ingest && wrangler secret put SUPABASE_DB_URL` (re-geocodificar lo viejo). (D) Verificar Email Routing (opt-out@, reglas #8/#10). (E) Opcional: ingesta 24/7 revisando el plan Workers en CF.
+
 ## ⚡ ÚLTIMO AVANCE — 8-jul-2026 · MANTENIMIENTO + CATCH-UP DE INGESTA + INGESTA AUTOMÁTICA MOVIDA AL MANTENIMIENTO
 
 **Mantenimiento:** salud verde (6/6 endpoints 200), cron IG sano (66 posteadas, 6 reencuentros; 0 publicadas esta corrida = filtro IA rechazando flyers/homónimos, por diseño), 0 err logs, nada pausado. Reencuentros del día sembrados (5). Tabla base `persons` = 46.543 (la API pública muestra 46.517; la diferencia son withdrawn/pending que la vista pública oculta).
