@@ -125,17 +125,37 @@ if (process.env.MAINT_HEALTH_ONLY === '1' || !networkUp) {
   }
 }
 
-// 3) Salud del cron de Instagram ────────────────────────────────────────────────
+// 3) Salud de los crons (IG + reel) ─────────────────────────────────────────────
 const cronLog = path.join(STATE_DIR, 'cron.log');
 const cronErr = path.join(STATE_DIR, 'cron.err.log');
+// Un err.log con contenido se alerta UNA vez y se ARCHIVA a .bak; sin archivar,
+// los mismos errores viejos re-alertan todos los días. Se trunca en vez de
+// renombrar: launchd re-abre el path en cada corrida y así queda estable.
+const alertAndArchiveErrLog = (label, file) => {
+  try {
+    if (!fs.existsSync(file) || fs.statSync(file).size === 0) return;
+    const bak = `${file}.${today}.bak`;
+    fs.appendFileSync(bak, fs.readFileSync(file));
+    fs.truncateSync(file, 0);
+    problem(`El ${label} registró errores desde el último mantenimiento: revisá ${bak}`);
+  } catch { /* sin logs aún */ }
+};
+alertAndArchiveErrLog('cron de Instagram', cronErr);
+alertAndArchiveErrLog('reel diario', path.join(STATE_DIR, 'reel.err.log'));
 try {
-  const errSize = fs.existsSync(cronErr) ? fs.statSync(cronErr).size : 0;
-  if (errSize > 0) problem(`El cron de Instagram tiene errores nuevos: revisá ${cronErr}`);
   const txt = fs.existsSync(cronLog) ? fs.readFileSync(cronLog, 'utf8') : '';
   const ranToday = txt.split('\n').some((l) => l.startsWith(today) && /(Fin\.|PUBLICADA|Publicadas=)/.test(l));
   log(`  cron IG corrió hoy: ${ranToday ? 'sí' : 'NO'}`);
   if (!ranToday) problem('El cron de Instagram no registró corridas hoy (¿el Mac estuvo dormido/apagado?).');
 } catch { /* sin logs aún */ }
+// El reel de HOY se programa a las 09:00 (misma hora que este job → carrera);
+// se verifica que el de AYER haya quedado programado en Buffer.
+try {
+  const sched = JSON.parse(fs.readFileSync(path.join(STATE_DIR, 'reel-scheduled.json'), 'utf8'));
+  const yesterday = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+  if (sched[yesterday]) log(`  reel de ayer (${yesterday}): programado ✅`);
+  else problem(`El reel de ayer (${yesterday}) no quedó programado en Buffer — revisá ${path.join(STATE_DIR, 'reel.log')}`);
+} catch { /* sin estado de reels aún */ }
 
 // 4) Buffer key ─────────────────────────────────────────────────────────────────
 const bufKey = path.join(HOME, '.secrets/faro-ve/buffer-key.txt');
