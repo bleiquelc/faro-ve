@@ -14,7 +14,10 @@ código** (`grep`) si ya existe. Si existe, solo hay dos salidas válidas: **reu
 lenta o paralela. Casos concretos que ya tienen camino probado: reportar persona →
 `report-submit.ts` (submit-or-queue); navegar a un lugar → `NavigateButton.svelte`; CORS
 de un GET nuevo → set `PUBLIC_GET_CORS` en `hooks.server.ts`; escribir a la DB con
-service_role → RPC `SECURITY DEFINER`, nunca el service_role por chat.
+service_role → RPC `SECURITY DEFINER`, nunca el service_role por chat; **pedir JSON a
+cualquier API → `scripts/lib/fetch-json.mjs`, NUNCA `res.json()` a mano** (un `.json()`
+crudo en top-level await mata el proceso entero cuando la fuente devuelve HTML: le costó
+al cron IG 8 horas de publicación entre el 26 y el 28-jul).
 
 ---
 
@@ -31,6 +34,8 @@ service_role → RPC `SECURITY DEFINER`, nunca el service_role por chat.
 | 7 | Reportes públicos + puntos de ayuda | 🟢 LIVE | `src/routes/reportar/` + `src/routes/api/{persons,aid-points}/` | este doc |
 | 8 | Auto-publicador IG + Reencuentros | 🟢 LIVE (3 pasos founder) | `scripts/buffer/` + `/reencuentros` | `docs/RUNBOOK-instagram-reencuentros.md` |
 | 9 | Relay de mensajes anti-estafa (función 4) | 🟢 LIVE (12-jul, E2E probado) | `src/routes/api/persons/[id]/message/` + `/api/relay/reply` + `/mensaje/[token]` + `RelayMessageForm.svelte` + migración 0032 | `docs/STATUS.md` 12-jul noche |
+| 10 | Mantenimiento diario + watchdogs | 🟢 LIVE | `scripts/maintenance/daily.mjs` + `scripts/lib/{fetch-json,err-log,ig-watchdog}.mjs` | `docs/RUNBOOK-mantenimiento.md` |
+| 11 | Opt-out (#10) + purga PII Habeas Data (#6) | 🟡 código listo, 3 pasos founder | `supabase/migrations/0033_*.sql` + `workers/email-optout/` + paso 5b de `daily.mjs` | `docs/SESSIONS/2026-07-29-operacion-desatendida.md` |
 
 ---
 
@@ -306,7 +311,10 @@ tail -f ~/.faro-ig/cron.log                           # log en vivo
 ```
 
 **Gotchas.**
+- **El candidato sale de un BARRIDO CON CURSOR** (`state.cursor`, arreglado 29-jul), no de un lote fijo. Antes pedía `limit=400` sin offset y, como `/api/persons` ordena `created_at DESC`, veía siempre las mismas 400 filas de 47.820 → se congeló ~24h publicando 0 y ~8.800 personas con foto nunca entraron. Si volvés a tocar la consulta: **mantené el offset y el desempate por `id`** (sin desempate la paginación duplica/saltea: la ingesta inserta lotes con `created_at` idéntico).
 - Solo se publica CON foto limpia (decisión founder); sin foto limpia → se salta (reintenta 3d). El cron publica pocas a propósito.
+- `Intentos=0` ≠ `Intentos>0, Publicadas=0`. El primero es **cola vacía o rota** (mirar el cursor); el segundo es el filtro IA rechazando fotos, que es por diseño. El mantenimiento vigila ambos (`scripts/lib/ig-watchdog.mjs`).
+- Personas SIN coords (ingestadas sin geocodificar desde 0028) **no llegan al publicador**: `/api/persons` sin `q` filtra `lat is not null`. Vacío conocido, no resuelto.
 - Hosting de imágenes: git worktree rama `fichas-cdn` → raw.githubusercontent. Si el push desde launchd falla por auth (keychain) → migrar a Supabase Storage/R2 (roadmap).
 - `post.mjs` exit 1 = falta `BUFFER_API_KEY` (el cron lo lee de `~/.secrets/faro-ve/buffer-key.txt`). "Access token is not valid" = key mal copiada → regenerar en publish.buffer.com/settings/api.
 - IDs Buffer: org `6a418e4ed0bf4334f8959146` · IG channel `6a4190975ab6d2f106819d3d`.

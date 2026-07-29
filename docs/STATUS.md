@@ -3,6 +3,77 @@
 > Documento vivo. Cierre del día actualiza este archivo + crea
 > `docs/SESSIONS/YYYY-MM-DD-day{N}.md` con detalle.
 
+## ⚡ ÚLTIMO AVANCE — 29-jul-2026 · OPERACIÓN DESATENDIDA REPARADA (publicación, alertas, reglas legales)
+
+> Detalle: `docs/SESSIONS/2026-07-29-operacion-desatendida.md`. 5 commits:
+> `9ca4935`, `76e11f6`, `04201e4`, `90165d4`, `8b047f3`. **144/144 tests** (eran 100),
+> svelte-check 0, build limpio. El sitio estaba sano; fallaba **operar solo**.
+
+**🔴 IG parado — CAUSA RAÍZ: la ventana de candidatos nunca avanzaba.** No era la cola
+agotada ni el filtro IA. `cron-ig.mjs` pedía `?status=missing&limit=400` **sin offset**, y
+`/api/persons` ordena `created_at DESC` → veía **siempre las mismas 400 filas más nuevas de
+47.820**. Con la ingesta en ~5-7/día la ventana se congeló; el 28-jul 11:56Z se re-skipearon
+las últimas 11 y **todos los TTL de 3d quedaron sincronizados al 31-jul** → silencio total.
+Muestreando `/api/pfif?offset=`: la cobertura de foto es 7% en lo nuevo y ~34% en lo viejo →
+**~8.800 personas con foto publicable nunca entraron al pipeline.** Fix: `offset` en el
+schema + `.range()` + **desempate por `id`** en el ORDER BY (la ingesta inserta lotes con
+`created_at` idéntico: verificado paginando 2.000 filas contra la DB real → **0 duplicadas
+con desempate, 2 sin él**) + cursor persistido en `state.json`. ⚠️ **Requiere deploy de Pages**;
+hasta entonces prod ignora `offset` y el cron degrada sin publicar (igual que hoy, nunca peor).
+
+**🟢 Watchdog de PRODUCCIÓN del cron IG.** El mantenimiento solo miraba "corrió hoy: sí" —
+daba verde mientras el sistema llevaba 24h publicando nada. Nuevo `scripts/lib/ig-watchdog.mjs`
+(función pura sobre `cron.log`, sin estado nuevo): alerta a >24h sin **intentar** y a >48h sin
+que suba el total. Si el log no cubre la ventana, **no alerta** (sin evidencia no se inventa
+alarma). Verificado contra el `cron.log` real (593 corridas): hoy los umbrales están a ~4h de
+cruzarse y no alerta — correcto; simulando +5h **ambas disparan con el diagnóstico exacto**.
+
+**🟢 Falso positivo diario ELIMINADO.** `daily.mjs` alertaba si el err.log tenía cualquier byte,
+pero **ffmpeg escribe toda su salida normal a stderr** → `reel.err.log` pesaba 13-16 KB a diario
+y gritaba "el reel registró errores" desde el 13-jul, en el mismo reporte que decía "reel de ayer:
+programado ✅". Fix en dos capas: (1) **en el origen**, las 3 llamadas a ffmpeg pasan de
+`stdio:'inherit'` a captura y solo imprimen si ffmpeg falla; (2) `scripts/lib/err-log.mjs`
+reconoce *firmas de fallo* en vez de enumerar el ruido. Se sigue archivando siempre a `.bak`.
+Validado contra **17 días de logs reales** (0 señales en el ruido, 5 en el crash del 29-jul, 33 en
+la caída de red del 5-jul) y end-to-end contra el mantenimiento vivo: **solo ruido → "✅ Todo sano",
+exit 0**; error real → alerta con la línea exacta, exit 1; error enterrado en el ruido → alerta igual.
+
+**🟢 Crash del cron RESUELTO + helper reusable.** `<anonymous_script>:1` era `cron-ig.mjs:85`:
+reproduje la firma con Node v24 — es lo que imprime un **top-level await** con `.json()` fallido en
+un `.mjs`, y corría **antes del primer `log()`** (por eso no dejaba rastro en `cron.log`). Cruzando
+los `.bak` con las horas faltantes: **3 horas perdidas el 26-jul, 4 el 27-jul, 1 el 28-jul.** Nuevo
+`scripts/lib/fetch-json.mjs` (valida `res.ok`+`content-type`, reintenta lo transitorio, falla rápido
+ante 4xx, error tipado con fragmento acotado; `.safe()` degrada sin lanzar) aplicado a **los 13 sitios
+de llamada**. `found-detector.mjs` tenía el mismo vector (se llama sin try/catch desde el bucle).
+
+**🟢 REGLAS #10 y #6 — de promesa a mecanismo (migración 0033).** *Corrección al diagnóstico previo:*
+**no hay retiros vencidos**; son 22 retirados y el **primer vencimiento es el 31-jul** (21 personas),
+otro el 10-ago; ninguno lleva PII de reportante todavía. Arquitectura elegida: **captura por evento,
+acción en el mantenimiento del Mac** (el cron de Workers no dispara en free, pero un **Email Worker
+no es un cron**). 0033 = `optout_requests` (cuarentena, solo service_role) + `record_optout_request`
+(clasifica, **no actúa**) + `process_optout_request` (desactiva fuente + `DELETE WHERE source=X AND
+withdrawn_at IS NULL` + audita) + `purge_withdrawn_pii` (idempotente, auditada). `workers/email-optout`
+registra y **reenvía al Gmail del founder igual que hoy**; nunca borra. **Seguridad:** la auto-purga
+exige **dominio de la fuente Y `dkim=pass`** — sin DKIM el `From` se falsifica en 30 segundos y el
+DELETE en juego son 47.800 personas. Verificado en **transacción revertida** (DB intacta): dominio+DKIM
+→ `auto_eligible`; atacante con DKIM → `needs_review`; dominio correcto sin DKIM → `needs_review`;
+reintento idempotente; purga → 0 (correcto). Sin 0033 aplicada, el mantenimiento avisa y no rompe.
+
+**🔴 Pines viejos — sigue bloqueado.** Verificado hoy: el worker `faro-ve-cron-ingest` solo tiene
+`SUPABASE_SERVICE_ROLE_KEY`; **`SUPABASE_DB_URL` NO está puesto**. Los ~46k puntos ingestados antes
+del 2-jul siguen con coords v1 (anclas en el mar) en el mapa que la gente usa para buscar a los suyos.
+
+**Salud verificada en vivo (29-jul):** 6 endpoints **200** · **47.824** personas (+7 ayer, +5 hoy) ·
+los 3 launchd corrieron · reel del 28-jul programado ✅ · relay LIVE.
+
+**Pendientes founder (4, en orden de impacto):**
+- **(A)** `npm run deploy:pages` → **activa el barrido con cursor**. Sin esto el IG sigue sin publicar.
+- **(B)** Aplicar **0033** en el SQL Editor → activa reglas #10 y #6 (la primera purga vence el **31-jul**).
+- **(C)** `cd workers/email-optout && wrangler secret put SUPABASE_SERVICE_ROLE_KEY && wrangler deploy`,
+  luego en el panel CF: Email Routing → `opt-out@faro-ve.com` → **Send to a Worker** → `faro-ve-email-optout`.
+- **(D)** `cd workers/cron-ingest && wrangler secret put SUPABASE_DB_URL` (pegar `~/.secrets/faro-ve/db-url.txt`) → re-geocodifica los ~46k pines viejos.
+- *(E, menor)* Reconectar la key del MCP de Resend — **verificado hoy: sigue inválida** ("API key is invalid").
+
 ## ⚡ ÚLTIMO AVANCE — 12-jul-2026 (noche) · RELAY DE MENSAJES ANTI-ESTAFA 🟢 LIVE Y PROBADO END-TO-END
 
 **La función 4 del plan original está VIVA en producción** (código `0de886c`, migración 0032 aplicada, deploy hecho). Cualquiera puede escribirle al reportante de una ficha sin que ninguna parte vea el email de la otra; la respuesta vuelve por `reply_token` single-use (14d). Decisión de diseño (estudio de "chat" del 12-jul): el relay ES el chat privado de Faro — sin contacto directo entre desconocidos (#2).
