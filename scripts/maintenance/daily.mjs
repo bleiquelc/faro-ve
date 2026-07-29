@@ -24,6 +24,7 @@ import { execFileSync } from 'child_process';
 import { cacheStats } from '../buffer/ai-cache.mjs';
 import { fetchJson } from '../lib/fetch-json.mjs';
 import { looksLikeRealError, firstErrorLine } from '../lib/err-log.mjs';
+import { analyzeIgLog } from '../lib/ig-watchdog.mjs';
 
 const HOME = process.env.HOME;
 const REPO = '/Users/bleiquelcolina/Desktop/faro-ve';
@@ -161,6 +162,16 @@ try {
   const ranToday = txt.split('\n').some((l) => l.startsWith(today) && /(Fin\.|PUBLICADA|Publicadas=)/.test(l));
   log(`  cron IG corrió hoy: ${ranToday ? 'sí' : 'NO'}`);
   if (!ranToday) problem('El cron de Instagram no registró corridas hoy (¿el Mac estuvo dormido/apagado?).');
+
+  // Vigilar la PRODUCCIÓN, no solo que el proceso arranque. El 28-jul el cron
+  // corrió puntual cada hora ~24h publicando NADA y nadie se enteró: "corrió
+  // hoy: sí" daba verde mientras el sistema estaba parado.
+  const ig = analyzeIgLog(txt);
+  if (ig.runs) {
+    const desde = ig.lastAttemptAt ? `${Math.floor((Date.now() - ig.lastAttemptAt) / 3600_000)}h` : 'nunca';
+    log(`  cron IG producción: ${ig.postedTotal} fichas publicadas · último intento hace ${desde}`);
+  }
+  ig.alerts.forEach(problem);
 } catch { /* sin logs aún */ }
 // El reel de HOY se programa a las 09:00 (misma hora que este job → carrera);
 // se verifica que el de AYER haya quedado programado en Buffer.
