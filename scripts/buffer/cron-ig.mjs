@@ -15,6 +15,7 @@
  */
 import { classifyPhoto } from './photo-filter.mjs';
 import { confirmReunification, isFoundStatus, nameOverlap, normName } from './found-detector.mjs';
+import { fetchJson } from '../lib/fetch-json.mjs';
 import { execFileSync } from 'child_process';
 import fs from 'fs';
 import os from 'os';
@@ -77,12 +78,22 @@ async function enrichDB(payload) {
 async function vrMatch(name) {
   const t = tokens(name); if (!t.length) return null;
   let list = [];
-  try { list = (await (await fetch(`${VR}?q=${encodeURIComponent(t[0])}&limit=50`)).json()).personas || []; } catch { return null; }
+  const { data } = await fetchJson.safe(`${VR}?q=${encodeURIComponent(t[0])}&limit=50`, null);
+  if (!data) return null; // VR caído → seguimos con los datos propios de Faro
+  list = data.personas || [];
   return list.find((v) => nameOverlap(v.nombre, name) >= 0.5) || null;
 }
 
 // ── main ──────────────────────────────────────────────────────────────────────
-const batch = await (await fetch(`${FARO}?status=missing&limit=400`)).json();
+// fetchJson: esta línea corría en top-level await con `.json()` crudo. Cuando
+// faro-ve.com devolvía una página HTML de error, el SyntaxError de undici MATABA
+// el proceso ANTES del primer log() — de ahí las horas sin rastro en cron.log
+// (3 el 26-jul, 4 el 27-jul, 1 el 28-jul). Ahora degrada con un mensaje claro.
+const { ok: batchOk, data: batch, error: batchErr } = await fetchJson.safe(
+  `${FARO}?status=missing&limit=400`,
+  { persons: [] }
+);
+if (!batchOk) { log(`No pude leer la lista de personas (${batchErr.message}) — salgo sin publicar.`); process.exit(0); }
 const people = (batch.persons || batch.data || []).filter((p) => !state.posted[p.id] && !recentlySkipped(p.id));
 log(`Candidatos: ${people.length} (lote 400, sin posteadas/skip-recientes).`);
 

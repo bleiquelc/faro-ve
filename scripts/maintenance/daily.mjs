@@ -22,6 +22,7 @@ import fs from 'fs';
 import path from 'path';
 import { execFileSync } from 'child_process';
 import { cacheStats } from '../buffer/ai-cache.mjs';
+import { fetchJson } from '../lib/fetch-json.mjs';
 
 const HOME = process.env.HOME;
 const REPO = '/Users/bleiquelcolina/Desktop/faro-ve';
@@ -80,7 +81,7 @@ if (!networkUp) log('  sitio: chequeos OMITIDOS (sin red local).');
 let total = null;
 try {
   if (!networkUp) throw new Error('sin red');
-  const j = await (await fetch('https://faro-ve.com/api/persons/stats')).json();
+  const j = await fetchJson('https://faro-ve.com/api/persons/stats');
   total = j.total ?? j.data?.total ?? j.persons_total ?? null;
 } catch { /* sin stats */ }
 if (total != null) {

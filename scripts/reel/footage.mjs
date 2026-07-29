@@ -10,6 +10,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { fetchJson } from '../lib/fetch-json.mjs';
 
 const KEYFILE = path.join(os.homedir(), '.secrets', 'faro-ve', 'pexels-key.txt');
 
@@ -29,14 +30,14 @@ export async function getFootage(workDir, dayIndex) {
   const key = pexelsKey();
   if (!key) return null;
   const query = process.env.FOOTAGE_QUERY || QUERIES[dayIndex % QUERIES.length];
-  let data;
-  try {
-    const r = await fetch(
-      `https://api.pexels.com/videos/search?query=${encodeURIComponent(query)}&orientation=portrait&size=medium&per_page=15`,
-      { headers: { Authorization: key } }
-    );
-    data = await r.json();
-  } catch { return null; }
+  // fetchJson.safe: sin footage el reel usa su fondo de respaldo — nunca vale
+  // la pena tumbar el reel del día porque Pexels devolvió una página de error.
+  const { data } = await fetchJson.safe(
+    `https://api.pexels.com/videos/search?query=${encodeURIComponent(query)}&orientation=portrait&size=medium&per_page=15`,
+    null,
+    { headers: { Authorization: key } }
+  );
+  if (!data) return null;
 
   const vids = (data.videos || []).filter((v) => v.height > v.width); // solo portrait
   if (!vids.length) return null;

@@ -12,6 +12,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { execFileSync } from 'child_process';
+import { fetchJson } from '../lib/fetch-json.mjs';
 
 const REPO = '/Users/bleiquelcolina/Desktop/faro-ve';
 const CDN_WT = path.join(os.homedir(), '.faro-ig', 'cdn');
@@ -69,12 +70,15 @@ const TRIES = Number(process.env.POST_TRIES || 6);
 let json = null;
 for (let i = 1; i <= TRIES; i++) {
   try {
-    const r = await fetch('https://api.buffer.com', {
+    // fetchJson con retries=0: el bucle de afuera ya reintenta 6× cada 45s
+    // (espera a que levante la red al despertar el Mac). Lo que aporta acá es
+    // no dejar escapar un SyntaxError si Buffer devuelve HTML.
+    json = await fetchJson('https://api.buffer.com', {
       method: 'POST',
       headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query })
+      body: JSON.stringify({ query }),
+      retries: 0
     });
-    json = await r.json();
     break;
   } catch (e) {
     console.error(`Buffer intento ${i}/${TRIES} falló (${e.cause?.code || e.message})`);

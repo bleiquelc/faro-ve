@@ -10,6 +10,7 @@
  */
 import fs from 'fs';
 import { getCached, setCached } from './ai-cache.mjs';
+import { fetchJson } from '../lib/fetch-json.mjs';
 
 const KEY = fs.readFileSync(process.env.HOME + '/.secrets/faro-ve/anthropic-key.txt', 'utf8').trim();
 const MODEL = 'claude-haiku-4-5-20251001';
@@ -57,7 +58,9 @@ export async function classifyPhoto(url) {
 
   let j;
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    // fetchJson: valida ok+content-type y reintenta lo transitorio. Antes, una
+    // página HTML de Anthropic (5xx/rate-limit) lanzaba SyntaxError acá.
+    j = await fetchJson('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'x-api-key': KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
       body: JSON.stringify({
@@ -69,7 +72,6 @@ export async function classifyPhoto(url) {
         ] }]
       })
     });
-    j = await resp.json();
   } catch (e) {
     return { usable: false, kind: 'error', faces: 0, has_minor: false, reason: 'fetch: ' + (e.message || e) };
   }

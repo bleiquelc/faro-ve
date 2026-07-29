@@ -7,6 +7,8 @@
  * Si el campo `account { organizations }` da error, pegá el output (GraphQL
  * errors) y ajusto la query al nombre real del schema.
  */
+import { fetchJson } from '../lib/fetch-json.mjs';
+
 const KEY = process.env.BUFFER_API_KEY;
 if (!KEY) {
   console.error('Falta BUFFER_API_KEY. Corré:  BUFFER_API_KEY="..." node scripts/buffer/buffer-ids.mjs');
@@ -14,12 +16,11 @@ if (!KEY) {
 }
 
 async function gql(query) {
-  const r = await fetch('https://api.buffer.com', {
+  const j = await fetchJson('https://api.buffer.com', {
     method: 'POST',
     headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ query })
   });
-  const j = await r.json();
   if (j.errors) console.error('GraphQL errors:\n', JSON.stringify(j.errors, null, 2));
   return j.data;
 }

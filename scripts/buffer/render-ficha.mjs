@@ -14,6 +14,7 @@
  * La CARA nunca se corta: foto 'contain' (completa) sobre un fondo borroso 'cover'.
  */
 import { chromium } from '@playwright/test';
+import { fetchJson } from '../lib/fetch-json.mjs';
 import os from 'os';
 import fs from 'fs';
 
@@ -24,8 +25,15 @@ if (!PERSON_ID) {
   process.exit(1);
 }
 
-const res = await fetch(`${API}/api/persons?status=missing&limit=1000`);
-const body = await res.json();
+// fetchJson: si faro-ve.com devuelve una página de error, salimos con un mensaje
+// claro en vez de un SyntaxError que el caller no puede interpretar.
+let body;
+try {
+  body = await fetchJson(`${API}/api/persons?status=missing&limit=1000`);
+} catch (e) {
+  console.error('No se pudo leer /api/persons: ' + (e.message || e));
+  process.exit(1);
+}
 const list = body.persons || body.data || (Array.isArray(body) ? body : []);
 const p = list.find((x) => x.id === PERSON_ID);
 if (!p) {

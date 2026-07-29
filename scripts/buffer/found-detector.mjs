@@ -13,6 +13,7 @@
  */
 import fs from 'fs';
 import { getCached, setCached } from './ai-cache.mjs';
+import { fetchJson } from '../lib/fetch-json.mjs';
 
 const KEY = fs.readFileSync(process.env.HOME + '/.secrets/faro-ve/anthropic-key.txt', 'utf8').trim();
 const MODEL = 'claude-haiku-4-5-20251001';
@@ -83,12 +84,19 @@ Responde SOLO con JSON válido:
 
 same_person=true SOLO si el nombre coincide claramente Y la ubicación/edad son compatibles. Sé CONSERVADOR: ante cualquier duda usá confidence "low" o same_person=false. Un falso positivo le daría a una familia una esperanza equivocada.`;
 
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'x-api-key': KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model: MODEL, max_tokens: 320, messages: [{ role: 'user', content: prompt }] })
-  });
-  const j = await resp.json();
+  // fetchJson + fallo BLANDO: esta función se llama desde el bucle de `cron-ig.mjs`
+  // sin try/catch. Un HTML de Anthropic mataba el proceso; ahora degrada a
+  // "no confirmado" (conservador: nunca inventa un reencuentro).
+  let j;
+  try {
+    j = await fetchJson('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'x-api-key': KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      body: JSON.stringify({ model: MODEL, max_tokens: 320, messages: [{ role: 'user', content: prompt }] })
+    });
+  } catch (e) {
+    return { same_person: false, confidence: 'low', is_found: false, where: '', quote: '', reason: 'fetch: ' + (e.message || e) };
+  }
   if (j.error) return { same_person: false, confidence: 'low', is_found: false, where: '', quote: '', reason: 'error: ' + j.error.message };
   const txt = (j.content?.[0]?.text || '').trim();
   const m = txt.match(/\{[\s\S]*\}/);

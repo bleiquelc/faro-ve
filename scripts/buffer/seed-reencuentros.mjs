@@ -8,6 +8,7 @@
  * Requiere: migración 0030 aplicada (columna photo_url) + ENRICH_TOKEN en Pages.
  */
 import { classifyPhoto } from './photo-filter.mjs';
+import { fetchJson } from '../lib/fetch-json.mjs';
 import fs from 'fs';
 import os from 'os';
 
@@ -31,11 +32,10 @@ for (const c of high) {
   if (photo) withPhoto++;
   const fsig = { source: 'venezuela-reporta', source_url: c.vr_ficha, found_status: c.vr_status, quote: c.quote || ('estado: ' + c.vr_status), where_text: c.where, confidence: 'high' };
   if (photo) fsig.photo_url = photo;
-  const resp = await fetch('https://faro-ve.com/api/enrich', {
+  const { ok: httpOk, data: j, error } = await fetchJson.safe('https://faro-ve.com/api/enrich', {}, {
     method: 'POST', headers: { 'content-type': 'application/json', 'x-enrich-token': TOKEN }, body: JSON.stringify({ id, found_signal: fsig })
   });
-  const j = await resp.json().catch(() => ({}));
-  if (resp.ok && j.ok) ok++; else { err++; if (errs.length < 5) errs.push(`${c.nombre}: ${j.message || resp.status}`); }
+  if (httpOk && j.ok) ok++; else { err++; if (errs.length < 5) errs.push(`${c.nombre}: ${j.message || error?.status || error?.message}`); }
 }
 console.log(`\n✅ escritos: ${ok} · con foto limpia: ${withPhoto} · ✗ errores: ${err}`);
 errs.forEach((e) => console.log('   ' + e));

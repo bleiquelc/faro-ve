@@ -11,6 +11,7 @@
  * Conservador: la IA confirma misma-persona; solo high/medium entran al documento.
  */
 import { confirmReunification, nameOverlap, normName } from './found-detector.mjs';
+import { fetchJson } from '../lib/fetch-json.mjs';
 import fs from 'fs';
 import os from 'os';
 
@@ -22,9 +23,14 @@ async function vrFound(status, n, start = 0) {
   // Pagina (VR cap 100/página) desde `start` hasta `n` o fin. Throttle 600ms.
   const out = [];
   for (let offset = start; offset < n; offset += 100) {
-    let arr;
-    try { arr = (await (await fetch(`${VR}?status=${status}&limit=100&offset=${offset}${process.env.SINCE ? '&since=' + encodeURIComponent(process.env.SINCE) : ''}`)).json()).personas || []; }
-    catch { break; }
+    // fetchJson.safe: una página de error de VR corta el barrido (como antes),
+    // pero ya no puede escapar como SyntaxError.
+    const { data } = await fetchJson.safe(
+      `${VR}?status=${status}&limit=100&offset=${offset}${process.env.SINCE ? '&since=' + encodeURIComponent(process.env.SINCE) : ''}`,
+      null
+    );
+    if (!data) break;
+    const arr = data.personas || [];
     if (!arr.length) break;
     out.push(...arr.map((p) => ({ ...p, _status: status })));
     if (arr.length < 100) break;
@@ -49,13 +55,12 @@ let checked = 0;
 for (const f of uniq) {
   const tokens = normName(f.nombre).split(' ').filter((w) => w.length >= 4).sort((a, b) => b.length - a.length);
   if (!tokens.length) continue;
-  let flist = [];
-  try {
-    const fr = await (await fetch(`${FARO}?q=${encodeURIComponent(tokens[0])}&status=missing&limit=50`)).json();
-    flist = fr.persons || fr.data || [];
-  } catch {
-    continue;
-  }
+  const { ok: frOk, data: fr } = await fetchJson.safe(
+    `${FARO}?q=${encodeURIComponent(tokens[0])}&status=missing&limit=50`,
+    null
+  );
+  if (!frOk) continue;
+  const flist = fr.persons || fr.data || [];
   checked++;
   const hit = flist.find((fp) => nameOverlap(fp.full_name, f.nombre) >= 0.5);
   if (!hit) continue;

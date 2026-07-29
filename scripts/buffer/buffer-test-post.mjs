@@ -15,6 +15,8 @@
  *   Si tu IG es personal, Buffer solo manda "recordatorio" (notification).
  * - mode:addToQueue => entra al próximo hueco de tu cola de Buffer.
  */
+import { fetchJson } from '../lib/fetch-json.mjs';
+
 const KEY = process.env.BUFFER_API_KEY;
 const CH = process.env.CHANNEL_ID;
 const IMG = process.env.IMG_URL;
@@ -38,9 +40,8 @@ mutation {
   }
 }`;
 
-const r = await fetch('https://api.buffer.com', {
+console.log(JSON.stringify(await fetchJson('https://api.buffer.com', {
   method: 'POST',
   headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' },
   body: JSON.stringify({ query: mutation })
-});
-console.log(JSON.stringify(await r.json(), null, 2));
+}), null, 2));

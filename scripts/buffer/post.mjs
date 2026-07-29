@@ -10,6 +10,7 @@
  *   node scripts/buffer/post.mjs
  */
 import fs from 'fs';
+import { fetchJson } from '../lib/fetch-json.mjs';
 
 const KEY = process.env.BUFFER_API_KEY;
 const CH = process.env.CHANNEL_ID;
@@ -40,10 +41,18 @@ const query = `mutation { createPost(input: ${input}) {
   ... on MutationError { message }
 } }`;
 
-const r = await fetch('https://api.buffer.com', {
-  method: 'POST',
-  headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' },
-  body: JSON.stringify({ query })
-});
-console.log(JSON.stringify(await r.json(), null, 2));
+// fetchJson: si Buffer devuelve HTML (rate-limit/mantenimiento), salimos con un
+// mensaje claro y exit 1 — el cron IG lo ve y no marca la ficha como publicada.
+let out;
+try {
+  out = await fetchJson('https://api.buffer.com', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query })
+  });
+} catch (e) {
+  console.error('Buffer no respondió JSON: ' + (e.message || e));
+  process.exit(1);
+}
+console.log(JSON.stringify(out, null, 2));
 console.log(whenMin > 0 ? `\n→ programada para publicarse en ~${whenMin} min` : '\n→ agregada a la cola de Buffer');
