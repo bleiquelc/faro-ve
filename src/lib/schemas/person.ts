@@ -184,7 +184,13 @@ export const personFiltersSchema = z.object({
     .string()
     .regex(/^-?\d+(\.\d+)?(,-?\d+(\.\d+)?){3}$/)
     .optional(),
-  limit: z.coerce.number().int().min(1).max(2000).optional().default(1000)
+  limit: z.coerce.number().int().min(1).max(2000).optional().default(1000),
+  // Paginación. La necesita cualquier consumidor que deba BARRER el corpus y no
+  // solo mirar lo más nuevo: el auto-publicador de IG solo veía las 400 filas
+  // más recientes de 47.820 (29-jul-2026). Aditivo: default 0 = comportamiento
+  // previo. El orden es estable (created_at desc, id) para que paginar no
+  // duplique ni saltee filas con created_at repetido.
+  offset: z.coerce.number().int().min(0).optional().default(0)
 });
 
 export type PersonFilters = z.infer<typeof personFiltersSchema>;

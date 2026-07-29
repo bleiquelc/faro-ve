@@ -85,17 +85,52 @@ async function vrMatch(name) {
 }
 
 // ── main ──────────────────────────────────────────────────────────────────────
-// fetchJson: esta línea corría en top-level await con `.json()` crudo. Cuando
-// faro-ve.com devolvía una página HTML de error, el SyntaxError de undici MATABA
-// el proceso ANTES del primer log() — de ahí las horas sin rastro en cron.log
-// (3 el 26-jul, 4 el 27-jul, 1 el 28-jul). Ahora degrada con un mensaje claro.
-const { ok: batchOk, data: batch, error: batchErr } = await fetchJson.safe(
-  `${FARO}?status=missing&limit=400`,
-  { persons: [] }
-);
-if (!batchOk) { log(`No pude leer la lista de personas (${batchErr.message}) — salgo sin publicar.`); process.exit(0); }
-const people = (batch.persons || batch.data || []).filter((p) => !state.posted[p.id] && !recentlySkipped(p.id));
-log(`Candidatos: ${people.length} (lote 400, sin posteadas/skip-recientes).`);
+// BARRIDO CON CURSOR (29-jul-2026). Antes esto era un único
+// `fetch(`${FARO}?status=missing&limit=400`)` sin offset. Como `/api/persons`
+// ordena por created_at DESC, el cron veía SIEMPRE las mismas 400 filas más
+// nuevas de 47.820: apenas la ingesta dejó de traer cientos por día (hoy ~5-7),
+// la ventana se congeló, todas quedaron posteadas o skipeadas y el cron pasó
+// ~24h imprimiendo "Candidatos: 0" sin que nadie se enterara. Peor: ~8.800
+// personas CON foto (el 19% del corpus, medido) nunca entraron al pipeline.
+//
+// Ahora se pagina con un cursor persistido, igual que la ingesta rotante del
+// mantenimiento (`maintenance-state.json`): cada corrida arranca donde quedó la
+// anterior y da la vuelta al corpus completo. El cursor SIEMPRE avanza (aunque
+// la página no tenga candidatos), así el barrido no se puede atascar.
+//
+// Deriva aceptada: la ingesta inserta arriba (~5-7/día) y corre el offset unas
+// pocas filas por vuelta. Sobre páginas de 400 es ruido; lo que quede sin ver en
+// una vuelta se ve en la siguiente.
+const PAGE = Number(process.env.PAGE_SIZE || 400);
+const MAX_PAGES = Number(process.env.MAX_PAGES_PER_RUN || 6); // tope de barrido/corrida
+
+const { data: countRes } = await fetchJson.safe(`${FARO}?status=missing&count=exact`, null);
+const total = Number(countRes?.total) || 0;
+
+let cursor = Number.isInteger(state.cursor) ? state.cursor : 0;
+if (total && cursor >= total) cursor = 0; // vuelta completa → volver a empezar
+
+let people = [];
+let pages = 0; // páginas realmente leídas (para el log)
+for (let i = 0; i < MAX_PAGES; i++) {
+  pages++;
+  const { ok, data, error } = await fetchJson.safe(
+    `${FARO}?status=missing&limit=${PAGE}&offset=${cursor}`,
+    { persons: [] }
+  );
+  if (!ok) { log(`No pude leer la lista de personas (${error.message}) — salgo sin publicar.`); break; }
+
+  const rows = data.persons || data.data || [];
+  cursor += PAGE;
+  if (total && cursor >= total) cursor = 0; // envolver
+
+  const fresh = rows.filter((p) => !state.posted[p.id] && !recentlySkipped(p.id));
+  if (fresh.length) { people = fresh; break; }
+  if (!rows.length) break; // página vacía: no insistir
+}
+state.cursor = cursor;
+save(); // persistir el avance aunque la corrida no publique nada
+log(`Candidatos: ${people.length} (cursor ${cursor}/${total || '?'}, ${pages} pág. de ${PAGE}, sin posteadas/skip-recientes).`);
 
 const MAX_POSTS = Number(process.env.POSTS_PER_RUN || 2); // publicaciones por corrida (escalonadas)
 let posted = 0;

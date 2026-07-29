@@ -52,8 +52,15 @@ export const GET: RequestHandler = async ({ url, locals, setHeaders }) => {
     )
     // Orden estable → cuando PostgREST trunca a 1000, el subconjunto es
     // determinista entre requests (acumulación por viewport consistente).
+    // El desempate por `id` es lo que hace SEGURA la paginación: la ingesta
+    // inserta lotes con created_at IDÉNTICO, y sin desempate una misma fila
+    // puede repetirse en dos páginas o no salir en ninguna.
     .order('created_at', { ascending: false })
-    .limit(f.limit);
+    .order('id', { ascending: false });
+
+  // Paginación (offset default 0 = comportamiento previo). `range` es inclusivo
+  // en ambos extremos, de ahí el -1.
+  q = f.offset > 0 ? q.range(f.offset, f.offset + f.limit - 1) : q.limit(f.limit);
 
   // Mapa (sin q): solo personas con coords (pineables). Búsqueda por nombre (q) y
   // GeoJSON (federación): incluyen las SIN localización → que nadie quede sin
