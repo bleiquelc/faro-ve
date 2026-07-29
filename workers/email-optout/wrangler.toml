@@ -1,0 +1,26 @@
+name = "faro-ve-email-optout"
+main = "src/index.ts"
+compatibility_date = "2026-06-20"
+compatibility_flags = ["nodejs_compat"]
+account_id = "64a18868c428ecbfdaf67d69edffb888"
+# Worker de EMAIL, no de web ni de cron: se dispara al RECIBIR un correo.
+# Sin URL pública y sin `[triggers] crons` a propósito — por eso NO le afecta que
+# la cuenta free no ejecute los crons de Workers (el problema que dejó caída la
+# ingesta 6 días en julio y obligó a moverla al mantenimiento del Mac).
+workers_dev = false
+
+[vars]
+PUBLIC_SUPABASE_URL = "https://blmiebnnprwaupyatsyb.supabase.co"
+# A dónde se reenvía el correo DESPUÉS de registrarlo, para que el founder lo
+# siga viendo en su Gmail igual que hoy (no se pierde nada).
+FORWARD_TO = "bleiquelc@gmail.com"
+
+# Secret a inyectar (una vez):
+#   cd workers/email-optout && wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+#
+# Y en el panel de Cloudflare → Email → Email Routing → Routing rules:
+#   opt-out@faro-ve.com → "Send to a Worker" → faro-ve-email-optout
+# (la regla actual de reenvío a Gmail la sigue cumpliendo el propio Worker).
+
+[observability]
+enabled = true

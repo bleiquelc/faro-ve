@@ -213,13 +213,68 @@ if (process.env.MAINT_HEALTH_ONLY === '1' || !networkUp) {
   } catch (e) { problem('seed-reencuentros.mjs falló (¿ENRICH_TOKEN / 0030?): ' + (e.message || e)); }
 }
 
+// 5b) Reglas #10 (opt-out) y #6 (purga PII Habeas Data) ────────────────────────
+//     Las dos llevaban meses SIN software que las cumpliera. Corren acá (decisión
+//     founder 29-jul) porque este job YA corre a diario, YA tiene DATABASE_URL y
+//     YA alcanza la DB — a diferencia del cron de Workers, que en la cuenta free
+//     no dispara. La lógica vive en RPCs SECURITY DEFINER (migración 0033): el
+//     Mac solo agenda, Postgres ejecuta de forma atómica y auditada.
+if (process.env.MAINT_HEALTH_ONLY === '1' || !networkUp || !fs.existsSync(dbUrlPath)) {
+  log('  opt-out / purga PII: OMITIDO (sin red, sin db-url o MAINT_HEALTH_ONLY=1)');
+} else {
+  const { default: pg } = await import('pg');
+  const db = new pg.Client({ connectionString: fs.readFileSync(dbUrlPath, 'utf8').trim() });
+  try {
+    await db.connect();
+
+    // Regla #6 — Habeas Data (Art. 28 Const. Venezuela): purgar la PII de los
+    // reportes retirados hace más de 30 días. Idempotente y auditada.
+    const purge = await db.query('select purge_withdrawn_pii() as r');
+    const purged = purge.rows[0].r?.purged ?? 0;
+    log(`  purga PII (Habeas Data #6): ${purged} reporte(s) purgado(s)`);
+
+    // Regla #10 — peticiones llegadas a opt-out@ (las captura el Email Worker).
+    const pend = await db.query(
+      `select id, from_email, from_domain, subject, status, matched_source_id
+         from optout_requests where processed_at is null order by received_at`
+    );
+    if (!pend.rows.length) {
+      log('  opt-out (#10): sin peticiones pendientes');
+    } else {
+      for (const r of pend.rows) {
+        if (r.status === 'auto_eligible') {
+          // Dominio de la fuente + DKIM válido (decisión founder 29-jul).
+          const out = await db.query('select process_optout_request($1) as r', [r.id]);
+          const d = out.rows[0].r;
+          if (d?.ok) {
+            problem(`OPT-OUT EJECUTADO (regla #10): fuente "${d.source}" desactivada y ${d.deleted} registros purgados, por petición de ${r.from_email}.`);
+          } else {
+            problem(`Opt-out de ${r.from_email} no se pudo ejecutar: ${d?.error || '?'} — resolvelo a mano.`);
+          }
+        } else {
+          // Sin DKIM o sin fuente identificada: NO se toca nada. Un `From` se
+          // falsifica en 30 segundos y esto sería un DELETE masivo.
+          problem(
+            `OPT-OUT PENDIENTE DE TU REVISIÓN (SLA 24h, regla #8): "${r.subject || '(sin asunto)'}" de ${r.from_email}. ` +
+              `No se auto-ejecuta (${r.matched_source_id ? 'DKIM no validado' : 'remitente no coincide con ninguna fuente'}). ` +
+              `Si es legítimo: select process_optout_request('${r.id}');`
+          );
+        }
+      }
+    }
+  } catch (e) {
+    problem('Opt-out / purga PII falló (¿falta aplicar la migración 0033?): ' + (e.message || e));
+  } finally {
+    try { await db.end(); } catch { /* ya cerrado */ }
+  }
+}
+
 // 6) Cache de IA (ahorro de tokens) ─────────────────────────────────────────────
 log('  cache IA (entradas): ' + JSON.stringify(cacheStats()));
 
 // 7) Recordatorios de pasos founder pendientes (no son alertas push) ────────────
 const reminders = [
-  'Cloudflare Email Routing: verificar opt-out@/contacto@/federacion@ → bleiquelc@gmail.com (SLA opt-out 24h, regla #8).',
-  'Purga PII Habeas Data (reportes withdrawn >30d): falta cron server-side (regla #6) — ver docs/RUNBOOK-mantenimiento.md.',
+  'Reglas #10 y #6: aplicar la migración 0033 en el SQL Editor + desplegar el Email Worker (workers/email-optout) + apuntar opt-out@ a ese Worker en el panel CF. Hasta entonces, este paso avisa "falta 0033".',
   'Ingesta automática: ahora corre en ESTE mantenimiento (bloque rotante diario). El cron del Worker cron-ingest en Cloudflare NO dispara (cuenta free: schedule registrado, 0 corridas en 6 días). Para 24/7 opcional: revisar plan Workers en el panel CF o disparar el worker por HTTP.'
 ];
 
