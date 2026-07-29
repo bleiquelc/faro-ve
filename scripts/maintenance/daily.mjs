@@ -23,6 +23,7 @@ import path from 'path';
 import { execFileSync } from 'child_process';
 import { cacheStats } from '../buffer/ai-cache.mjs';
 import { fetchJson } from '../lib/fetch-json.mjs';
+import { looksLikeRealError, firstErrorLine } from '../lib/err-log.mjs';
 
 const HOME = process.env.HOME;
 const REPO = '/Users/bleiquelcolina/Desktop/faro-ve';
@@ -132,13 +133,25 @@ const cronErr = path.join(STATE_DIR, 'cron.err.log');
 // Un err.log con contenido se alerta UNA vez y se ARCHIVA a .bak; sin archivar,
 // los mismos errores viejos re-alertan todos los días. Se trunca en vez de
 // renombrar: launchd re-abre el path en cada corrida y así queda estable.
+// Se ARCHIVA siempre, pero se ALERTA solo si el contenido tiene firma de fallo
+// real. Motivo (29-jul): ffmpeg escribe su salida NORMAL a stderr (banner,
+// streams, progreso) → `reel.err.log` pesaba 13-16 KB todos los días y disparaba
+// "el reel registró errores" desde el 13-jul aunque el reel quedara programado
+// ✅ en el mismo reporte. El mantenimiento salía exit 1 a diario y el founder
+// dejó de distinguir señal de ruido. Ver scripts/lib/err-log.mjs.
 const alertAndArchiveErrLog = (label, file) => {
   try {
     if (!fs.existsSync(file) || fs.statSync(file).size === 0) return;
+    const content = fs.readFileSync(file, 'utf8');
     const bak = `${file}.${today}.bak`;
-    fs.appendFileSync(bak, fs.readFileSync(file));
+    fs.appendFileSync(bak, content);
     fs.truncateSync(file, 0);
-    problem(`El ${label} registró errores desde el último mantenimiento: revisá ${bak}`);
+    if (!looksLikeRealError(content)) {
+      log(`  ${label}: ${(content.length / 1024).toFixed(1)} KB de salida normal en stderr (sin errores) → archivado en ${path.basename(bak)}`);
+      return;
+    }
+    const detail = firstErrorLine(content);
+    problem(`El ${label} registró errores: ${detail || 'ver el archivo'} — detalle en ${bak}`);
   } catch { /* sin logs aún */ }
 };
 alertAndArchiveErrLog('cron de Instagram', cronErr);

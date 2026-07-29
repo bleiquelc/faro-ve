@@ -32,6 +32,29 @@ fs.mkdirSync(WORK, { recursive: true });
 const FFMPEG = fs.existsSync(path.join(os.homedir(), 'bin', 'ffmpeg'))
   ? path.join(os.homedir(), 'bin', 'ffmpeg') : 'ffmpeg';
 
+/**
+ * ffmpeg escribe TODO su output normal a stderr (banner de versión, configure
+ * flags, streams, progreso). Con `stdio:'inherit'` eso caía en `reel.err.log`:
+ * 13-16 KB por día que el mantenimiento leía como "el reel registró errores"
+ * desde el 13-jul, aunque el reel se programara perfecto.
+ *
+ * Capturamos la salida y solo la mostramos si ffmpeg FALLA de verdad (exit ≠ 0).
+ * Así el err.log queda limpio y un error ahí vuelve a significar algo.
+ * @param {string[]} args
+ */
+function ffmpeg(args) {
+  try {
+    execFileSync(FFMPEG, args, { stdio: 'pipe' });
+  } catch (e) {
+    const err = /** @type {any} */ (e);
+    process.stderr.write(
+      `Error: ffmpeg falló (exit ${err.status ?? '?'}) en: ${args.join(' ')}\n` +
+        (err.stderr ? err.stderr.toString() : '')
+    );
+    throw e;
+  }
+}
+
 // Fecha objetivo: REEL_DATE permite pre-generar el reel de un día futuro
 // (mediodía UTC evita el corrimiento de día por zona horaria).
 const target = process.env.REEL_DATE
@@ -100,15 +123,15 @@ if (footage) {
 // Audio: si el footage trae sonido natural (olas/ambiente), lo conservamos
 // (sereno y libre de derechos con el clip). La escena propia va en silencio.
 const audioArgs = footage ? ['-map', '0:a?', '-c:a', 'aac', '-b:a', '96k'] : [];
-execFileSync(FFMPEG, [
+ffmpeg([
   ...inputs, '-filter_complex', filter, '-map', '[v]', ...audioArgs,
   '-r', '25', '-t', '15', '-c:v', 'libx264', '-crf', '22', '-preset', 'medium',
   '-movflags', '+faststart', mp4
-], { stdio: 'inherit' });
+]);
 
 // 3) Preview 540×960 (para el chat) + póster 405×720
-execFileSync(FFMPEG, ['-y', '-i', mp4, '-vf', 'scale=540:960', '-c:v', 'libx264', '-crf', '26', '-preset', 'fast', '-an', preview], { stdio: 'inherit' });
-execFileSync(FFMPEG, ['-y', '-ss', '3', '-i', mp4, '-frames:v', '1', '-update', '1', '-vf', 'scale=405:720', poster], { stdio: 'inherit' });
+ffmpeg(['-y', '-i', mp4, '-vf', 'scale=540:960', '-c:v', 'libx264', '-crf', '26', '-preset', 'fast', '-an', preview]);
+ffmpeg(['-y', '-ss', '3', '-i', mp4, '-frames:v', '1', '-update', '1', '-vf', 'scale=405:720', poster]);
 
 // Caption para publicar (versículo + oración + crédito Pexels + hashtags)
 const credit = footage ? `\n\n🎬 ${footage.credit}` : '';
