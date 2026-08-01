@@ -15,6 +15,7 @@
  */
 import { chromium } from '@playwright/test';
 import { fetchJson } from '../lib/fetch-json.mjs';
+import { resolveFichaFields } from '../lib/ficha-fields.mjs';
 import os from 'os';
 import fs from 'fs';
 
@@ -25,29 +26,35 @@ if (!PERSON_ID) {
   process.exit(1);
 }
 
-// fetchJson: si faro-ve.com devuelve una página de error, salimos con un mensaje
-// claro en vez de un SyntaxError que el caller no puede interpretar.
-let body;
+// La consulta a la API es un RESPALDO para corridas manuales, NO un requisito.
+// Antes se exigía encontrar a la persona en el "primer lote" de 1000 (las más
+// nuevas) y si no, `exit 1`. Desde que el cron barre el corpus completo con
+// cursor (29-jul) eso fallaba SIEMPRE que encontraba una foto limpia en el fondo
+// del corpus, y mataba la corrida: 3 días con Intentos=15 y Publicadas=0.
+// El cron ya pasa los datos UNIFICADOS por entorno — mejores que los de la API.
+let p = null;
 try {
-  body = await fetchJson(`${API}/api/persons?status=missing&limit=1000`);
+  const body = await fetchJson(`${API}/api/persons?status=missing&limit=1000`);
+  const list = body.persons || body.data || (Array.isArray(body) ? body : []);
+  p = list.find((x) => x.id === PERSON_ID) || null;
 } catch (e) {
-  console.error('No se pudo leer /api/persons: ' + (e.message || e));
-  process.exit(1);
-}
-const list = body.persons || body.data || (Array.isArray(body) ? body : []);
-const p = list.find((x) => x.id === PERSON_ID);
-if (!p) {
-  console.error(`No encontré la persona ${PERSON_ID} en el primer lote (probá otro id reciente).`);
-  process.exit(1);
+  console.error('Aviso: no se pudo consultar /api/persons (' + (e.message || e) + '). Sigo con los datos del entorno.');
 }
 
 // Overrides = datos UNIFICADOS (el enriquecedor merge-a varios registros/plataformas).
-const sx = process.env.SEX || p.sex;
-const name = (process.env.NAME || p.full_name || `${p.given_name || ''} ${p.family_name || ''}`).trim() || 'Persona sin nombre';
+let F;
+try {
+  F = resolveFichaFields(process.env, p);
+} catch (e) {
+  console.error(e.message);
+  process.exit(1);
+}
+const sx = F.sex;
+const name = F.name;
 const firstName = name.split(/\s+/)[0];
-const loc = (process.env.LOC || p.last_known_location_text || p.home_city || 'Ubicación no especificada').trim();
+const loc = F.loc;
 const sexLabel = sx === 'female' ? 'Mujer' : sx === 'male' ? 'Hombre' : '';
-const ageVal = process.env.AGE || p.age;
+const ageVal = F.age;
 const ageBit = ageVal ? `${ageVal} años` : '';
 // Pronombres: género conocido → gendered; desconocido → neutral por nombre (nada de "la" a un hombre).
 const known = sx === 'male' || sx === 'female';
@@ -60,8 +67,8 @@ const capCta = known ? `Si ${her} has visto o tienes información, ayúdanos a e
 const emptyCta = known ? `AYÚDANOS A ENCONTRAR${HER}` : `AYÚDANOS A ENCONTRAR A ${firstName.toUpperCase()}`;
 const emptyVist = known ? `vist${vist}` : 'visto';
 // Foto: override > API > (NO_PHOTO fuerza vacío). El enriquecedor pasará la mejor foto limpia por PHOTO_URL.
-const photo = process.env.NO_PHOTO === '1' ? '' : (process.env.PHOTO_URL || p.photo_url || '');
-const extraDesc = (process.env.EXTRA_DESC || p.description || '').trim();
+const photo = F.photo;
+const extraDesc = F.extraDesc;
 
 const FARO_SVG = fs.readFileSync(new URL('../../static/faro-icon.svg', import.meta.url), 'utf8');
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

@@ -189,18 +189,28 @@ for (const p of people) {
   const env = { ...process.env, PERSON_ID: p.id, NAME: name, LOC: loc, AGE: String(age || ''), PHOTO_URL: chosen };
   if (sex) env.SEX = sex;
   if (desc) env.EXTRA_DESC = desc;
-  execFileSync('node', ['scripts/buffer/render-ficha.mjs'], { cwd: REPO, env, stdio: 'pipe' });
-  const jpg = `${HOME}/Desktop/faro-fichas-test/${p.id}.jpg`;
-  const txt = `${HOME}/Desktop/faro-fichas-test/${p.id}.txt`;
-  const raw = hostImage(jpg, p.id);
-  execFileSync('node', ['scripts/buffer/post.mjs'], {
-    cwd: REPO,
-    env: { ...process.env, BUFFER_API_KEY: BUFFER_KEY, CHANNEL_ID, IMG_URL: raw, TEXT_FILE: txt, WHEN_MIN: String(5 + posted * 25) },
-    stdio: 'inherit'
-  });
-  state.posted[p.id] = { name, ts: now, raw };
-  posted++;
-  log(`PUBLICADA: ${name}`);
+  // Un fallo en UNA ficha no puede matar la corrida entera. Sin este try/catch,
+  // el `exit 1` de render-ficha (persona fuera de su lote) tumbaba el proceso y
+  // dejaba sin publicar también a los candidatos siguientes: 3 días de silencio
+  // por un solo registro. Se anota como saltado y se sigue con el próximo.
+  try {
+    execFileSync('node', ['scripts/buffer/render-ficha.mjs'], { cwd: REPO, env, stdio: 'pipe' });
+    const jpg = `${HOME}/Desktop/faro-fichas-test/${p.id}.jpg`;
+    const txt = `${HOME}/Desktop/faro-fichas-test/${p.id}.txt`;
+    const raw = hostImage(jpg, p.id);
+    execFileSync('node', ['scripts/buffer/post.mjs'], {
+      cwd: REPO,
+      env: { ...process.env, BUFFER_API_KEY: BUFFER_KEY, CHANNEL_ID, IMG_URL: raw, TEXT_FILE: txt, WHEN_MIN: String(5 + posted * 25) },
+      stdio: 'inherit'
+    });
+    state.posted[p.id] = { name, ts: now, raw };
+    posted++;
+    log(`PUBLICADA: ${name}`);
+  } catch (e) {
+    const detail = (e.stderr ? e.stderr.toString() : '').trim().split('\n')[0] || e.message;
+    log(`ERROR publicando a ${name}: ${detail} — sigo con el siguiente.`);
+    state.skipped[p.id] = { reason: 'error-publicacion', ts: now };
+  }
 }
 
 save();
