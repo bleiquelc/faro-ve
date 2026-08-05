@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { tweened } from "svelte/motion";
   import { cubicOut } from "svelte/easing";
   import InstallPrompt from "$components/InstallPrompt.svelte";
@@ -7,6 +7,7 @@
   import FaroIcon from "$components/FaroIcon.svelte";
   import RefreshButton from "$components/RefreshButton.svelte";
   import { COLOR } from "$utils/colors";
+  import { createIdleUI } from "$lib/client/idle-ui";
 
   // Acciones secundarias (fila compacta de chips glassy con iconografía propia).
   const ACTIONS = [
@@ -17,13 +18,36 @@
   ] as const;
 
   /**
-   * Home — el MAPA VIVO es el fondo (luces de color que respiran sobre las
-   * ciudades). El faro, el texto y los botones FLOTAN sobre el mapa. El número
-   * REAL de personas reportadas cuenta hacia arriba al cargar → sensación de
-   * "vivo". "Ver el mapa" abre /mapa (data real e interactiva).
+   * Home — LUGAR DE MEMORIA (rediseño founder 5-ago-2026).
+   *
+   * Al entrar, solo el mapa de luz: el faro alzado sobre la costa de Macuto
+   * iluminando, las luces de los reportados respirando, guacamayas cruzando
+   * despacio y, muy sutiles, los nombres de quienes seguimos buscando que se
+   * encienden y apagan letra a letra. Espiritual, suave, de respeto.
+   *
+   * La UI completa (título, contador, botones, footer) aparece con CUALQUIER
+   * gesto y vuelve a desvanecerse tras 10 s de calma — las funciones siguen
+   * TODAS ahí, solo que el silencio es el estado natural. Sin JS (o para el
+   * lector de pantalla) la UI queda siempre visible (regla #7: footer).
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let MapComp: any = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let SkyComp: any = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let NamesComp: any = null;
+
+  // Visibilidad de la UI por actividad (modo memorial). Mientras haya foco de
+  // teclado dentro de la UI, no se esconde (no desorientar al usuario de Tab).
+  let mainEl: HTMLElement | null = null;
+  const idle = createIdleUI(10_000, () => {
+    const a = document.activeElement;
+    return !!(a && a !== document.body && mainEl?.contains(a));
+  });
+  const uiVisible = idle.visible;
+  // Las transiciones se activan DESPUÉS del primer ocultado (la entrada al
+  // memorial es instantánea, sin flash de UI desvaneciéndose).
+  let transitionsOn = false;
 
   // Conteo animado del total real + burbujas por categoría (con conteos reales).
   let total = 0;
@@ -46,7 +70,15 @@
     : [];
 
   onMount(async () => {
+    // Entrada al memorial: la UI se apaga YA (sin transición) y despierta con
+    // el primer gesto. El resto carga en silencio detrás.
+    idle.sleep();
+    setTimeout(() => (transitionsOn = true), 120);
+
     MapComp = (await import("$components/Map.svelte")).default;
+    // Cielo (guacamayas) y nombres: chunks aparte, cargan después del mapa.
+    void import("$components/MemorialSky.svelte").then((m) => (SkyComp = m.default));
+    void import("$components/MemorialNames.svelte").then((m) => (NamesComp = m.default));
     try {
       const res = await fetch("/api/persons/stats");
       if (res.ok) {
@@ -62,6 +94,8 @@
       /* los números son informativos; si falla, no rompe el home */
     }
   });
+
+  onDestroy(() => idle.destroy());
 </script>
 
 <svelte:head>
@@ -83,31 +117,80 @@
 </svelte:head>
 
 <div class="relative h-[100dvh] w-full overflow-hidden bg-[#06202b]">
-  <!-- Fondo: el mapa de esperanza VIVO (ambiente, no interactivo) -->
+  <!-- Fondo: el mapa de luz — lugar de memoria (ambiente, no interactivo) -->
   <div class="absolute inset-0" aria-hidden="true">
     {#if MapComp}
       <!-- Close-up de la zona más afectada (La Guaira / Caracas) en tono dusk:
-           costa + calles reales, mar/tierra distinguibles, puntos de color vivos. -->
+           costa + calles reales, mar/tierra distinguibles, puntos de color vivos.
+           memorial=true alza el faro sobre Macuto iluminando desde allí. -->
       <svelte:component
         this={MapComp}
         interactive={false}
         dusk={true}
+        memorial={true}
         center={[10.63, -66.9]}
         zoom={11}
       />
     {/if}
   </div>
 
-  <!-- Viñeta sutil arriba/abajo solo para legibilidad del texto flotante.
-       El centro queda despejado: se ven las luces del mapa. z-[800] sobre Leaflet. -->
+  <!-- Degradado superior SIEMPRE presente (legibilidad de los nombres del
+       memorial, aunque la UI esté dormida). Suave, solo arriba. -->
   <div
-    class="pointer-events-none absolute inset-0 z-[800] bg-gradient-to-b from-[#06202b]/60 via-transparent to-[#06202b]/78"
+    class="pointer-events-none absolute inset-x-0 top-0 z-[790] h-44 bg-gradient-to-b from-[#06202b]/55 to-transparent"
     aria-hidden="true"
   ></div>
 
-  <!-- Contenido flotante (sin tarjeta) -->
+  <!-- Viñeta de la UI (solo cuando la UI está despierta; el memorial respira
+       sin velos). z-[800] sobre Leaflet. -->
+  <div
+    class="pointer-events-none absolute inset-0 z-[800] bg-gradient-to-b from-[#06202b]/60 via-transparent to-[#06202b]/78"
+    class:memorial-anim={transitionsOn}
+    class:memorial-faded={!$uiVisible}
+    aria-hidden="true"
+  ></div>
+
+  <!-- Cielo del memorial: guacamayas cruzando despacio hacia las zonas más
+       afectadas (agregado ciudad). Decorativo, sin eventos. z-[850]. -->
+  {#if SkyComp}
+    <div class="pointer-events-none absolute inset-0 z-[850]" aria-hidden="true">
+      <svelte:component this={SkyComp} center={[10.63, -66.9]} zoom={11} />
+    </div>
+  {/if}
+
+  <!-- Nombres del memorial: arriba, muy sutiles. Se retiran cuando la UI
+       despierta (para no chocar con el título) y vuelven con la calma. -->
+  {#if NamesComp}
+    <div
+      class="pointer-events-none absolute inset-x-0 top-[calc(env(safe-area-inset-top)+2.6rem)] z-[950]"
+      class:memorial-anim={transitionsOn}
+      class:memorial-faded={$uiVisible}
+    >
+      <svelte:component this={NamesComp} totalMissing={stats?.missing ?? 0} />
+    </div>
+  {/if}
+
+  <!-- Pista mínima mientras el memorial duerme: cómo despertar la UI. -->
+  <div
+    class="memorial-hint pointer-events-none absolute inset-x-0 bottom-9 z-[950] text-center"
+    class:hint-on={transitionsOn && !$uiVisible}
+    aria-hidden="true"
+  >
+    <span
+      class="text-[11px] font-medium uppercase tracking-[0.28em] text-white/50 [text-shadow:0_1px_8px_rgb(0_0_0_/0.8)]"
+    >
+      Toca para explorar
+    </span>
+  </div>
+
+  <!-- Contenido flotante (sin tarjeta). Se desvanece tras 10 s de calma y
+       despierta con cualquier gesto — solo visual (opacity): el lector de
+       pantalla y el usuario de teclado siempre lo tienen (focus lo despierta). -->
   <main
+    bind:this={mainEl}
     class="absolute inset-0 z-[1000] flex flex-col items-center justify-between px-6 pb-8 pt-[calc(env(safe-area-inset-top)+2.25rem)] text-center text-white"
+    class:memorial-anim={transitionsOn}
+    class:memorial-faded={!$uiVisible}
   >
     <!-- Actualizar (símbolo): trae los reportes nuevos + la última versión de la
          app de una vez. Arriba a la derecha, siempre a mano. -->
@@ -136,7 +219,8 @@
       <p
         class="max-w-xs text-sm text-white/90 [text-shadow:0_1px_8px_rgb(0_0_0_/0.7)]"
       >
-        Reporta y busca personas tras el terremoto del 24-jun-2026 en Venezuela.
+        Un lugar de memoria y esperanza. Reporta y busca personas tras el
+        terremoto del 24-jun-2026 en Venezuela.
       </p>
 
       <!-- Número REAL contando hacia arriba — el mapa está vivo. -->
@@ -269,8 +353,49 @@
       transform: scale(1.1);
     }
   }
+
+  /* ── Modo memorial: la UI se desvanece con la calma y despierta al gesto ──
+     SOLO opacity (nunca display/aria): accesible siempre. El fundido es lento
+     y digno — coherente con la regla "deceased nunca late" de colors.ts. */
+  .memorial-anim {
+    transition: opacity 1.15s ease;
+  }
+  .memorial-faded {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* Pista "toca para explorar": aparece un momento después de que la UI se
+     duerme, respirando apenas. */
+  .memorial-hint {
+    opacity: 0;
+    transition: opacity 1.2s ease 1.6s;
+  }
+  .memorial-hint.hint-on {
+    opacity: 1;
+  }
+  .memorial-hint.hint-on span {
+    display: inline-block;
+    animation: hint-breath 5s ease-in-out infinite;
+  }
+  @keyframes hint-breath {
+    0%,
+    100% {
+      opacity: 0.55;
+    }
+    50% {
+      opacity: 0.95;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .hope-dot {
+      animation: none;
+    }
+    .memorial-anim {
+      transition: none;
+    }
+    .memorial-hint.hint-on span {
       animation: none;
     }
   }

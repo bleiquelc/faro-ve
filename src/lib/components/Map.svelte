@@ -31,6 +31,10 @@
   // dusk = mapa en tono atardecer (home): mismas tiles reales (calles/caminos
   // visibles) pero oscurecidas; el mar sigue azul (se distingue de la tierra).
   export let dusk = false;
+  // memorial = modo "lugar de memoria" del home: un FARO se alza sobre la costa
+  // de Macuto (La Guaira) e ilumina el mapa desde allí — haz giratorio + charco
+  // de luz cálida. Decorativo (no interactivo); da profundidad al papel tapiz.
+  export let memorial = false;
 
   let mapEl: HTMLDivElement;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -540,6 +544,40 @@
     }
   }
 
+  // ── Faro memorial sobre el mapa (modo memorial del home) ──────────────────
+  // Se alza en la costa de Macuto, corazón de la zona golpeada. La luz es la
+  // metáfora de toda la app llevada al propio mapa: desde allí "ilumina" a los
+  // reportados. Va en un pane bajo (por debajo de las luces de personas).
+  const LIGHTHOUSE_POS: [number, number] = [10.6035, -66.879]; // Macuto, La Guaira
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function addLighthouse(L: any): void {
+    const pane = map.createPane('faroMemorial');
+    pane.style.zIndex = '320'; // sobre tiles/velo (250), bajo los markers (600)
+    pane.style.pointerEvents = 'none';
+    const html = `
+      <div class="faro-lh" aria-hidden="true">
+        <i class="faro-lh-pool"></i>
+        <i class="faro-lh-beams"></i>
+        <svg class="faro-lh-tower" width="44" height="72" viewBox="0 0 44 72" fill="none">
+          <path d="M17 24 L27 24 L30.5 62 L13.5 62 Z" fill="#0c2836"/>
+          <path d="M15.2 40 L28.8 40 L29.4 46 L14.6 46 Z" fill="#16404f"/>
+          <path d="M14 52 L30 52 L30.6 58 L13.4 58 Z" fill="#16404f"/>
+          <rect x="11" y="62" width="22" height="6" rx="2" fill="#0c2836"/>
+          <rect x="14.5" y="19" width="15" height="3.5" rx="1.75" fill="#0c2836"/>
+          <rect x="16.5" y="10" width="11" height="9" rx="2" fill="#0c2836"/>
+          <path d="M15.5 10 L22 3 L28.5 10 Z" fill="#0c2836"/>
+        </svg>
+        <i class="faro-lh-lamp"></i>
+      </div>`;
+    const icon = L.divIcon({ html, className: 'faro-lh-wrap', iconSize: [0, 0] });
+    L.marker(LIGHTHOUSE_POS, {
+      icon,
+      pane: 'faroMemorial',
+      interactive: false,
+      keyboard: false
+    }).addTo(map);
+  }
+
   onMount(async () => {
     const L = (await import('leaflet')).default;
     await import('leaflet.markercluster');
@@ -592,6 +630,9 @@
     // Velo azul-faro entre mapa y luces (no toca contraste de los pines).
     const veil = L.DomUtil.create('div', 'faro-veil', mapEl);
     veil.setAttribute('aria-hidden', 'true');
+
+    // Faro memorial: se alza sobre la costa e ilumina desde allí (solo home).
+    if (memorial) addLighthouse(L);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     cluster = (L as any).markerClusterGroup({
@@ -1142,5 +1183,112 @@
   }
   :global(.leaflet-popup-content) {
     margin: 0.7rem 0.85rem !important;
+  }
+
+  /* ── Faro memorial (modo memorial del home): torre sobre Macuto que ilumina ── */
+  :global(.faro-lh-wrap) {
+    background: transparent;
+    border: none;
+  }
+  :global(.faro-lh) {
+    position: absolute;
+    /* La BASE de la torre queda clavada en la coordenada. */
+    transform: translate(-50%, -100%);
+    width: 44px;
+    height: 72px;
+    pointer-events: none;
+  }
+  :global(.faro-lh-tower) {
+    position: relative;
+    z-index: 3;
+    display: block;
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
+  }
+  /* Lámpara: el punto de luz cálida firma de Faro (#FFE39C). Respira lento. */
+  :global(.faro-lh-lamp) {
+    position: absolute;
+    z-index: 4;
+    left: 50%;
+    top: 14px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    background: #ffe39c;
+    box-shadow:
+      0 0 10px 3px rgba(255, 227, 156, 0.9),
+      0 0 28px 12px rgba(255, 227, 156, 0.4);
+    animation: faro-lh-breathe 7s ease-in-out infinite;
+  }
+  @keyframes faro-lh-breathe {
+    0%,
+    100% {
+      box-shadow:
+        0 0 10px 3px rgba(255, 227, 156, 0.9),
+        0 0 28px 12px rgba(255, 227, 156, 0.4);
+    }
+    50% {
+      box-shadow:
+        0 0 13px 4px rgba(255, 227, 156, 1),
+        0 0 40px 18px rgba(255, 227, 156, 0.55);
+    }
+  }
+  /* Doble haz opuesto girando desde la lámpara — el faro VELA sobre la zona. */
+  :global(.faro-lh-beams) {
+    position: absolute;
+    z-index: 1;
+    left: 50%;
+    top: 14px;
+    width: 620px;
+    height: 620px;
+    margin: -310px 0 0 -310px;
+    border-radius: 50%;
+    background: conic-gradient(
+      from 0deg,
+      transparent 0deg,
+      rgba(255, 236, 180, 0) 12deg,
+      rgba(255, 236, 180, 0.17) 24deg,
+      rgba(255, 236, 180, 0) 36deg,
+      transparent 178deg,
+      rgba(255, 236, 180, 0) 190deg,
+      rgba(255, 236, 180, 0.12) 202deg,
+      rgba(255, 236, 180, 0) 214deg,
+      transparent 360deg
+    );
+    -webkit-mask-image: radial-gradient(circle, #000 0%, rgba(0, 0, 0, 0.5) 42%, transparent 70%);
+    mask-image: radial-gradient(circle, #000 0%, rgba(0, 0, 0, 0.5) 42%, transparent 70%);
+    mix-blend-mode: screen;
+    animation: faro-sweep 26s linear infinite;
+    will-change: transform;
+  }
+  /* Charco de luz: la costa alrededor del faro queda suavemente iluminada. */
+  :global(.faro-lh-pool) {
+    position: absolute;
+    z-index: 0;
+    left: 50%;
+    top: 60px;
+    width: 440px;
+    height: 440px;
+    margin: -220px 0 0 -220px;
+    border-radius: 50%;
+    background: radial-gradient(
+      circle,
+      rgba(255, 226, 150, 0.2) 0%,
+      rgba(255, 226, 150, 0.08) 42%,
+      transparent 68%
+    );
+    mix-blend-mode: screen;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    :global(.faro-lh-beams) {
+      animation: none;
+    }
+    :global(.faro-lh-lamp) {
+      animation: none;
+    }
+  }
+  :global(html.low-power .faro-lh-beams),
+  :global(html.low-power .faro-lh-pool) {
+    display: none;
   }
 </style>
