@@ -3,6 +3,37 @@
 > Documento vivo. Cierre del día actualiza este archivo + crea
 > `docs/SESSIONS/YYYY-MM-DD-day{N}.md` con detalle.
 
+## ⚡ ÚLTIMO AVANCE — 5-ago-2026 · MIGRACIÓN 0033 APLICADA — purga PII (regla #6) y borrado self-service LIVE
+
+**Contexto:** revisión de seguridad pedida por el founder. El dry-run de `apply-migrations.mjs`
+contra la DB real reveló que **de 0001→0033 solo faltaba 0033** (0027 y 0031 ya estaban aplicadas,
+al contrario de lo que decía un STATUS viejo).
+
+**✅ Punto 1 — Purga PII Habeas Data (regla #6, Art. 28 Const. VE):** aplicada **migración 0033**
+(idempotente, ya commiteada el 29-jul en `8b047f3`, 144 tests verde). Crea `purge_withdrawn_pii()`
+(+ el andamiaje de opt-out de regla #10: tabla `optout_requests` + `record_optout_request` +
+`process_optout_request`, todas `service_role`). El mantenimiento diario **ya la invoca**
+(`daily.mjs:232`). Primera purga ejecutada a mano ahora → `{purged:0}` (idempotente; 22 retirados,
+ninguno con PII de reportante todavía — son ingestados; **próximo vencimiento 11-ago**, el mecanismo
+queda armado y auditado). El diseño real NO usa `pg_cron`: usa el cron de mantenimiento del Mac que
+ya tiene `DATABASE_URL` y corre a diario.
+
+**✅ Punto 2 — Borrado self-service (0031):** verificado que **ya estaba aplicado** (RPCs
+`request_person_removal` + `restore_withdrawn_person` presentes). En vivo: `/privacidad/eliminar`
+→ **200**, `POST /api/persons/<id>/remove` sin Turnstile → **403** (gate OK, ya NO da 502). El
+síntoma "502 hasta aplicar 0031" del STATUS viejo estaba obsoleto.
+
+**Barrido de seguridad (en vivo, mismo día):** clave Supabase = **`sb_publishable_`** (el `sb_secret`
+del grep era el literal de `key-guard.ts`, falso positivo); la publishable NO puede leer la tabla base
+`persons` (`permission denied` 42501) pero sí `persons_public`; 0 secretos (Anthropic/JWT/service_role)
+en el HTML; POST persons/aid-points sin Turnstile → 403; CORS de `/api/persons` anuncia solo
+`GET,HEAD,OPTIONS`; secretos locales 600; sin secretos commiteados. **La rotación de clave del 12-jul
+sigue firme.**
+
+**Pendiente relacionado (regla #10, NO era el punto 1):** el inbox opt-out queda armado en DB pero
+para operar de punta a punta falta el paso founder: desplegar `workers/email-optout` + apuntar
+`opt-out@` a ese Worker en el panel CF. La purga PII (punto 1) NO depende de eso.
+
 ## ⚡ ÚLTIMO AVANCE — 29-jul-2026 · OPERACIÓN DESATENDIDA REPARADA (publicación, alertas, reglas legales)
 
 > Detalle: `docs/SESSIONS/2026-07-29-operacion-desatendida.md`. 5 commits:
