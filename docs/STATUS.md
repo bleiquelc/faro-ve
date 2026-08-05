@@ -3,6 +3,39 @@
 > Documento vivo. Cierre del día actualiza este archivo + crea
 > `docs/SESSIONS/YYYY-MM-DD-day{N}.md` con detalle.
 
+## ⚡ ÚLTIMO AVANCE — 5/6-ago-2026 (noche) · EL HOME ES UN LUGAR DE MEMORIA — DEPLOY LIVE
+
+> Detalle y decisiones: `docs/SESSIONS/2026-08-05-modo-memorial.md`. Commit `9ae5a21`. Deploy `8847685c` (autorizado por el founder: "deployas todo cuando lo tengas listo").
+
+**Visión founder:** ya pasó tiempo del terremoto; el home honra sin dejar de servir — espiritual,
+suave, calmado, de respeto. Al entrar: **solo el mapa de luz** (velas de los reportados respirando,
+**FARO alzado sobre la costa de Macuto** iluminando con doble haz giratorio, **guacamayas** en colores
+venezolanos tenues volando hacia las zonas más afectadas, y arriba, muy sutiles, los **nombres de
+quienes seguimos buscando** encendiéndose y apagándose letra a letra). La UI completa despierta con
+cualquier gesto y se desvanece tras 10 s de calma ("Toca para explorar"). **Todas las funciones intactas.**
+
+**3 decisiones de privacidad/ética (founder, vía AskUserQuestion):** (1) los nombres son de
+DESAPARECIDOS que buscamos (dato ya público e instrumental) — **jamás fallecidos nominados** (no
+existe ese dato: `found_deceased_morgue` nunca se escribe, cuerpos NN son anónimos, y el precedente
+Guerrero fue un pedido de RETIRO de la familia); a quienes ya no están se les honra con frases de
+tributo SIN nominar. (2) Las guacamayas gravitan por agregados **a nivel ciudad** (clusters zoom 9,
+~4 km) — jamás celdas finas ni filtro por fallecido (una celda n=3 en Tanaguarena señalaría el
+Costamar II: sería un mapa de mortalidad que la ofuscación #1 existe para evitar). (3) Color
+venezolano desaturado para las aves.
+
+**Archivos:** `src/lib/components/{MemorialSky,MemorialNames}.svelte` (chunks lazy, #21) ·
+`src/lib/client/idle-ui.ts` · `src/lib/utils/memorial.ts` (+22 tests) · `Map.svelte` prop `memorial`
+(faro en pane propio) · `+page.svelte` (integración + copy "Un lugar de memoria y esperanza").
+Rendimiento/a11y: canvas 30 fps cap (#23) + pausa en pestaña oculta + apagado con reduced-motion y
+`html.low-power`; fundidos lentos jamás parpadeo (regla dignidad de `colors.ts`); UI oculta SOLO por
+opacity (lector de pantalla/teclado siempre la tienen; focus la despierta; sin JS queda visible → #7).
+
+**Verificado:** 166/166 tests · svelte-check 0 · build limpio · preview 390×844 (entrada memorial →
+wake al toque → auto-fade 10 s → `/mapa` intacto) · **PROD LIVE** (smoke 8 rutas/APIs 200, clave
+`sb_publishable` intacta, screenshot con data real: velas + faro + 4 guacamayas + nombres). Este
+deploy además **shipeó el fix de `offset` del 29-jul** que el cron IG esperaba (prod ya no ignora
+`offset` → el pipeline de fichas puede volver a avanzar su ventana).
+
 ## ⚡ ÚLTIMO AVANCE — 5-ago-2026 · MIGRACIÓN 0033 APLICADA — purga PII (regla #6) y borrado self-service LIVE
 
 **Contexto:** revisión de seguridad pedida por el founder. El dry-run de `apply-migrations.mjs`
