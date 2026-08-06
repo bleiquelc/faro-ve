@@ -45,6 +45,14 @@ describe('cleanDisplayName (dignidad del memorial)', () => {
     expect(cleanDisplayName('Persona No Identificada')).toBeNull();
     expect(cleanDisplayName('Cuerpo NN Hallado')).toBeNull();
   });
+
+  it('con variantes separadas por | o / se queda con la primera (visto en prod 6-ago)', () => {
+    expect(cleanDisplayName('Mayerlin Olivero | Oliveros')).toBe('Mayerlin Olivero');
+    expect(cleanDisplayName('maría pérez / peres')).toBe('María Pérez');
+    // la primera variante debe ser un nombre digno por sí sola (≥2 palabras)
+    expect(cleanDisplayName('Roselbi / Rosleibis Ulloa')).toBeNull();
+    expect(cleanDisplayName('X | Pérez González')).toBeNull();
+  });
 });
 
 describe('pickOffset', () => {

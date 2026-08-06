@@ -45,6 +45,14 @@
   // mitad nueva del home salía sin mapa (bug real 6-ago grabando video).
   let resizeObs: ResizeObserver | null = null;
   let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+  // SANADOR DE TESELAS (bug real 6-ago, iPhone con señal débil): Leaflet JAMÁS
+  // reintenta una tesela fallida o colgada, y CacheFirst del SW no tiene
+  // timeout — con mala red quedaban FILAS enteras sin mapa (mitad del home
+  // azul) y así se quedaban para siempre. El vigilante detecta huecos de
+  // cobertura y fuerza redraw(): las cacheadas vuelven gratis, las faltantes
+  // se reintentan. Agnóstico a la causa (red, SW, resize, lo que sea).
+  let tileHeal: ReturnType<typeof setInterval> | null = null;
+  let tileErrTimer: ReturnType<typeof setTimeout> | null = null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let cluster: any = null;
   let loading = true;
@@ -624,7 +632,7 @@
 
     // Tile "Faro Dawn": CARTO Voyager (gratis, sin key) — tiene color real (agua,
     // parques, vías) para que el mapa tenga vida; un filtro suave lo equilibra.
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    const tiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
       subdomains: 'abcd',
       maxZoom: 20,
       detectRetina: true,
@@ -636,6 +644,51 @@
         '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · © <a href="https://carto.com/attributions">CARTO</a>',
       className: 'faro-tiles'
     }).addTo(map);
+
+    // ── Sanador de teselas ──────────────────────────────────────────────────
+    // ¿Hay huecos? Muestrea una rejilla 4×3 del contenedor y comprueba que
+    // cada punto esté cubierto por una tesela CARGADA. ≥2 puntos sin cubrir
+    // (y la capa ociosa) → redraw. Nunca lanza: un sanador no puede romper.
+    const tileGapExists = (): boolean => {
+      const cr = mapEl.getBoundingClientRect();
+      if (cr.height < 80 || cr.width < 80) return false;
+      const rects: DOMRect[] = [];
+      mapEl
+        .querySelectorAll('.leaflet-tile-loaded')
+        .forEach((t) => rects.push(t.getBoundingClientRect()));
+      if (!rects.length) return true;
+      let miss = 0;
+      for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 3; j++) {
+          const x = cr.left + cr.width * (0.25 + 0.25 * j);
+          const y = cr.top + cr.height * (0.125 + 0.25 * i);
+          if (!rects.some((r) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom)) {
+            miss++;
+          }
+        }
+      }
+      return miss >= 2;
+    };
+    tileHeal = setInterval(() => {
+      try {
+        if (!document.hidden && !tiles.isLoading() && tileGapExists()) tiles.redraw();
+      } catch {
+        /* el sanador jamás rompe el mapa */
+      }
+    }, 12_000);
+    // Tesela fallida (red débil) → un reintento agrupado a los 6 s (además del
+    // vigilante periódico). Sin esto, Leaflet la deja en blanco para siempre.
+    tiles.on('tileerror', () => {
+      if (tileErrTimer) return;
+      tileErrTimer = setTimeout(() => {
+        tileErrTimer = null;
+        try {
+          if (!document.hidden && !tiles.isLoading()) tiles.redraw();
+        } catch {
+          /* nunca romper */
+        }
+      }, 6_000);
+    });
 
     // Velo azul-faro entre mapa y luces (no toca contraste de los pines).
     const veil = L.DomUtil.create('div', 'faro-veil', mapEl);
@@ -721,6 +774,8 @@
     if (loadTimer) clearTimeout(loadTimer);
     if (resizeTimer) clearTimeout(resizeTimer);
     if (resizeObs) resizeObs.disconnect();
+    if (tileHeal) clearInterval(tileHeal);
+    if (tileErrTimer) clearTimeout(tileErrTimer);
     if (aidLayer) aidLayer.detach();
     if (map) map.remove();
   });

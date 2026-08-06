@@ -26,7 +26,9 @@ const JUNK = /imagen|foto|desconocid|sin nombre|no identificad|persona[s]? (de|e
  */
 export function cleanDisplayName(raw: string | null | undefined): string | null {
   if (!raw) return null;
-  const s = raw.replace(/\s+/g, ' ').trim();
+  // La fuente usa "|" (y a veces "/") para variantes del mismo nombre
+  // ("Mayerlin Olivero | Oliveros") → nos quedamos con la primera.
+  const s = raw.split(/[|/]/)[0].replace(/\s+/g, ' ').trim();
   if (s.length < 5 || s.length > 60) return null;
   if (/\d/.test(s)) return null; // dígitos = cédulas/teléfonos/basura, jamás en el memorial
   if (JUNK.test(s)) return null;
