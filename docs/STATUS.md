@@ -22,6 +22,12 @@ entre componentes.
 (eliminados); `Map.svelte` (fase del haz); `+page.svelte`; `memorial.ts` (tributos rotativos
 retirados — la línea fija los reemplaza). 165/165 tests · svelte-check 0 · build limpio.
 
+**Hotfix (6-ago mediodía): el mapa ya no se corta al cambiar el alto del viewport en iOS** — grabando
+pantalla, el `100dvh` creció sin `resize` de window y Leaflet dejó media pantalla sin teselas (luces
+flotando sobre fondo azul). Fix: `ResizeObserver` sobre el contenedor → `invalidateSize()` (Map) +
+re-`layout()` (MemorialSea). Reproducido y verificado con Playwright (700→950px: teselas 817→1198px).
+Deploy `bbb24aa1` LIVE + push `7177b96`.
+
 **Detalle final (founder): los nombres NO se pisan** — nacimiento con búsqueda de lugar libre
 (16 intentos, márgenes generosos, ancho estimado con letter-spacing y talla futura) + velocidad
 de ascenso casi uniforme (no se alcanzan en el viaje) + densidad autorregulada (legibilidad >
