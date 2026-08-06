@@ -22,6 +22,16 @@ entre componentes.
 (eliminados); `Map.svelte` (fase del haz); `+page.svelte`; `memorial.ts` (tributos rotativos
 retirados — la línea fija los reemplaza). 165/165 tests · svelte-check 0 · build limpio.
 
+**Hotfix DEFINITIVO (6-ago tarde): SANADOR DE TESELAS** — la causa raíz del "mapa medio azul" del
+iPhone del founder no era (solo) el viewport: con señal débil las teselas fallan/se cuelgan al cargar,
+**Leaflet jamás reintenta** y CacheFirst no tiene timeout → filas enteras sin mapa para siempre (mismo
+borde en 2 sesiones: arriba servía el caché, abajo la red seguía fallando). Fix: vigilante cada 12 s
+(rejilla 4×3; huecos + capa ociosa → `redraw()`) + reintento a 6 s en `tileerror`, todo en try/catch.
+**Verificado E2E reproduciendo el bug** (Playwright con `serviceWorkers:'block'`): red rota → 0/12
+puntos con mapa; vuelve la señal → **12/12 en ≤16 s sin recargar**. Bono: `cleanDisplayName` toma la
+primera variante de nombres con `|`/`/`. Deploy `6b81ebcb` LIVE + push `16db10a`. ⚠️ Aprendizaje:
+`page.route` de Playwright NO intercepta fetches del SW → `serviceWorkers:'block'` para simular red rota.
+
 **Hotfix (6-ago mediodía): el mapa ya no se corta al cambiar el alto del viewport en iOS** — grabando
 pantalla, el `100dvh` creció sin `resize` de window y Leaflet dejó media pantalla sin teselas (luces
 flotando sobre fondo azul). Fix: `ResizeObserver` sobre el contenedor → `invalidateSize()` (Map) +
