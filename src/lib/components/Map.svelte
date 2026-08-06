@@ -632,7 +632,8 @@
 
     // Tile "Faro Dawn": CARTO Voyager (gratis, sin key) — tiene color real (agua,
     // parques, vías) para que el mapa tenga vida; un filtro suave lo equilibra.
-    const tiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    const TILE_URL = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+    const tiles = L.tileLayer(TILE_URL, {
       subdomains: 'abcd',
       maxZoom: 20,
       detectRetina: true,
@@ -669,9 +670,40 @@
       }
       return miss >= 2;
     };
+    // DOS trampas descubiertas con el bug real del iPhone (6-ago):
+    //  (1) En redes que CUELGAN (no fallan), isLoading() queda true PARA
+    //      SIEMPRE — esperar a que la capa esté ociosa = no sanar jamás.
+    //  (2) redraw() re-pide la MISMA URL y el navegador FUSIONA la petición
+    //      nueva con la conexión colgada original (medido: 0 requests nuevos)
+    //      — por eso ni "Actualizar" curaba; solo reinstalar (sockets frescos).
+    // Cura en DOS NIVELES: primero redraw barato (cura errores, respeta el
+    // caché); si el hueco PERSISTE al siguiente tick, setUrl con sello fresco
+    // → URLs nuevas = conexiones nuevas de verdad.
+    let tilesLoadingSince: number | null = null;
+    let healPhase = 0; // 0 = sin intentos · ≥1 = ya probamos redraw → escalar
     tileHeal = setInterval(() => {
       try {
-        if (!document.hidden && !tiles.isLoading() && tileGapExists()) tiles.redraw();
+        if (document.hidden) return;
+        if (!tileGapExists()) {
+          healPhase = 0;
+          if (!tiles.isLoading()) tilesLoadingSince = null;
+          return;
+        }
+        const loading = tiles.isLoading();
+        if (!loading) tilesLoadingSince = null;
+        else if (tilesLoadingSince == null) tilesLoadingSince = Date.now();
+        const stuck = tilesLoadingSince != null && Date.now() - tilesLoadingSince > 25_000;
+        // Sana si la capa está ociosa, o colgada >25 s, o si ya intentamos
+        // antes y el hueco sigue (no esperar otra ventana de 25 s).
+        if (!loading || stuck || healPhase > 0) {
+          tilesLoadingSince = null;
+          if (healPhase === 0) {
+            healPhase = 1;
+            tiles.redraw();
+          } else {
+            tiles.setUrl(`${TILE_URL}?rt=${Date.now()}`);
+          }
+        }
       } catch {
         /* el sanador jamás rompe el mapa */
       }
