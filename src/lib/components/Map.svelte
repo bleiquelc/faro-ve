@@ -39,6 +39,12 @@
   let mapEl: HTMLDivElement;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let map: any = null;
+  // Leaflet solo escucha el resize de WINDOW, pero en iOS el contenedor cambia
+  // de tamaño sin ese evento (100dvh crece al ocultarse la barra de Safari,
+  // grabación de pantalla, PWA, rotación) → las teselas quedaban cortadas y la
+  // mitad nueva del home salía sin mapa (bug real 6-ago grabando video).
+  let resizeObs: ResizeObserver | null = null;
+  let resizeTimer: ReturnType<typeof setTimeout> | null = null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let cluster: any = null;
   let loading = true;
@@ -668,6 +674,19 @@
     map.on('movestart zoomstart', () => mapEl.classList.add('faro-still'));
     map.on('moveend zoomend', () => mapEl.classList.remove('faro-still'));
 
+    // Sanar el tamaño ante CUALQUIER cambio del contenedor (no solo window
+    // resize): sin esto, al crecer el dvh en iOS las teselas no cubren la
+    // parte nueva y el mapa "se rompe" a mitad de pantalla.
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObs = new ResizeObserver(() => {
+        if (resizeTimer) clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+          if (map) map.invalidateSize({ pan: false });
+        }, 150);
+      });
+      resizeObs.observe(mapEl);
+    }
+
     Lref = L;
     loadTotal(); // el "número grande" del total reportado (independiente del viewport)
 
@@ -700,6 +719,8 @@
 
   onDestroy(() => {
     if (loadTimer) clearTimeout(loadTimer);
+    if (resizeTimer) clearTimeout(resizeTimer);
+    if (resizeObs) resizeObs.disconnect();
     if (aidLayer) aidLayer.detach();
     if (map) map.remove();
   });

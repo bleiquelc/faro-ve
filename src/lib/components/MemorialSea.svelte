@@ -317,9 +317,19 @@
     }));
   }
 
+  // En iOS el contenedor cambia de tamaño SIN resize de window (100dvh crece
+  // al ocultarse la barra de Safari, grabación de pantalla, rotación) → la
+  // costa/lámpara quedaban calculadas para la altura vieja. Igual que el fix
+  // de Map.svelte: observar el contenedor directamente.
+  let resizeObs: ResizeObserver | null = null;
+
   onMount(() => {
     layout();
     window.addEventListener('resize', layout, { passive: true });
+    if (typeof ResizeObserver !== 'undefined' && host) {
+      resizeObs = new ResizeObserver(() => layout());
+      resizeObs.observe(host);
+    }
     document.addEventListener('visibilitychange', onVisibility);
     void loadBatch().then(() => {
       if (!alive) return;
@@ -338,6 +348,7 @@
     alive = false;
     running = false;
     if (typeof cancelAnimationFrame !== 'undefined') cancelAnimationFrame(raf);
+    if (resizeObs) resizeObs.disconnect();
     if (typeof window !== 'undefined') {
       window.removeEventListener('resize', layout);
       document.removeEventListener('visibilitychange', onVisibility);
