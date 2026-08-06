@@ -22,6 +22,18 @@ entre componentes.
 (eliminados); `Map.svelte` (fase del haz); `+page.svelte`; `memorial.ts` (tributos rotativos
 retirados — la línea fija los reemplaza). 165/165 tests · svelte-check 0 · build limpio.
 
+**SANADOR v2 (6-ago tarde-2, el DEFINITIVO real): cura conexiones COLGADAS con URLs frescas** — la
+instrumentación reveló por qué ni "Actualizar" curaba y solo reinstalar la PWA funcionaba: (1) con
+red colgada `isLoading()` queda true para siempre (el sanador v1 esperaba capa ociosa → nunca
+actuaba); (2) `redraw()` re-pide la MISMA URL y el navegador **fusiona** la petición con el socket
+muerto original (medido: 0 requests nuevos tras 80 s). Fix: **dos niveles** — redraw barato primero;
+si el hueco persiste al siguiente tick, `setUrl('?rt='+Date.now())` → URLs nuevas = conexiones
+nuevas de verdad. E2E del caso real (rutas retenidas + `serviceWorkers:'block'`): colgada → 0/12 y
+12 requests; vuelve la señal → **12/12 curado con 12 requests NUEVAS en <75 s**, sin recargar ni
+reinstalar. Esto protege a los usuarios con la app INSTALADA (el flujo de update del RefreshButton
+ya era correcto: `reg.update()` + skipWaiting + claim + reload en controllerchange; iOS además
+re-chequea el SW en cada apertura). Deploy `e86dce06` LIVE.
+
 **Hotfix DEFINITIVO (6-ago tarde): SANADOR DE TESELAS** — la causa raíz del "mapa medio azul" del
 iPhone del founder no era (solo) el viewport: con señal débil las teselas fallan/se cuelgan al cargar,
 **Leaflet jamás reintenta** y CacheFirst no tiene timeout → filas enteras sin mapa para siempre (mismo
