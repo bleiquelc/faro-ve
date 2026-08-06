@@ -554,10 +554,14 @@
     const pane = map.createPane('faroMemorial');
     pane.style.zIndex = '320'; // sobre tiles/velo (250), bajo los markers (600)
     pane.style.pointerEvents = 'none';
+    // Fase del haz por RELOJ DE PARED (delay negativo): MemorialSea calcula la
+    // misma fase con Date.now() y así "sabe" qué nombres está tocando la luz —
+    // sin acoplar componentes. Convención compartida: período 26 s desde 0°.
+    const phase = (Date.now() / 1000) % 26;
     const html = `
       <div class="faro-lh" aria-hidden="true">
         <i class="faro-lh-pool"></i>
-        <i class="faro-lh-beams"></i>
+        <i class="faro-lh-beams" style="animation-delay:-${phase.toFixed(3)}s"></i>
         <svg class="faro-lh-tower" width="44" height="72" viewBox="0 0 44 72" fill="none">
           <path d="M17 24 L27 24 L30.5 62 L13.5 62 Z" fill="#0c2836"/>
           <path d="M15.2 40 L28.8 40 L29.4 46 L14.6 46 Z" fill="#16404f"/>

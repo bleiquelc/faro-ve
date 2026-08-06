@@ -18,12 +18,14 @@
   ] as const;
 
   /**
-   * Home — LUGAR DE MEMORIA (rediseño founder 5-ago-2026).
+   * Home — LUGAR DE MEMORIA (rediseño founder 5/6-ago-2026).
    *
    * Al entrar, solo el mapa de luz: el faro alzado sobre la costa de Macuto
-   * iluminando, las luces de los reportados respirando, guacamayas cruzando
-   * despacio y, muy sutiles, los nombres de quienes seguimos buscando que se
-   * encienden y apagan letra a letra. Espiritual, suave, de respeto.
+   * iluminando, las luces de los reportados respirando y, en toda la zona
+   * azul del mar, un CAMPO de nombres de quienes seguimos buscando — nacen
+   * pequeños desde atrás, se acercan subiendo muy despacio y se despiden al
+   * frente mientras otros llegan; el haz del faro los besa a su paso. En el
+   * centro: "Venezuela los sigue buscando". Espiritual, suave, de respeto.
    *
    * La UI completa (título, contador, botones, footer) aparece con CUALQUIER
    * gesto y vuelve a desvanecerse tras 10 s de calma — las funciones siguen
@@ -33,9 +35,7 @@
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let MapComp: any = null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let SkyComp: any = null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let NamesComp: any = null;
+  let SeaComp: any = null;
 
   // Visibilidad de la UI por actividad (modo memorial). Mientras haya foco de
   // teclado dentro de la UI, no se esconde (no desorientar al usuario de Tab).
@@ -76,9 +76,8 @@
     setTimeout(() => (transitionsOn = true), 120);
 
     MapComp = (await import("$components/Map.svelte")).default;
-    // Cielo (guacamayas) y nombres: chunks aparte, cargan después del mapa.
-    void import("$components/MemorialSky.svelte").then((m) => (SkyComp = m.default));
-    void import("$components/MemorialNames.svelte").then((m) => (NamesComp = m.default));
+    // Mar de nombres: chunk aparte, carga después del mapa.
+    void import("$components/MemorialSea.svelte").then((m) => (SeaComp = m.default));
     try {
       const res = await fetch("/api/persons/stats");
       if (res.ok) {
@@ -150,23 +149,21 @@
     aria-hidden="true"
   ></div>
 
-  <!-- Cielo del memorial: guacamayas cruzando despacio hacia las zonas más
-       afectadas (agregado ciudad). Decorativo, sin eventos. z-[850]. -->
-  {#if SkyComp}
-    <div class="pointer-events-none absolute inset-0 z-[850]" aria-hidden="true">
-      <svelte:component this={SkyComp} center={[10.63, -66.9]} zoom={11} />
-    </div>
-  {/if}
-
-  <!-- Nombres del memorial: arriba, muy sutiles. Se retiran cuando la UI
-       despierta (para no chocar con el título) y vuelven con la calma. -->
-  {#if NamesComp}
+  <!-- Mar de nombres del memorial: el campo de profundidad sobre la zona azul
+       + la línea central "Venezuela los sigue buscando". Se retira cuando la
+       UI despierta (no compite con el título) y vuelve con la calma. -->
+  {#if SeaComp}
     <div
-      class="pointer-events-none absolute inset-x-0 top-[calc(env(safe-area-inset-top)+2.6rem)] z-[950]"
+      class="pointer-events-none absolute inset-0 z-[850]"
       class:memorial-anim={transitionsOn}
       class:memorial-faded={$uiVisible}
     >
-      <svelte:component this={NamesComp} totalMissing={stats?.missing ?? 0} />
+      <svelte:component
+        this={SeaComp}
+        center={[10.63, -66.9]}
+        zoom={11}
+        totalMissing={stats?.missing ?? 0}
+      />
     </div>
   {/if}
 

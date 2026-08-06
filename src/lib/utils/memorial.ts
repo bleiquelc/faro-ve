@@ -64,20 +64,6 @@ export function shuffled<T>(items: readonly T[], rand: () => number = Math.rando
   return a;
 }
 
-/**
- * Frases de tributo que se intercalan entre los nombres (cada TRIBUTE_EVERY).
- * Honran a quienes ya no están SIN nominar (ver cabecera).
- */
-export const TRIBUTES: readonly string[] = [
-  'En memoria de quienes ya no están',
-  'Para que nadie sea olvidado',
-  'Cada luz es una persona',
-  'Venezuela no los olvida'
-];
-
-export const TRIBUTE_EVERY = 7;
-
-/** ¿El elemento n-ésimo del ciclo debe ser un tributo en vez de un nombre? */
-export function isTributeSlot(shownCount: number): boolean {
-  return shownCount > 0 && shownCount % TRIBUTE_EVERY === 0;
-}
+// Nota: el tributo a quienes ya no están vive como línea central fija del
+// mar de nombres ("Venezuela los sigue buscando", MemorialSea.svelte) — la
+// rotación de frases intercaladas se retiró con el rediseño del 6-ago.

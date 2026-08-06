@@ -1,11 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  cleanDisplayName,
-  pickOffset,
-  shuffled,
-  isTributeSlot,
-  TRIBUTE_EVERY
-} from '../../src/lib/utils/memorial';
+import { cleanDisplayName, pickOffset, shuffled } from '../../src/lib/utils/memorial';
 
 describe('cleanDisplayName (dignidad del memorial)', () => {
   it('title-casea nombres scrapeados en MAYÚSCULAS', () => {
@@ -77,11 +71,3 @@ describe('shuffled', () => {
   });
 });
 
-describe('isTributeSlot', () => {
-  it('intercala un tributo cada TRIBUTE_EVERY nombres (nunca el primero)', () => {
-    expect(isTributeSlot(0)).toBe(false);
-    expect(isTributeSlot(TRIBUTE_EVERY)).toBe(true);
-    expect(isTributeSlot(TRIBUTE_EVERY * 2)).toBe(true);
-    expect(isTributeSlot(TRIBUTE_EVERY + 1)).toBe(false);
-  });
-});
