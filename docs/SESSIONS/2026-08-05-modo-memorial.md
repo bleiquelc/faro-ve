@@ -75,3 +75,31 @@ estaba congelada porque prod ignoraba `offset`). El pipeline de fichas puede vol
 Rotación de clave ✓ hecha (12-jul, re-verificada hoy). 0031/0033 aplicadas (hoy). Restan:
 Email Worker de opt-out (desplegar `workers/email-optout` + regla en panel CF) y los
 recordatorios de siempre en el reporte de mantenimiento.
+
+---
+
+## Iteración v2 — 6-ago (mañana, founder en vivo): MAR DE NOMBRES
+
+El founder refinó el diseño despierto y en conversación:
+
+1. **Fuera las guacamayas** — "serían muchos elementos y el diseño no me convence".
+   `MemorialSky.svelte` y `MemorialNames.svelte` eliminados.
+2. **Toda la zona azul = campo de 15–20 nombres** (`MemorialSea.svelte`): nacen pequeños
+   y tenues DESDE ABAJO (sesgo r^0.6 hacia la costa — "nacen más nombres desde un poco
+   más abajo"), suben muy despacio ACERCÁNDOSE (smoothstep — se demoran al nacer y al
+   despedirse, campo repartido) y al frente se desvanecen "mientras otros vienen en
+   pequeño desde atrás". Se puebla poco a poco (1 nacimiento/~1.5 s).
+3. **"VENEZUELA LOS SIGUE BUSCANDO" fija ARRIBA** ("los dejamos arriba"), presidiendo.
+4. **"La luz del faro va resaltando los nombres cuando pasa sobre ellos"** — sincronía
+   por RELOJ DE PARED: el haz CSS lleva `animation-delay: -(Date.now()/1000 % 26)s`
+   (Map.svelte) y MemorialSea calcula la misma fase → nombre dentro del sector del
+   conic-gradient = encendido suave 0.7 s. Cero acople entre componentes.
+
+**Verificación** — hallazgo importante para el futuro: el panel de preview embebido
+SUPRIME rAF (`document.hidden=true`, 0 frames en 2 s) → el campo parecía congelado.
+En navegador real corre; se verificó con **Playwright** (Chromium dispara rAF):
+15 nombres / 15 en movimiento / opacidades 0.09–0.51 / línea arriba / 0 guacamayas /
+haz besando un nombre. Contra prod usar `waitUntil:'load'` (networkidle no llega).
+**PROD verificado**: 0 errores de consola, campo + faro + candelas reales en el screenshot.
+
+**Deploy `b43b1860` LIVE** (version.json de prod = build local, confirmado).

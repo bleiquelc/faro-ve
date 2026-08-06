@@ -3,6 +3,32 @@
 > Documento vivo. Cierre del día actualiza este archivo + crea
 > `docs/SESSIONS/YYYY-MM-DD-day{N}.md` con detalle.
 
+## ⚡ ÚLTIMO AVANCE — 6-ago-2026 · MAR DE NOMBRES — el rediseño memorial iterado EN VIVO con el founder
+
+> Commit `feat(memorial): mar de nombres` + deploy `b43b1860` LIVE. Itera sobre el modo memorial de anoche.
+
+**Refinamiento founder (mañana del 6-ago, en vivo):** fuera las guacamayas (muchos elementos);
+en su lugar, **toda la zona azul del mar es un CAMPO de 15–20 nombres** de quienes seguimos
+buscando — cada nombre **nace pequeño y tenue desde abajo/atrás** (sesgo hacia la costa), sube
+muy despacio **acercándose** (smoothstep: se demora al nacer y al despedirse) y al frente se
+desvanece mientras otros llegan; el campo se puebla poco a poco. **"VENEZUELA LOS SIGUE
+BUSCANDO" fija ARRIBA**, presidiendo. Y el toque del founder: **la luz del faro RESALTA los
+nombres a su paso** — el haz gira con fase de **reloj de pared** (`animation-delay` negativo en
+`Map.svelte`, período 26 s) y `MemorialSea.svelte` calcula la misma fase con `Date.now()`:
+cuando el sector del haz cruza un nombre, se enciende suave 0.7 s (jamás parpadeo). Sin acople
+entre componentes.
+
+**Archivos:** `MemorialSea.svelte` (nuevo, chunk lazy) reemplaza a `MemorialSky` + `MemorialNames`
+(eliminados); `Map.svelte` (fase del haz); `+page.svelte`; `memorial.ts` (tributos rotativos
+retirados — la línea fija los reemplaza). 165/165 tests · svelte-check 0 · build limpio.
+
+**Verificación (aprendizaje nuevo):** el panel de preview embebido **suprime rAF**
+(`document.hidden=true`) → las animaciones rAF se verifican con **Playwright** (Chromium sí
+dispara rAF): 15 nombres, 15 en movimiento, opacidades 0.09–0.51, línea arriba, 0 guacamayas,
+haz besando nombres. **PROD verificado igual** (faro-ve.com, 0 errores de consola, screenshot
+con el campo vivo + candelas reales). El fallo aparente del primer verify contra prod era el
+`waitUntil:'networkidle'` del script, no el sitio.
+
 ## ⚡ ÚLTIMO AVANCE — 5/6-ago-2026 (noche) · EL HOME ES UN LUGAR DE MEMORIA — DEPLOY LIVE
 
 > Detalle y decisiones: `docs/SESSIONS/2026-08-05-modo-memorial.md`. Commit `9ae5a21`. Deploy `8847685c` (autorizado por el founder: "deployas todo cuando lo tengas listo").
