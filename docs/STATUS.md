@@ -22,6 +22,12 @@ entre componentes.
 (eliminados); `Map.svelte` (fase del haz); `+page.svelte`; `memorial.ts` (tributos rotativos
 retirados — la línea fija los reemplaza). 165/165 tests · svelte-check 0 · build limpio.
 
+**Detalle final (founder): los nombres NO se pisan** — nacimiento con búsqueda de lugar libre
+(16 intentos, márgenes generosos, ancho estimado con letter-spacing y talla futura) + velocidad
+de ascenso casi uniforme (no se alcanzan en el viaje) + densidad autorregulada (legibilidad >
+densidad; ~8-11 legibles en móvil). Verificado midiendo bounding boxes con Playwright:
+**0 pares solapados**. Deploy `e5e0c687` LIVE (version.json de prod = build local).
+
 **Verificación (aprendizaje nuevo):** el panel de preview embebido **suprime rAF**
 (`document.hidden=true`) → las animaciones rAF se verifican con **Playwright** (Chromium sí
 dispara rAF): 15 nombres, 15 en movimiento, opacidades 0.09–0.51, línea arriba, 0 guacamayas,
