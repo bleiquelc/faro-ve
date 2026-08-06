@@ -112,8 +112,11 @@
     // Campo de profundidad: 15–20 nombres conviviendo (founder). El campo se
     // llena poco a poco (un nacimiento cada ~1.5 s) y luego se auto-sostiene:
     // cada nombre que se despide al frente deja lugar al que viene de atrás.
+    // Techo aspiracional 15/20 — el anti-solapamiento cede turnos cuando no
+    // hay lugar LEGIBLE, así que la densidad real se autorregula a lo que el
+    // ancho de pantalla permite leer (~8-11 en móvil, más en desktop).
     maxConcurrent = w < 640 ? 15 : 20;
-    spawnEvery = reduce ? 0 : (w < 640 ? 1600 : 1250);
+    spawnEvery = reduce ? 0 : (w < 640 ? 1300 : 1000);
   }
 
   async function tryFetch(url: string): Promise<{ persons?: { full_name?: string | null }[] } | null> {
@@ -151,21 +154,52 @@
     return n;
   }
 
+  /** Ancho estimado del texto en px (incluye letter-spacing 0.07em). */
+  function estWidth(text: string, scale: number): number {
+    const fontPx = (host?.clientWidth ?? 390) < 640 ? 13 : 15;
+    return text.length * fontPx * 0.74 * scale;
+  }
+
+  /** ¿El candidato (x,y) pisaría un nombre vivo? (founder: que se puedan LEER). */
+  function collides(text: string, x: number, y: number): boolean {
+    // El candidato CRECERÁ en su viaje → se reserva ya con su talla media alta.
+    const w = estWidth(text, 1.1);
+    const W = host?.clientWidth ?? 390;
+    for (const f of floating) {
+      const dy = Math.abs(f.y - y);
+      if (dy > 40) continue; // franjas verticales distintas → conviven
+      const gap = Math.abs(f.xFrac * W - x) - (w + estWidth(f.text, f.scale)) / 2;
+      if (gap < 20) return true;
+    }
+    return false;
+  }
+
   function spawn(now: number): void {
     const text = nextName();
     if (!text) return;
     const depth = Math.random(); // variación por nombre (qué tan al frente llega)
-    // Carril horizontal: el ancho completo, sin pegarse a los bordes (la
-    // línea fija vive arriba, así que el centro queda libre para el campo).
-    const xFrac = 0.08 + Math.random() * 0.84;
-    // El campo cubre TODA la zona azul BAJO la línea: cada nombre nace en
-    // cualquier franja y recorre un tramo corto hacia arriba (subir +
-    // acercarse) — así conviven lejanos y cercanos repartidos.
+    const W = host?.clientWidth ?? 390;
     const fieldTop = seaTop + 42; // aire bajo la línea fija
-    // Nacimiento SESGADO hacia abajo (founder: más nombres nacen cerca de la
-    // costa y suben): r^0.6 concentra los nacimientos en la franja baja.
-    const y0 = fieldTop + 26 + Math.pow(Math.random(), 0.6) * (seaBottom - fieldTop - 50);
-    const rise = 60 + Math.random() * 85;
+    // Busca un LUGAR LIBRE: hasta 16 intentos de (x, y) — nacimiento sesgado
+    // hacia abajo (r^0.6, founder: nacen cerca de la costa) y sin pisar a
+    // nadie. Si el campo está lleno, este turno se cede (legibilidad > densidad).
+    let xFrac = 0;
+    let y0 = 0;
+    let found = false;
+    for (let i = 0; i < 16; i++) {
+      xFrac = 0.08 + Math.random() * 0.84;
+      y0 = fieldTop + 26 + Math.pow(Math.random(), 0.6) * (seaBottom - fieldTop - 50);
+      if (!collides(text, xFrac * W, y0)) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) return;
+    // Velocidad de ascenso CASI uniforme (2.6–3.8 px/s): así los nombres
+    // mantienen sus distancias y no se alcanzan unos a otros en el viaje
+    // (founder: que se puedan leer).
+    const dur = 22_000 + Math.random() * 18_000;
+    const rise = (2.6 + Math.random() * 1.2) * (dur / 1000);
     const y1 = Math.max(fieldTop, y0 - rise);
     floating = [
       ...floating,
@@ -176,7 +210,7 @@
         y0,
         y1,
         born: now,
-        dur: 22_000 + Math.random() * 18_000,
+        dur,
         depth,
         y: y0,
         scale: 0.55,
