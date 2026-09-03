@@ -1,0 +1,21 @@
+import { chromium } from '@playwright/test';
+import os from 'os';
+const DIR = '/private/tmp/claude-501/-Users-bleiquelcolina-Desktop-faro-ve/ad3a6a03-8d7b-4783-a1fb-f009e88ed6e3/scratchpad/story';
+const DESKTOP = os.homedir() + '/Desktop';
+const full = `${DESKTOP}/faro-historia-1080x1920.png`;
+const prev = `${DIR}/faro-historia-540x960.png`;
+
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1080, height: 1920 }, deviceScaleFactor: 1 });
+await page.goto('file://' + DIR + '/faro-story.html', { waitUntil: 'networkidle' });
+await page.evaluate(async () => { if (document.fonts && document.fonts.ready) await document.fonts.ready; });
+await page.waitForTimeout(500);
+await page.screenshot({ path: full, clip: { x: 0, y: 0, width: 1080, height: 1920 } });
+console.log('FULL', full);
+await page.setViewportSize({ width: 540, height: 960 });
+await page.evaluate(() => { const f = document.querySelector('.frame'); f.style.transform = 'scale(0.5)'; f.style.transformOrigin = 'top left'; });
+await page.waitForTimeout(200);
+await page.screenshot({ path: prev, clip: { x: 0, y: 0, width: 540, height: 960 } });
+console.log('PREVIEW', prev);
+await browser.close();
+console.log('done');
