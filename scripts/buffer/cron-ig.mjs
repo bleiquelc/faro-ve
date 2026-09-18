@@ -14,8 +14,10 @@
  *   node scripts/buffer/cron-ig.mjs
  */
 import { classifyPhoto } from './photo-filter.mjs';
+import { getNamespace } from './ai-cache.mjs';
 import { confirmReunification, isFoundStatus, nameOverlap, normName } from './found-detector.mjs';
 import { fetchJson } from '../lib/fetch-json.mjs';
+import { prioritizeWithPhoto, hasPhotoCandidate, describeSkip } from '../lib/ig-candidates.mjs';
 import { execFileSync } from 'child_process';
 import fs from 'fs';
 import os from 'os';
@@ -110,7 +112,21 @@ const total = Number(countRes?.total) || 0;
 let cursor = Number.isInteger(state.cursor) ? state.cursor : 0;
 if (total && cursor >= total) cursor = 0; // vuelta completa → volver a empezar
 
+// DESIERTOS DE FOTOS (18-sep-2026). Solo se publica CON foto limpia, y hay tramos
+// enteros del corpus sin fotos (offsets 33600-34800: 0-1 cada 400 fichas). Antes el
+// barrido se detenía en la primera página con candidatos "frescos" aunque ninguno
+// fuera publicable, y gastaba ahí los 15 intentos de la corrida. Ahora sigue hasta
+// la primera página con ALGUIEN VIABLE (foto sin rechazo cacheado; tope MAX_PAGES);
+// si no aparece ninguna, usa la primera página fresca (VR podría aportar una foto).
+// "Con foto" no alcanza: una foto con RECHAZO ya cacheado (flyer, grupo, menor…) es
+// impublicable para siempre. Se lee el caché UNA vez por corrida.
+const photoVerdicts = getNamespace('photo');
+const knownRejected = (url) => {
+  const v = photoVerdicts[url]?.v;
+  return !!v && !(v.usable && !v.has_minor);
+};
 let people = [];
+let fallback = []; // primera página fresca sin nadie viable, por si no aparece nada mejor
 let pages = 0; // páginas realmente leídas (para el log)
 for (let i = 0; i < MAX_PAGES; i++) {
   pages++;
@@ -125,12 +141,14 @@ for (let i = 0; i < MAX_PAGES; i++) {
   if (total && cursor >= total) cursor = 0; // envolver
 
   const fresh = rows.filter((p) => !state.posted[p.id] && !recentlySkipped(p.id));
-  if (fresh.length) { people = fresh; break; }
+  if (hasPhotoCandidate(fresh, knownRejected)) { people = prioritizeWithPhoto(fresh, knownRejected); break; } // los intentos, primero a quien se puede publicar
+  if (fresh.length && !fallback.length) fallback = fresh;
   if (!rows.length) break; // página vacía: no insistir
 }
+if (!people.length) people = fallback;
 state.cursor = cursor;
 save(); // persistir el avance aunque la corrida no publique nada
-log(`Candidatos: ${people.length} (cursor ${cursor}/${total || '?'}, ${pages} pág. de ${PAGE}, sin posteadas/skip-recientes).`);
+log(`Candidatos: ${people.length}, ${people.filter((p) => p.photo_url && !knownRejected(p.photo_url)).length} viables (cursor ${cursor}/${total || '?'}, ${pages} pág. de ${PAGE}, sin posteadas/skip-recientes).`);
 
 const MAX_POSTS = Number(process.env.POSTS_PER_RUN || 2); // publicaciones por corrida (escalonadas)
 let posted = 0;
@@ -174,11 +192,21 @@ for (const p of people) {
 
   // (c) foto: filtro IA → primera limpia
   let chosen = '';
+  const verdicts = [];
   for (const url of photoCands) {
     const c = await classifyPhoto(url);
+    verdicts.push(c);
     if (c.usable && !c.has_minor) { chosen = url; break; }
   }
-  if (!chosen) { state.skipped[p.id] = { reason: 'sin-foto-limpia', ts: now }; log(`Sin foto limpia: ${name} (reintento en 3d).`); continue; }
+  if (!chosen) {
+    // El MOTIVO real va al log y al estado: "sin photo_url", "poster: …" y
+    // "unreachable: HTTP 404" son tres problemas distintos. Esconderlos bajo la misma
+    // línea ocultó 12 días la caída de la fuente (lo vigila lib/ig-watchdog.mjs).
+    const why = describeSkip(photoCands, verdicts);
+    state.skipped[p.id] = { reason: 'sin-foto-limpia', why, ts: now };
+    log(`Sin foto limpia: ${name} — ${why} (reintento en 3d).`);
+    continue;
+  }
 
   // (d) enriquecer DB (best-effort, no bloquea publicación)
   const er = await enrichDB({ id: p.id, source: 'venezuela-reporta', description: desc, age: String(age || ''), sex, last_known_location_text: loc });

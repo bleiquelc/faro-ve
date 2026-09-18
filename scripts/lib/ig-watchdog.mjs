@@ -16,12 +16,23 @@
  *   1. >24h sin INTENTAR con nadie  → la cola de candidatos está rota/vacía.
  *   2. >48h sin que suba el TOTAL   → intenta pero nunca logra publicar.
  *
+ *   3. (18-sep) casi todos los descartes de 24h son `unreachable` → la FUENTE de
+ *      fotos no responde. El 6-sep la fuente cambió de dominio, todas las fotos
+ *      pasaron a dar 404 y la señal 2 tardó 48h en decir apenas "¿el filtro rechaza
+ *      todo?". Con el motivo real en el log, esto se nombra el primer día.
+ *
  * Es una función pura sobre el texto del log: testeable sin tocar el disco.
  */
 
 const HOUR = 3600_000;
 const SIN_INTENTOS_H = Number(process.env.IG_WATCH_ATTEMPTS_H || 24);
 const SIN_PUBLICAR_H = Number(process.env.IG_WATCH_POSTED_H || 48);
+
+const UNREACHABLE_MIN = Number(process.env.IG_WATCH_UNREACHABLE_MIN || 10);
+
+// Descarte con motivo (cron-ig.mjs + lib/ig-candidates.mjs):
+// "2026-09-18T14:57:35.635Z Sin foto limpia: Nombre — unreachable: HTTP 404 (reintento en 3d)."
+const SKIP_UNREACHABLE = /^(\S+)\s+Sin foto limpia: .* — .*\bunreachable\b/gm;
 
 // Línea de cierre real del cron:
 // "2026-07-29T06:57:56.954Z Fin. Publicadas=0. Intentos=0. Posteadas total=174. Reencuentros=24."
@@ -88,6 +99,23 @@ export function analyzeIgLog(text, now = Date.now()) {
           `(total clavado en ${last.total}). ¿El filtro de fotos rechaza todo o no llegan candidatos?`
       );
     }
+  }
+
+  // 3) ¿La fuente de fotos dejó de responder? Unas pocas inalcanzables son normales
+  //    (fotos borradas); decenas en 24h es una caída o una mudanza de dominio.
+  const desde = now - 24 * HOUR;
+  let unreachable = 0;
+  SKIP_UNREACHABLE.lastIndex = 0;
+  let u;
+  while ((u = SKIP_UNREACHABLE.exec(String(text))) !== null) {
+    const ts = Date.parse(u[1]);
+    if (Number.isFinite(ts) && ts >= desde) unreachable++;
+  }
+  if (unreachable >= UNREACHABLE_MIN) {
+    alerts.push(
+      `Las fotos de la fuente no responden: ${unreachable} fichas descartadas por foto inalcanzable en 24h. ` +
+        `¿La fuente está caída o cambió de dominio? Probá una photo_url a mano y revisá BASE en scripts/ingest/venezuela-te-busca-core.mjs.`
+    );
   }
 
   return { runs: runs.length, lastRunAt: last.ts, lastAttemptAt, postedTotal: last.total, alerts };

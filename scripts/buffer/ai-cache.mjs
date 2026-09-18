@@ -35,6 +35,15 @@ export function getCached(ns, key) {
   return db[ns]?.[key]?.v;
 }
 
+/**
+ * Foto de un namespace entero en UNA sola lectura de disco. Para consultas en lote
+ * (cron-ig mira cientos de URLs por corrida): `getCached` relee el archivo (~5 MB)
+ * en cada llamada, que para 1 consulta está bien y para 2.400 no.
+ */
+export function getNamespace(ns) {
+  return load()[ns] || {};
+}
+
 /** Guarda un valor bajo (ns, key). No lanza nunca. */
 export function setCached(ns, key, value) {
   try {

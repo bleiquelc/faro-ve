@@ -81,3 +81,36 @@ describe('analyzeIgLog — bordes', () => {
     expect(() => analyzeIgLog(log, NOW)).not.toThrow();
   });
 });
+
+/**
+ * 18-sep-2026. La fuente de fotos se cayó el 6-sep (dominio mudado → 404 a TODAS)
+ * y el watchdog solo supo decir, 48h después, "¿el filtro rechaza todo?". El log
+ * ahora trae el motivo real por ficha (`unreachable: HTTP 404`): si en 24h casi
+ * todos los descartes son por foto inalcanzable, el problema es la FUENTE, y hay
+ * que decirlo con esas palabras el primer día.
+ */
+describe('analyzeIgLog — fuente de fotos caída', () => {
+  const skip = (hoursAgo: number, why: string) =>
+    `${new Date(NOW - hoursAgo * H).toISOString()} Sin foto limpia: Persona Prueba — ${why} (reintento en 3d).`;
+
+  it('alerta cuando los descartes de las últimas 24h son por foto inalcanzable', () => {
+    const log = [
+      ...Array.from({ length: 12 }, (_, i) => skip(i + 1, 'unreachable: HTTP 404')),
+      skip(2, 'poster: texto SE BUSCA'),
+      fin(1, 0, 13, 596)
+    ].join('\n');
+    const alerts = analyzeIgLog(log, NOW).alerts.join(' ');
+    expect(alerts).toMatch(/no responden/);
+    expect(alerts).toMatch(/12/);
+  });
+
+  it('NO alerta por unos pocos inalcanzables sueltos (una foto borrada es normal)', () => {
+    const log = [skip(3, 'unreachable: HTTP 404'), skip(2, 'poster: flyer'), skip(1, 'group: 3 personas'), fin(1, 1, 3, 597)].join('\n');
+    expect(analyzeIgLog(log, NOW).alerts.join(' ')).not.toMatch(/no responden/);
+  });
+
+  it('NO cuenta inalcanzables de hace más de 24h', () => {
+    const log = [...Array.from({ length: 20 }, (_, i) => skip(30 + i, 'unreachable: HTTP 404')), fin(1, 1, 3, 597)].join('\n');
+    expect(analyzeIgLog(log, NOW).alerts.join(' ')).not.toMatch(/no responden/);
+  });
+});

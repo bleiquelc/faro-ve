@@ -154,6 +154,25 @@ const page = await browser.newPage({ viewport: { width: 1080, height: 1350 }, de
 await page.setContent(html, { waitUntil: 'networkidle' });
 await page.evaluate(async () => { if (document.fonts?.ready) await document.fonts.ready; });
 await page.waitForTimeout(500);
+
+// GUARDIA "solo con foto limpia" (18-sep-2026). Si nos pasaron una foto y NO cargó,
+// esto NO es una ficha sin-foto legítima: es una foto rota. El `onerror` de arriba
+// la tapaba con el placeholder y la ficha salía igual — así se publicaron 2 fichas
+// "Sin foto disponible" el 10-sep (la fuente se había mudado de dominio y el caché
+// de IA seguía diciendo "usable" para una URL muerta). Se falla ANTES del screenshot;
+// cron-ig captura el exit≠0, la anota como saltada y sigue con la próxima.
+if (photo) {
+  const loaded = await page.evaluate(() => {
+    const img = document.querySelector('img.fg');
+    return !!img && img.complete && img.naturalWidth > 0 && !document.querySelector('.media.noimg');
+  });
+  if (!loaded) {
+    await browser.close();
+    console.error(`La foto no cargó (${photo}) — no renderizo una ficha con placeholder cuando se esperaba foto.`);
+    process.exit(1);
+  }
+}
+
 await page.screenshot({ path: out, type: 'jpeg', quality: 90, clip: { x: 0, y: 0, width: 1080, height: 1350 } });
 await browser.close();
 
