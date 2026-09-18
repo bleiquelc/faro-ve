@@ -3,6 +3,10 @@
  * (lo reusamos en el Worker; esbuild lo empaqueta, esto solo satisface a TS).
  */
 declare module '*/venezuela-te-busca-core.mjs' {
+  export const BASE: string;
+  export const MAX_TERM_FAILS: number;
+  export function nextFailStreak(streak: number, failed: boolean): number;
+  export function shouldAbortIngest(streak: number, limit?: number): boolean;
   export const SOURCE: string;
   export const SOURCE_URL: string;
   export const UA: string;

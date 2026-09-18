@@ -68,3 +68,23 @@ export function firstErrorLine(text) {
   }
   return '';
 }
+
+const SUMMARY_MAX = 400; // un reporte diario no puede tragarse 5 KB de stderr
+
+/**
+ * Resumen de un fallo de `execFileSync` que nombra la CAUSA, no solo el síntoma.
+ *
+ * POR QUÉ EXISTE (18-sep-2026). La ingesta falló 11 días con `HTTP 404` en todos
+ * los términos, pero el reporte decía solo "spawnSync node ETIMEDOUT": el resumen
+ * leía la cola de stdout y el 404 salía por stderr. Ahora se leen las dos.
+ *
+ * @param {{message?: string, stdout?: unknown, stderr?: unknown} | null | undefined} e
+ * @returns {string}
+ */
+export function execFailureSummary(e) {
+  const tailOf = (/** @type {unknown} */ b) =>
+    String(b ?? '').trim().split('\n').filter(Boolean).slice(-2).join(' | ');
+  const parts = [String(e?.message ?? e ?? 'error desconocido'), tailOf(e?.stdout), tailOf(e?.stderr)].filter(Boolean);
+  const out = parts.join(' — ');
+  return out.length > SUMMARY_MAX ? out.slice(0, SUMMARY_MAX - 1) + '…' : out;
+}

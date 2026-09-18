@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Ingesta ÉTICA de venezuelatebusca.com (→ venezuela-te-busca-app.hellogafaro.workers.dev).
+ * Ingesta ÉTICA de venezuelatebusca.com (→ app.venezuelateayuda.com desde sep-2026; ver núcleo).
  *
  * El PARSEO, geocodificación y mapeo viven en `./venezuela-te-busca-core.mjs`
  * (compartido con el Worker cron-ingest → una sola fuente de verdad). Este script
@@ -30,7 +30,10 @@
  * POOLER (Supabase → Connect → Session pooler) en DATABASE_URL.
  */
 import pg from 'pg';
-import { SOURCE, THROTTLE_MS, sleep, fetchSearchValid, mapRecord } from './venezuela-te-busca-core.mjs';
+import {
+  SOURCE, THROTTLE_MS, sleep, fetchSearchValid, mapRecord,
+  MAX_TERM_FAILS, nextFailStreak, shouldAbortIngest, resumeOffset
+} from './venezuela-te-busca-core.mjs';
 import { TERMS } from './search-terms.mjs';
 
 const args = process.argv.slice(2);
@@ -99,6 +102,10 @@ if (!DRY) {
 const seenIds = new Set(); // dedup en-run por source_id (no reprocesar entre términos)
 const byStatus = {};
 let requests = 0, inserted = 0, scanned = 0, withPhoto = 0, termsDone = 0, stopped = '';
+// Racha de términos fallidos SEGUIDOS. Al llegar a MAX_TERM_FAILS la fuente está
+// caída o cambió (pasó el 6-sep-2026: dominio mudado → 404 en los 155 términos):
+// se aborta con causa clara y sin dar por hecha la racha, en vez de fallar 155 veces.
+let failStreak = 0, aborted = '';
 
 try {
   outer: for (const term of terms) {
@@ -109,9 +116,16 @@ try {
       try {
         res = await fetchSearchValid(term, cursor);
       } catch (e) {
+        failStreak = nextFailStreak(failStreak, true);
+        if (shouldAbortIngest(failStreak)) {
+          aborted = `${failStreak} términos seguidos fallaron (último: ${e.message})`;
+          console.error(`✖ ABORTO LA INGESTA: ${aborted}. La fuente está caída o cambió de dominio/ruta — revisar BASE/DATA_PATH/ROUTE_KEY en venezuela-te-busca-core.mjs.`);
+          break outer;
+        }
         console.error(`✖ term="${term}" falló (${e.message}) — sigo con el próximo término`);
         break;
       }
+      failStreak = nextFailStreak(failStreak, false);
       requests++;
       termPages++;
       const batch = [];
@@ -156,4 +170,12 @@ if (stopped) console.log(`⚠ Cortado: ${stopped}. Re-correr es seguro (idempote
 console.log(`(${((Date.now() - t0) / 1000 / 60).toFixed(1)} min)`);
 // Cursor para la próxima corrida incremental (rota sobre TERMS): índice del término
 // siguiente al último procesado. Lo parsea el mantenimiento diario para avanzar el bloque.
-console.log('CURSOR_NEXT=' + (TERMS.length ? (START + termsDone) % TERMS.length : 0));
+// Si se abortó, la racha fallida NO se da por hecha: el cursor retoma en su primer
+// término (los buenos de antes sí cuentan) y el exit≠0 hace que el mantenimiento lo
+// reporte como problema, con la causa.
+const advanced = aborted ? resumeOffset(termsDone, failStreak) : termsDone;
+console.log('CURSOR_NEXT=' + (TERMS.length ? (START + advanced) % TERMS.length : 0));
+if (aborted) {
+  console.log(`✖ INGESTA ABORTADA: ${aborted} (tope ${MAX_TERM_FAILS}).`);
+  process.exitCode = 2;
+}

@@ -15,14 +15,17 @@
  * Throttle ético (1 req/2s) heredado del núcleo.
  */
 import {
+  BASE,
   THROTTLE_MS,
   sleep,
   fetchSearchValid,
-  mapRecord
+  mapRecord,
+  nextFailStreak,
+  shouldAbortIngest
 } from '../../../../scripts/ingest/venezuela-te-busca-core.mjs';
 import { TERMS } from '../../../../scripts/ingest/search-terms.mjs';
 
-const ROBOTS_URL = 'https://venezuela-te-busca-app.hellogafaro.workers.dev/robots.txt';
+const ROBOTS_URL = `${BASE}/robots.txt`; // sigue al núcleo: la fuente ya se mudó de dominio una vez (sep-2026)
 const DUP_PAGES = 3; // cortar un término tras K páginas seguidas sin NUEVOS a DB
 
 interface SupabaseLike {
@@ -50,14 +53,14 @@ export interface AdapterResult {
   geocodable: number;
 }
 
-/** Chequeo ligero de robots.txt: sin Disallow total ni sobre /_root → permitido. */
+/** Chequeo ligero de robots.txt: sin Disallow total ni sobre la ruta de datos → permitido. */
 async function robotsAllows(ua: string): Promise<boolean> {
   try {
     const res = await fetch(ROBOTS_URL, { headers: { 'user-agent': ua } });
     if (!res.ok) return true;
     const txt = (await res.text()).toLowerCase();
     if (/disallow:\s*\/\s*$/m.test(txt)) return false;
-    if (/disallow:\s*\/_root/m.test(txt)) return false;
+    if (/disallow:\s*\/(_root|finder)/m.test(txt)) return false;
     return true;
   } catch {
     return true;
@@ -92,9 +95,15 @@ export async function ingest(deps: AdapterDeps): Promise<AdapterResult> {
   let duplicates = 0;
   let errors = 0;
   let termsProcessed = 0;
+  // Mismo corte que el script local (núcleo compartido): N términos SEGUIDOS fallidos
+  // = fuente caída o mudada → se corta nombrando la causa, y el cursor retoma en el
+  // primer término de la racha.
+  let failStreak = 0;
+  let streakStartIdx = idx;
+  let aborted = '';
   const seen = new Set<string>();
 
-  while (requests < maxPagesPerRun && termsProcessed < total) {
+  outer: while (requests < maxPagesPerRun && termsProcessed < total) {
     const term = TERMS[idx];
     let cursor: string | null = null;
     let dupPages = 0;
@@ -105,9 +114,19 @@ export async function ingest(deps: AdapterDeps): Promise<AdapterResult> {
         res = await fetchSearchValid(term, cursor);
       } catch (e) {
         errors++;
-        log(`term="${term}" error: ${(e as Error).message}`);
+        const msg = e instanceof Error ? e.message : String(e);
+        if (failStreak === 0) streakStartIdx = idx;
+        failStreak = nextFailStreak(failStreak, true);
+        if (shouldAbortIngest(failStreak)) {
+          aborted = `${failStreak} términos seguidos fallaron (último: ${msg})`;
+          log(`ABORTO LA INGESTA: ${aborted}. ¿La fuente está caída o cambió de dominio/ruta?`);
+          idx = streakStartIdx;
+          break outer;
+        }
+        log(`term="${term}" error: ${msg}`);
         break;
       }
+      failStreak = nextFailStreak(failStreak, false);
       requests++;
 
       const recs: Array<Record<string, unknown>> = [];
@@ -152,7 +171,9 @@ export async function ingest(deps: AdapterDeps): Promise<AdapterResult> {
     imported,
     duplicates,
     errors,
-    notes: `${termsProcessed} términos desde idx ${deps.startCursor}, req ${requests}, nuevos ${imported}, dup ${duplicates}`,
+    notes:
+      `${termsProcessed} términos desde idx ${deps.startCursor}, req ${requests}, nuevos ${imported}, dup ${duplicates}` +
+      (aborted ? ` · ABORTADA: ${aborted}` : ''),
     nextCursor: idx,
     scanned,
     geocodable

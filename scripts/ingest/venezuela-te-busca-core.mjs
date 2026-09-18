@@ -5,12 +5,23 @@
  *   - workers/cron-ingest                    (corre en Cloudflare, escribe vía Supabase)
  *
  * Así el PARSEO y el MAPEO viven en UN solo lugar (no se duplican ni divergen).
- * La fuente es una SPA React Router; los datos salen de /_root.data (turbo-stream,
- * paginado por página). Geocodificación: tabla determinista offline (geocode.mjs).
+ * La fuente es una SPA React Router; los datos salen de `${DATA_PATH}` (turbo-stream,
+ * paginado por cursor). Geocodificación: tabla determinista offline (geocode.mjs).
+ *
+ * MUDANZA DE LA FUENTE (5/6-sep-2026, diagnosticada el 18-sep). La app dejó de
+ * servirse en `venezuela-te-busca-app.hellogafaro.workers.dev` (hoy responde
+ * `404 · error code: 1042` a TODO, igual que un Worker inexistente) y pasó a
+ * `app.venezuelateayuda.com`; además movió el buscador de `/` a `/finder`, así que
+ * los datos ya no están en `/_root.data` (clave `routes/_index`) sino en
+ * `/finder.data` (clave `routes/finder`). Misma forma de registro. Las fotos
+ * conservan el path (`/media/photos/<id>`), solo cambia el host.
+ * Si vuelve a mudarse: cambiar SOLO estas tres constantes (hay test que las fija).
  */
 import { geocode } from './geocode.mjs';
 
-export const BASE = 'https://venezuela-te-busca-app.hellogafaro.workers.dev';
+export const BASE = 'https://app.venezuelateayuda.com';
+export const DATA_PATH = '/finder.data'; // ruta de datos de React Router del buscador
+export const ROUTE_KEY = 'routes/finder'; // clave de esa ruta dentro del turbo-stream
 export const SOURCE = 'venezuela-te-busca';
 export const SOURCE_URL = 'https://venezuelatebusca.com';
 export const UA = 'FaroVE-IngestBot/1.0 (+contacto@faro-ve.com)';
@@ -18,6 +29,62 @@ export const THROTTLE_MS = 2000;
 export const PAGE_SIZE = 20; // la fuente sirve 20 por página
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// ── errores: permanente vs transitorio ──────────────────────────────────────
+// Mismo contrato que scripts/lib/fetch-json.mjs: lo permanente (4xx salvo 429, o
+// una respuesta con OTRA estructura) NO se reintenta. Reintentar un 404 cuatro
+// veces con esperas de 4+6+8 s costaba ~20 s por término × 155 términos ≈ 53 min:
+// la ingesta moría por ETIMEDOUT a los 15 min sin decir nunca "404".
+export function isPermanentError(e) {
+  if (!e) return false;
+  if (e.permanent === true) return true;
+  const st = Number(e.status);
+  return st >= 400 && st < 500 && st !== 429;
+}
+
+/** Error HTTP que conserva el status para poder clasificarlo. */
+function httpError(status, url) {
+  const err = new Error(`HTTP ${status} en ${url}`);
+  err.status = status;
+  return err;
+}
+
+/** Extrae los datos de la ruta; si la fuente cambió de estructura lo dice claro. */
+function routeData(text, url) {
+  let arr;
+  try {
+    arr = JSON.parse(text.split('\n')[0]);
+  } catch {
+    // 200 con HTML (challenge, página de error, SPA-fallback). Mismo criterio que
+    // lib/fetch-json.mjs: puede ser pasajero → TRANSITORIO (se reintenta). Si resulta
+    // permanente, el corte por racha lo frena en MAX_TERM_FAILS términos, no en 155.
+    throw new Error(`La respuesta de ${url} no es turbo-stream JSON (¿página HTML/challenge?)`);
+  }
+  const root = decode(arr);
+  const data = root?.[ROUTE_KEY]?.data;
+  if (!data || typeof data !== 'object') {
+    const err = new Error(
+      `La respuesta de ${url} no trae "${ROUTE_KEY}" — ¿la fuente cambió de ruta o de dominio?`
+    );
+    err.permanent = true;
+    throw err;
+  }
+  return data;
+}
+
+// ── corte por fallos consecutivos (regla #12) ───────────────────────────────
+// Si N términos SEGUIDOS fallan, la fuente está caída o cambió: se aborta con un
+// mensaje claro en vez de recorrer los 155 términos fallando uno por uno.
+export const MAX_TERM_FAILS = 5;
+export const nextFailStreak = (streak, failed) => (failed ? streak + 1 : 0);
+export const shouldAbortIngest = (streak, limit = MAX_TERM_FAILS) => streak >= limit;
+/**
+ * Cuántos términos se dan por HECHOS al abortar: todos menos la racha fallida, para
+ * que la próxima corrida retome en el primer término que falló y no re-escanee los
+ * buenos. El término que dispara el corte no llegó a contarse (de ahí el `- 1`).
+ */
+export const resumeOffset = (termsDone, streak) =>
+  Math.max(0, termsDone - Math.max(0, streak - 1));
 
 // ── turbo-stream decoder (validado contra la fuente) ────────────────────────
 export function decode(arr) {
@@ -38,12 +105,10 @@ export function decode(arr) {
 
 /** Descarga y decodifica una página. `fetchImpl` permite inyectar fetch (Workers). */
 export async function fetchPage(page, fetchImpl = fetch) {
-  const url = `${BASE}/_root.data${page > 1 ? `?page=${page}` : ''}`;
+  const url = `${BASE}${DATA_PATH}${page > 1 ? `?page=${page}` : ''}`;
   const res = await fetchImpl(url, { headers: { 'user-agent': UA, accept: 'text/x-script' } });
-  if (!res.ok) throw new Error(`HTTP ${res.status} en ${url}`);
-  const text = await res.text();
-  const arr = JSON.parse(text.split('\n')[0]);
-  const data = decode(arr)['routes/_index'].data;
+  if (!res.ok) throw httpError(res.status, url);
+  const data = routeData(await res.text(), url);
   const persons = data.persons || [];
   const hasMore = !!data.pagination?.hasMore;
   return {
@@ -68,6 +133,7 @@ export async function fetchPageValid(page, { fetchImpl = fetch, tries = 4 } = {}
       const glitch = r.persons.length === 0 || (page !== 1 && r.echoPage === 1);
       if (!glitch) return r;
     } catch (e) {
+      if (isPermanentError(e)) throw e; // 404/estructura nueva: reintentar es gasto inútil
       if (i === tries - 1 && last.persons.length === 0) throw e;
     }
     if (i < tries - 1) await sleep(THROTTLE_MS * (i + 2));
@@ -82,11 +148,10 @@ export async function fetchPageValid(page, { fetchImpl = fetch, tries = 4 } = {}
 // primero). Primera pagina: sin cursor; siguientes: se reenvia el nextCursor.
 export async function fetchSearch(query, cursor = null, fetchImpl = fetch) {
   const cq = cursor ? `&cursor=${encodeURIComponent(cursor)}` : '';
-  const url = `${BASE}/_root.data?query=${encodeURIComponent(query)}${cq}`;
+  const url = `${BASE}${DATA_PATH}?query=${encodeURIComponent(query)}${cq}`;
   const res = await fetchImpl(url, { headers: { 'user-agent': UA, accept: 'text/x-script' } });
-  if (!res.ok) throw new Error(`HTTP ${res.status} en ${url}`);
-  const arr = JSON.parse((await res.text()).split('\n')[0]);
-  const data = decode(arr)['routes/_index'].data;
+  if (!res.ok) throw httpError(res.status, url);
+  const data = routeData(await res.text(), url);
   return {
     persons: data.persons || [],
     nextCursor: data.pagination?.nextCursor ?? null,
@@ -103,7 +168,7 @@ export async function fetchSearchValid(query, cursor = null, { fetchImpl = fetch
       last = r;
       if (r.persons.length > 0 || !r.hasMore) return r;
     } catch (e) {
-      if (i === tries - 1) throw e;
+      if (i === tries - 1 || isPermanentError(e)) throw e;
     }
     await sleep(THROTTLE_MS * (i + 2));
   }

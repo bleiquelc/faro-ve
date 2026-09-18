@@ -23,7 +23,7 @@ import path from 'path';
 import { execFileSync } from 'child_process';
 import { cacheStats } from '../buffer/ai-cache.mjs';
 import { fetchJson } from '../lib/fetch-json.mjs';
-import { looksLikeRealError, firstErrorLine } from '../lib/err-log.mjs';
+import { looksLikeRealError, firstErrorLine, execFailureSummary } from '../lib/err-log.mjs';
 import { analyzeIgLog } from '../lib/ig-watchdog.mjs';
 
 const HOME = process.env.HOME;
@@ -123,8 +123,13 @@ if (process.env.MAINT_HEALTH_ONLY === '1' || !networkUp) {
     if (mCur) state.ingestCursor = parseInt(mCur[1], 10);
     log(`  ingesta: +${mNew ? mNew[1] : '?'} nuevas (bloque desde término ${start}; próximo ${state.ingestCursor ?? '?'})`);
   } catch (e) {
-    const tail = (e.stdout ? e.stdout.toString() : '').trim().split('\n').slice(-2).join(' | ');
-    problem('Ingesta falló: ' + (e.message || e) + (tail ? ' — ' + tail : ''));
+    // stdout + stderr: la causa real (p. ej. "HTTP 404", "INGESTA ABORTADA") suele
+    // salir por stderr; con solo stdout el reporte decía "ETIMEDOUT" y nada más.
+    problem('Ingesta falló: ' + execFailureSummary(e));
+    // Un aborto limpio (exit 2) igual informa hasta dónde llegó: se conserva ese
+    // avance. Un timeout no imprime CURSOR_NEXT → el cursor queda como estaba.
+    const mCur = String(e.stdout ?? '').match(/CURSOR_NEXT=(\d+)/);
+    if (mCur) state.ingestCursor = parseInt(mCur[1], 10);
   }
 }
 

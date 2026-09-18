@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { looksLikeRealError } from '../../scripts/lib/err-log.mjs';
+import { looksLikeRealError, execFailureSummary } from '../../scripts/lib/err-log.mjs';
 
 /**
  * El mantenimiento alertaba "el reel registró errores" TODOS LOS DÍAS desde el
@@ -85,5 +85,35 @@ describe('looksLikeRealError — errores reales que SÍ deben alertar', () => {
     expect(looksLikeRealError('getaddrinfo ENOTFOUND api.buffer.com')).toBe(true);
     expect(looksLikeRealError('npm ERR! code ELIFECYCLE')).toBe(true);
     expect(looksLikeRealError('Error: Cannot find module "./x.mjs"')).toBe(true);
+  });
+});
+
+/**
+ * 18-sep-2026. La ingesta murió 11 días seguidos por `HTTP 404` en TODOS los
+ * términos, pero el reporte diario decía solo "spawnSync node ETIMEDOUT": el
+ * resumen leía la cola de STDOUT y el 404 salía por STDERR. El síntoma tapó la causa.
+ */
+describe('execFailureSummary — el reporte nombra la causa, no solo el síntoma', () => {
+  it('incluye la cola de stderr además de la de stdout', () => {
+    const e = {
+      message: 'spawnSync node ETIMEDOUT',
+      stdout: Buffer.from('[ingest] venezuela-te-busca — APPLY\n[25/155] "ana" +0\n'),
+      stderr: Buffer.from('✖ term="ana" falló (HTTP 404 en https://x/_root.data?query=ana)\n✖ term="eva" falló (HTTP 404 en https://x/_root.data?query=eva)\n')
+    };
+    const s = execFailureSummary(e);
+    expect(s).toMatch(/ETIMEDOUT/);
+    expect(s).toMatch(/HTTP 404/);
+    expect(s).toMatch(/\[25\/155\]/);
+  });
+
+  it('funciona con strings, sin stderr y sin stdout', () => {
+    expect(execFailureSummary({ message: 'boom', stdout: 'a\nb\nc', stderr: '' })).toBe('boom — b | c');
+    expect(execFailureSummary({ message: 'boom' })).toBe('boom');
+    expect(execFailureSummary(new Error('solo mensaje'))).toBe('solo mensaje');
+  });
+
+  it('acota el largo: un reporte diario no se traga 5 KB de stderr', () => {
+    const e = { message: 'x', stderr: 'y'.repeat(5000) };
+    expect(execFailureSummary(e).length).toBeLessThanOrEqual(420);
   });
 });
