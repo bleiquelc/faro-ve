@@ -14,9 +14,9 @@
   <key>ProgramArguments</key>
   <array>
     <string>/usr/local/bin/node</string>
-    <string>/Users/bleiquelcolina/Desktop/faro-ve/scripts/reel/daily-reel.mjs</string>
+    <string>/Users/bleiquelcolina/Projects/faro-ve/scripts/reel/daily-reel.mjs</string>
   </array>
-  <key>WorkingDirectory</key><string>/Users/bleiquelcolina/Desktop/faro-ve</string>
+  <key>WorkingDirectory</key><string>/Users/bleiquelcolina/Projects/faro-ve</string>
   <key>StartCalendarInterval</key>
   <dict>
     <key>Hour</key><integer>9</integer>
