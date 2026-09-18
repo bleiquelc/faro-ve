@@ -3,6 +3,27 @@
 > Documento vivo. Cierre del día actualiza este archivo + crea
 > `docs/SESSIONS/YYYY-MM-DD-day{N}.md` con detalle.
 
+## ⚡ ÚLTIMO AVANCE — 18-sep-2026 · LA FUENTE SE MUDÓ DE DOMINIO — IG e ingesta reparados
+
+> Sin commit todavía (cambios en el árbol de trabajo). Detalle: `docs/SESSIONS/2026-09-18-fuente-mudada-ig-ingesta.md`.
+
+**Causa raíz única:** el 5/6-sep Venezuela Te Busca pasó de `venezuela-te-busca-app.hellogafaro.workers.dev`
+(hoy `404 · error code: 1042` a todo) a **`app.venezuelateayuda.com`**, y el buscador de `/` a `/finder`.
+Consecuencias: ingesta 11 días en `ETIMEDOUT` (404 en todos los términos, sin decirlo) y cron IG 12 días en 0
+(«Sin foto limpia» = las 20.392 `photo_url` eran hotlink al host muerto; también fotos rotas en la PWA).
+
+**Hecho:** núcleo de ingesta al dominio nuevo + corte por fallos consecutivos + reporte con stderr ·
+migración **0034 APLICADA** (20.392 fichas + 62 señales, 1 fila de auditoría) · 1.853 veredictos de visión
+conservados · guardia en `render-ficha` (nunca más una ficha con placeholder cuando se esperaba foto) ·
+el cron salta desiertos de fotos y loguea el motivo real · alerta nueva en el watchdog. **198/198 tests.**
+
+**PENDIENTE FOUNDER:** (1) llave de API de Venezuela Reporta — cerraron la API (`401`), el cruce «a salvo en VR»
+está apagado en silencio; (2) borrar de IG las 2 fichas sin foto del 10-sep; (3) atribución/enlace de la fuente
+(`venezuelatebusca.com` ahora redirige a una web de donaciones); (4) reel del 18-sep generado sin programar;
+(5) evaluar espejo propio de fotos (el hotlink es un punto único de fallo).
+
+---
+
 ## ⚡ ÚLTIMO AVANCE — 6-ago-2026 · MAR DE NOMBRES — el rediseño memorial iterado EN VIVO con el founder
 
 > Commit `feat(memorial): mar de nombres` + deploy `b43b1860` LIVE. Itera sobre el modo memorial de anoche.

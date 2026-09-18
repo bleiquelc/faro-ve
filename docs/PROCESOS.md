@@ -109,7 +109,9 @@ Producción = Worker cron-ingest en Cloudflare (corre solo `*/5`, ~90 págs/corr
 - Los scripts npm `ingest:dry`/`ingest:apply` apuntan a un `run.ts` INEXISTENTE → invocar el `.mjs` con `node` directamente.
 - La fuente glitchea (página vacía espuria); `fetchPageValid` reintenta hasta 4×.
 - Aplicar **0028** (no quedarse en 0025): 0025 excluía a quienes no geocodifican (~15%); 0028 los acepta con punto null. Si la RPC da "permission denied", falta 0026/0028.
-- BASE de fetch = espejo `venezuela-te-busca-app.hellogafaro.workers.dev`; SOURCE_URL de atribución = `https://venezuelatebusca.com` (no confundir).
+- BASE de fetch = **`https://app.venezuelateayuda.com`** + `DATA_PATH=/finder.data` + `ROUTE_KEY=routes/finder` (constantes del núcleo, con test que las fija). **La fuente se mudó el 5/6-sep-2026**: el espejo viejo `venezuela-te-busca-app.hellogafaro.workers.dev` responde `404 · error code: 1042` a todo. SOURCE_URL de atribución = `https://venezuelatebusca.com` (hoy redirige a la web de donaciones — pendiente founder). Detalle: `docs/SESSIONS/2026-09-18-fuente-mudada-ig-ingesta.md`.
+- **Si vuelve a mudarse**: síntoma = `✖ ABORTO LA INGESTA: 5 términos seguidos fallaron` (exit 2, cursor intacto) + alerta IG «las fotos de la fuente no responden». Arreglo = las 3 constantes del núcleo + migración tipo `0034` (host de `photo_url`) + `node scripts/buffer/migrate-photo-cache-host.mjs --apply` con el cron pausado (conserva los veredictos de visión ya pagados).
+- Lo permanente (4xx salvo 429, o respuesta con otra estructura) **no se reintenta** (`isPermanentError`); lo transitorio sí, 4×.
 
 **Reglas.** #1 · #3 · #9 (source/source_id/source_url) · #11 · #12 (scraper ético: robots.txt, UA `FaroVE-IngestBot/1.0`, throttle 1 req/2 s) · #13 (escritura masiva solo con OK founder) · #18/#19 (auto_approved por `import_sources.trust`).
 
@@ -312,7 +314,10 @@ tail -f ~/.faro-ig/cron.log                           # log en vivo
 
 **Gotchas.**
 - **El candidato sale de un BARRIDO CON CURSOR** (`state.cursor`, arreglado 29-jul), no de un lote fijo. Antes pedía `limit=400` sin offset y, como `/api/persons` ordena `created_at DESC`, veía siempre las mismas 400 filas de 47.820 → se congeló ~24h publicando 0 y ~8.800 personas con foto nunca entraron. Si volvés a tocar la consulta: **mantené el offset y el desempate por `id`** (sin desempate la paginación duplica/saltea: la ingesta inserta lotes con `created_at` idéntico).
-- Solo se publica CON foto limpia (decisión founder); sin foto limpia → se salta (reintenta 3d). El cron publica pocas a propósito.
+- Solo se publica CON foto limpia (decisión founder); sin foto limpia → se salta (reintenta 3d). El cron publica pocas a propósito. El log dice el **motivo real** (`— sin photo_url` / `— poster: …` / `— unreachable: HTTP 404`) y queda en `state.skipped[id].why`. `render-ficha` sale `exit 1` si le pasaron `PHOTO_URL` y la imagen no cargó (el 10-sep salieron 2 fichas con placeholder por una URL muerta con veredicto «usable» en caché).
+- **Desiertos de fotos**: hay tramos del corpus sin fotos (offsets ~33600-34800). El barrido sigue hasta la primera página con alguien con foto (tope `MAX_PAGES_PER_RUN`) y le da los intentos primero a las fichas con foto (`scripts/lib/ig-candidates.mjs`).
+- **Las fotos son hotlink a la fuente** (no hay espejo): si la fuente cae o se muda, IG publica 0 y la PWA muestra fotos rotas. Lo vigila `ig-watchdog` («las fotos de la fuente no responden», ≥10 `unreachable`/24 h).
+- **Venezuela Reporta cerró su API (sep-2026)**: `401`, exige `x-api-key` (pedir a ayuda@venezuelareporta.org). Sin llave, `vrMatch` devuelve null en silencio → el cruce «a salvo en VR» y el enriquecimiento están apagados. Pendiente founder.
 - `Intentos=0` ≠ `Intentos>0, Publicadas=0`. El primero es **cola vacía o rota** (mirar el cursor); el segundo es el filtro IA rechazando fotos, que es por diseño. El mantenimiento vigila ambos (`scripts/lib/ig-watchdog.mjs`).
 - Personas SIN coords (ingestadas sin geocodificar desde 0028) **no llegan al publicador**: `/api/persons` sin `q` filtra `lat is not null`. Vacío conocido, no resuelto.
 - Hosting de imágenes: git worktree rama `fichas-cdn` → raw.githubusercontent. Si el push desde launchd falla por auth (keychain) → migrar a Supabase Storage/R2 (roadmap).
