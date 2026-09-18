@@ -5,7 +5,7 @@
 
 ## ⚡ ÚLTIMO AVANCE — 18-sep-2026 · LA FUENTE SE MUDÓ DE DOMINIO — IG e ingesta reparados
 
-> Sin commit todavía (cambios en el árbol de trabajo). Detalle: `docs/SESSIONS/2026-09-18-fuente-mudada-ig-ingesta.md`.
+> Commits en la rama `fix/fuente-mudada-2026-09-18` (5, por feature; sin push ni merge a `main` — pendiente OK founder). Detalle: `docs/SESSIONS/2026-09-18-fuente-mudada-ig-ingesta.md`.
 
 **Causa raíz única:** el 5/6-sep Venezuela Te Busca pasó de `venezuela-te-busca-app.hellogafaro.workers.dev`
 (hoy `404 · error code: 1042` a todo) a **`app.venezuelateayuda.com`**, y el buscador de `/` a `/finder`.
